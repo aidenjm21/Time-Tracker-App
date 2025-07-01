@@ -1,0 +1,128 @@
+# replit.md
+
+## Overview
+
+This is a Streamlit-based time tracking analytics application that processes and visualizes time spent data, particularly focused on book reading activities. The application provides data analysis capabilities including completion status tracking, user activity summaries, and time allocation reporting.
+
+## System Architecture
+
+**Frontend Architecture:**
+- Single-page Streamlit application (`app.py`)
+- Pure Python-based web interface with automatic UI generation
+- Real-time data processing and visualization
+
+**Backend Architecture:**
+- Serverless architecture using Streamlit's built-in server
+- In-memory data processing using pandas and numpy
+- No persistent backend services required
+
+**Data Processing:**
+- Pandas for data manipulation and analysis
+- Numpy for numerical computations
+- CSV/Excel file upload support for data ingestion
+
+## Key Components
+
+**Core Application (`app.py`):**
+- Main Streamlit application entry point
+- Data processing and analysis functions
+- Time formatting utilities
+- Completion status calculation logic
+
+**Key Functions:**
+- `format_seconds_to_time()`: Converts seconds to human-readable time format (hh:mm:ss)
+- `calculate_completion_status()`: Determines completion percentage based on time spent vs estimated time
+- `process_book_summary()`: Generates book-level summary analytics
+
+**Data Processing Pipeline:**
+1. File upload and data ingestion
+2. Data validation and cleaning
+3. Grouping and aggregation by book titles
+4. User activity analysis
+5. Time allocation calculations
+6. Completion status determination
+
+## Data Flow
+
+1. **Input**: User uploads time tracking data (CSV/Excel format)
+2. **Processing**: 
+   - Data is loaded into pandas DataFrame
+   - Grouped by 'Card name' (book titles)
+   - Aggregated by user and time spent
+   - Completion ratios calculated
+3. **Output**: 
+   - Book summary tables
+   - User activity reports
+   - Time allocation visualizations
+
+**Expected Data Schema:**
+- `Card name`: Book or task identifier
+- `Time spent (s)`: Time spent in seconds
+- `User`: User identifier
+- Additional fields for estimates and metadata
+
+## External Dependencies
+
+**Python Libraries:**
+- `streamlit`: Web application framework
+- `pandas`: Data manipulation and analysis
+- `numpy`: Numerical computing
+- `datetime`: Date and time handling
+- `collections`: Data structure utilities
+- `io`: Input/output operations
+
+**Deployment Requirements:**
+- Python 3.7+
+- Streamlit runtime environment
+- Memory sufficient for data processing (varies by dataset size)
+
+## Deployment Strategy
+
+**Replit Deployment:**
+- Single-file Streamlit application
+- Automatic dependency management via requirements.txt (if present)
+- Web-based interface accessible through Replit's hosting
+
+**Local Development:**
+- Run with `streamlit run app.py`
+- Hot reload for development
+- No database setup required
+
+**Production Considerations:**
+- Stateless application design
+- File upload size limitations
+- Memory usage scales with dataset size
+- No persistent data storage
+
+## Changelog
+
+```
+Changelog:
+- July 01, 2025. Initial setup
+```
+
+## User Preferences
+
+```
+Preferred communication style: Simple, everyday language.
+```
+
+## Additional Notes
+
+**Architecture Decisions:**
+- **Streamlit Choice**: Chosen for rapid prototyping and simple deployment, eliminating need for separate frontend/backend
+- **In-Memory Processing**: Suitable for typical file sizes, avoiding database complexity
+- **Function-Based Design**: Modular approach for easy testing and maintenance
+- **Pandas/Numpy Stack**: Standard Python data science tools for robust data manipulation
+
+**Limitations:**
+- No persistent data storage
+- Single-user session model
+- File size constraints based on available memory
+- No real-time data synchronization
+
+**Future Enhancements:**
+- Database integration for persistent storage
+- Multi-user authentication
+- Real-time data updates
+- Advanced visualization capabilities
