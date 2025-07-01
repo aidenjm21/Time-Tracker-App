@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-from datetime import timedelta
+from datetime import datetime, timedelta
 from collections import Counter
 import io
 
@@ -69,6 +69,25 @@ def process_book_summary(df):
         st.error(f"Error processing book summary: {str(e)}")
         return pd.DataFrame()
 
+def convert_date_format(date_str):
+    """Convert date from mm/dd/yyyy format to dd/mm/yyyy format"""
+    try:
+        if pd.isna(date_str) or date_str == 'N/A':
+            return 'N/A'
+        
+        # Parse the date string - handle both with and without time
+        if ' ' in str(date_str):
+            # Has time component
+            date_part, time_part = str(date_str).split(' ', 1)
+            date_obj = datetime.strptime(date_part, '%m/%d/%Y')
+            return f"{date_obj.strftime('%d/%m/%Y')} {time_part}"
+        else:
+            # Date only
+            date_obj = datetime.strptime(str(date_str), '%m/%d/%Y')
+            return date_obj.strftime('%d/%m/%Y')
+    except:
+        return str(date_str)  # Return original if conversion fails
+
 def process_user_task_breakdown(df):
     """Generate User Task Breakdown Table with aggregated time"""
     try:
@@ -76,12 +95,29 @@ def process_user_task_breakdown(df):
         has_date = 'Date started (f)' in df.columns
         
         if has_date:
-            # Group by User, Book Title (Card name), List, and Date started
-            # Aggregate time spent for duplicate combinations
-            aggregated = df.groupby(['User', 'Card name', 'List', 'Date started (f)'])['Time spent (s)'].sum().reset_index()
+            # Convert date format from mm/dd/yyyy to datetime for proper sorting
+            df_copy = df.copy()
+            df_copy['Date_parsed'] = pd.to_datetime(df_copy['Date started (f)'], format='%m/%d/%Y %I:%M %p', errors='coerce')
+            
+            # Group by User, Book Title, and List to aggregate multiple sessions
+            # For each group, sum the time and take the earliest date
+            agg_funcs = {
+                'Time spent (s)': 'sum',
+                'Date_parsed': 'min',  # Get earliest date
+                'Date started (f)': 'first'  # Keep original format for fallback
+            }
+            
+            aggregated = df_copy.groupby(['User', 'Card name', 'List']).agg(agg_funcs).reset_index()
+            
+            # Convert the earliest date back to dd/mm/yyyy format for display
+            aggregated['Date_display'] = aggregated['Date_parsed'].apply(
+                lambda x: x.strftime('%d/%m/%Y %I:%M %p') if pd.notna(x) else 'N/A'
+            )
             
             # Rename columns for clarity
+            aggregated = aggregated[['User', 'Card name', 'List', 'Date_display', 'Time spent (s)']]
             aggregated.columns = ['User', 'Book Title', 'List', 'Date', 'Time Spent (s)']
+            
         else:
             # Group by User, Book Title (Card name), and List (stage/task)
             # Aggregate time spent for duplicate combinations
@@ -239,7 +275,7 @@ def main():
             
             **Optional columns:**
             - `Card estimate(s)` - Estimated creation time in seconds
-            - `Date started (f)` - Date when the task was started in dd/mm/yyyy hh:mm AM/PM format (used in User Task Breakdown)
+            - `Date started (f)` - Date when the task was started in mm/dd/yyyy hh:mm AM/PM format (displayed as dd/mm/yyyy in User Task Breakdown)
             - `Board name` - Trello board name
             - `Labels` - Any labels associated with the card
             - Any other Trello export columns
