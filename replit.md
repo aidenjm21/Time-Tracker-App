@@ -13,8 +13,9 @@ This is a Streamlit-based time tracking analytics application that processes and
 
 **Backend Architecture:**
 - Serverless architecture using Streamlit's built-in server
+- PostgreSQL database for persistent data storage
 - In-memory data processing using pandas and numpy
-- No persistent backend services required
+- SQLAlchemy for database operations with duplicate prevention
 
 **Data Processing:**
 - Pandas for data manipulation and analysis
@@ -70,6 +71,8 @@ This is a Streamlit-based time tracking analytics application that processes and
 - `datetime`: Date and time handling
 - `collections`: Data structure utilities
 - `io`: Input/output operations
+- `sqlalchemy`: Database ORM for PostgreSQL operations
+- `psycopg2-binary`: PostgreSQL database adapter
 
 **Deployment Requirements:**
 - Python 3.7+
@@ -99,6 +102,9 @@ This is a Streamlit-based time tracking analytics application that processes and
 ```
 Changelog:
 - July 01, 2025. Initial setup
+- July 01, 2025. Added PostgreSQL database integration with duplicate prevention
+- July 01, 2025. Added user filtering interface with date range selection
+- July 01, 2025. Implemented tabbed interface for CSV upload and user task filtering
 ```
 
 ## User Preferences
