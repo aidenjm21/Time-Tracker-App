@@ -74,7 +74,7 @@ def process_user_task_breakdown(df):
     try:
         # Group by User, Book Title (Card name), and List (stage/task)
         # Aggregate time spent for duplicate combinations
-        aggregated = df.groupby(['User', 'Card name', 'List name'])['Time spent (s)'].sum().reset_index()
+        aggregated = df.groupby(['User', 'Card name', 'List'])['Time spent (s)'].sum().reset_index()
         
         # Rename columns for clarity
         aggregated.columns = ['User', 'Book Title', 'List', 'Time Spent (s)']
@@ -96,7 +96,7 @@ def process_user_task_breakdown(df):
 
 def validate_csv_columns(df):
     """Validate that the CSV has required columns"""
-    required_columns = ['Card name', 'User', 'List name', 'Time spent (s)']
+    required_columns = ['Card name', 'User', 'List', 'Time spent (s)']
     missing_columns = [col for col in required_columns if col not in df.columns]
     
     if missing_columns:
@@ -128,7 +128,7 @@ def main():
             
             if not is_valid:
                 st.error(f"Invalid CSV format: {validation_message}")
-                st.info("Required columns: Card name, User, List name, Time spent (s)")
+                st.info("Required columns: Card name, User, List, Time spent (s)")
                 st.info("Optional columns: Card estimate(s)")
                 return
             
@@ -190,10 +190,10 @@ def main():
                 col1, col2, col3, col4 = st.columns(4)
                 
                 with col1:
-                    st.metric("Total Books", df['Card name'].nunique())
+                    st.metric("Total Books", int(df['Card name'].nunique()))
                 
                 with col2:
-                    st.metric("Total Users", df['User'].nunique())
+                    st.metric("Total Users", int(df['User'].nunique()))
                 
                 with col3:
                     total_time_hours = df['Time spent (s)'].sum() / 3600
@@ -217,7 +217,7 @@ def main():
             **Required columns:**
             - `Card name` - The book title
             - `User` - Team member name
-            - `List name` - Stage of process/task
+            - `List` - Stage of process/task
             - `Time spent (s)` - Actual time spent in seconds
             
             **Optional columns:**
