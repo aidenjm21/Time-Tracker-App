@@ -343,12 +343,8 @@ def main():
                     st.info("Optional columns: Card estimate(s)")
                     return
                 
-                # Save to database with progress indicator
-                with st.spinner("Saving data to database..."):
-                    records_added = save_to_database(df, engine)
-                    # Clear user cache after new data is added
-                    if records_added > 0:
-                        st.cache_data.clear()
+                # Save to database
+                records_added = save_to_database(df, engine)
                 
                 if records_added > 0:
                     st.success(f"Added {records_added} new records to database (duplicates ignored)")
