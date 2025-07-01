@@ -72,18 +72,38 @@ def process_book_summary(df):
 def process_user_task_breakdown(df):
     """Generate User Task Breakdown Table with aggregated time"""
     try:
-        # Group by User, Book Title (Card name), and List (stage/task)
-        # Aggregate time spent for duplicate combinations
-        aggregated = df.groupby(['User', 'Card name', 'List'])['Time spent (s)'].sum().reset_index()
+        # Check if Date column exists in the CSV
+        has_date = 'Date' in df.columns
         
-        # Rename columns for clarity
-        aggregated.columns = ['User', 'Book Title', 'List', 'Time Spent (s)']
+        if has_date:
+            # Group by User, Book Title (Card name), List, and Date
+            # Aggregate time spent for duplicate combinations
+            aggregated = df.groupby(['User', 'Card name', 'List', 'Date'])['Time spent (s)'].sum().reset_index()
+            
+            # Rename columns for clarity
+            aggregated.columns = ['User', 'Book Title', 'List', 'Date', 'Time Spent (s)']
+        else:
+            # Group by User, Book Title (Card name), and List (stage/task)
+            # Aggregate time spent for duplicate combinations
+            aggregated = df.groupby(['User', 'Card name', 'List'])['Time spent (s)'].sum().reset_index()
+            
+            # Rename columns for clarity
+            aggregated.columns = ['User', 'Book Title', 'List', 'Time Spent (s)']
+            
+            # Add empty Date column if not present
+            aggregated['Date'] = 'N/A'
         
         # Format time spent
         aggregated['Time Spent'] = aggregated['Time Spent (s)'].apply(format_seconds_to_time)
         
         # Drop the seconds column as we now have formatted time
         aggregated = aggregated.drop('Time Spent (s)', axis=1)
+        
+        # Reorder columns to put Date after List
+        if has_date:
+            aggregated = aggregated[['User', 'Book Title', 'List', 'Date', 'Time Spent']]
+        else:
+            aggregated = aggregated[['User', 'Book Title', 'List', 'Date', 'Time Spent']]
         
         # Sort by User → Book Title → List
         aggregated = aggregated.sort_values(['User', 'Book Title', 'List'])
@@ -222,6 +242,7 @@ def main():
             
             **Optional columns:**
             - `Card estimate(s)` - Estimated creation time in seconds
+            - `Date` - Date when the task was started (used in User Task Breakdown)
             - `Board name` - Trello board name
             - `Labels` - Any labels associated with the card
             - Any other Trello export columns
