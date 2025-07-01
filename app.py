@@ -44,9 +44,10 @@ def init_database():
         return None
 
 def save_to_database(df, engine):
-    """Save CSV data to database, ignoring duplicates"""
+    """Save CSV data to database using bulk operations, ignoring duplicates"""
     try:
-        records_added = 0
+        # Prepare all data first
+        records_to_insert = []
         
         for _, row in df.iterrows():
             # Parse date if available
@@ -68,27 +69,34 @@ def save_to_database(df, engine):
                 'board_name': row.get('Board name', ''),
                 'labels': row.get('Labels', '')
             }
-            
-            try:
-                with engine.connect() as conn:
-                    conn.execute(text('''
+            records_to_insert.append(data)
+        
+        # Use bulk insert with ON CONFLICT DO NOTHING for better performance
+        records_added = 0
+        with engine.connect() as conn:
+            for data in records_to_insert:
+                try:
+                    result = conn.execute(text('''
                         INSERT INTO trello_time_tracking 
                         (card_name, user_name, list_name, time_spent_seconds, date_started, 
                          card_estimate_seconds, board_name, labels)
                         VALUES (:card_name, :user_name, :list_name, :time_spent_seconds, 
                                 :date_started, :card_estimate_seconds, :board_name, :labels)
+                        ON CONFLICT (card_name, user_name, list_name, date_started, time_spent_seconds) 
+                        DO NOTHING
                     '''), data)
-                    conn.commit()
-                    records_added += 1
-            except IntegrityError:
-                # Duplicate record, skip
-                continue
+                    if result.rowcount > 0:
+                        records_added += 1
+                except:
+                    continue
+            conn.commit()
         
         return records_added
     except Exception as e:
         st.error(f"Error saving to database: {str(e)}")
         return 0
 
+@st.cache_data(ttl=300)  # Cache for 5 minutes
 def get_users_from_database(engine):
     """Get list of unique users from database"""
     try:
@@ -335,8 +343,13 @@ def main():
                     st.info("Optional columns: Card estimate(s)")
                     return
                 
-                # Save to database
-                records_added = save_to_database(df, engine)
+                # Save to database with progress indicator
+                with st.spinner("Saving data to database..."):
+                    records_added = save_to_database(df, engine)
+                    # Clear user cache after new data is added
+                    if records_added > 0:
+                        st.cache_data.clear()
+                
                 if records_added > 0:
                     st.success(f"Added {records_added} new records to database (duplicates ignored)")
                 else:
@@ -472,26 +485,46 @@ def main():
                 help="Leave empty to include all dates"
             )
         
+        # Update button
+        update_button = st.button("🔄 Update Table", type="primary")
+        
         # Validate date range
         if start_date and end_date and start_date > end_date:
             st.error("Start date must be before end date")
             return
         
-        # Filter and display results
-        if selected_user:
-            user_tasks = get_user_tasks_from_database(
-                engine, 
-                selected_user, 
-                start_date, 
-                end_date
-            )
+        # Filter and display results only when button is clicked or on initial load
+        if selected_user and (update_button or 'user_tasks_displayed' not in st.session_state):
+            with st.spinner("Loading user tasks..."):
+                user_tasks = get_user_tasks_from_database(
+                    engine, 
+                    selected_user, 
+                    start_date, 
+                    end_date
+                )
+            
+            # Store in session state to prevent automatic reloading
+            st.session_state.user_tasks_displayed = True
+            st.session_state.current_user_tasks = user_tasks
+            st.session_state.current_user = selected_user
+            st.session_state.current_start_date = start_date
+            st.session_state.current_end_date = end_date
+        
+        # Display cached results if available
+        if ('current_user_tasks' in st.session_state and 
+            'current_user' in st.session_state and 
+            st.session_state.current_user == selected_user):
+            
+            user_tasks = st.session_state.current_user_tasks
+            display_start_date = st.session_state.get('current_start_date')
+            display_end_date = st.session_state.get('current_end_date')
             
             if not user_tasks.empty:
                 st.subheader(f"Tasks for {selected_user}")
                 
                 # Show date range info
-                if start_date or end_date:
-                    date_info = f"Date range: {start_date.strftime('%d/%m/%Y') if start_date else 'All'} to {end_date.strftime('%d/%m/%Y') if end_date else 'All'}"
+                if display_start_date or display_end_date:
+                    date_info = f"Date range: {display_start_date.strftime('%d/%m/%Y') if display_start_date else 'All'} to {display_end_date.strftime('%d/%m/%Y') if display_end_date else 'All'}"
                     st.info(date_info)
                 
                 st.dataframe(
@@ -532,6 +565,9 @@ def main():
             
             else:
                 st.warning(f"No tasks found for {selected_user} in the specified date range.")
+        
+        elif selected_user and 'user_tasks_displayed' not in st.session_state:
+            st.info("Click 'Update Table' to load tasks for the selected user.")
 
 if __name__ == "__main__":
     main()
