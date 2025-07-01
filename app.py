@@ -97,7 +97,14 @@ def process_user_task_breakdown(df):
         if has_date:
             # Convert date format from mm/dd/yyyy to datetime for proper sorting
             df_copy = df.copy()
-            df_copy['Date_parsed'] = pd.to_datetime(df_copy['Date started (f)'], format='%m/%d/%Y %I:%M %p', errors='coerce')
+            
+            # Try multiple date formats to handle different possible formats
+            df_copy['Date_parsed'] = pd.to_datetime(df_copy['Date started (f)'], errors='coerce')
+            
+            # If initial parsing failed, try specific formats
+            if df_copy['Date_parsed'].isna().all():
+                # Try mm/dd/yyyy format without time
+                df_copy['Date_parsed'] = pd.to_datetime(df_copy['Date started (f)'], format='%m/%d/%Y', errors='coerce')
             
             # Group by User, Book Title, and List to aggregate multiple sessions
             # For each group, sum the time and take the earliest date
@@ -109,10 +116,14 @@ def process_user_task_breakdown(df):
             
             aggregated = df_copy.groupby(['User', 'Card name', 'List']).agg(agg_funcs).reset_index()
             
-            # Convert the earliest date back to dd/mm/yyyy format for display
-            aggregated['Date_display'] = aggregated['Date_parsed'].apply(
-                lambda x: x.strftime('%d/%m/%Y %I:%M %p') if pd.notna(x) else 'N/A'
-            )
+            # Convert the earliest date back to dd/mm/yyyy format for display (date only, no time)
+            def format_date_display(date_val):
+                if pd.notna(date_val):
+                    return date_val.strftime('%d/%m/%Y')
+                else:
+                    return 'N/A'
+            
+            aggregated['Date_display'] = aggregated['Date_parsed'].apply(format_date_display)
             
             # Rename columns for clarity
             aggregated = aggregated[['User', 'Card name', 'List', 'Date_display', 'Time spent (s)']]
@@ -275,7 +286,7 @@ def main():
             
             **Optional columns:**
             - `Card estimate(s)` - Estimated creation time in seconds
-            - `Date started (f)` - Date when the task was started in mm/dd/yyyy hh:mm AM/PM format (displayed as dd/mm/yyyy in User Task Breakdown)
+            - `Date started (f)` - Date when the task was started in mm/dd/yyyy format (displayed as dd/mm/yyyy in User Task Breakdown)
             - `Board name` - Trello board name
             - `Labels` - Any labels associated with the card
             - Any other Trello export columns
