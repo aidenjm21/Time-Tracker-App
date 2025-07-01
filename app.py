@@ -10,7 +10,7 @@ from sqlalchemy.exc import IntegrityError
 
 @st.cache_resource
 def init_database():
-    """Initialize database connection and create tables"""
+    """Initialise database connection and create tables"""
     try:
         database_url = os.getenv('DATABASE_URL')
         if not database_url:
@@ -40,7 +40,7 @@ def init_database():
         
         return engine
     except Exception as e:
-        st.error(f"Database initialization failed: {str(e)}")
+        st.error(f"Database initialisation failed: {str(e)}")
         return None
 
 def save_to_database(df, engine):
@@ -307,16 +307,16 @@ def validate_csv_columns(df):
 
 def main():
     st.title("Trello Time Tracking Analysis")
-    st.markdown("Upload your Trello CSV export to analyze book production summaries and user task breakdowns.")
+    st.markdown("Upload your Trello CSV export to analyse book production summaries and user task breakdowns.")
     
-    # Initialize database
+    # Initialise database
     engine = init_database()
     if not engine:
         st.error("Could not connect to database. Please check your configuration.")
         return
     
     # Create tabs for different views
-    tab1, tab2 = st.tabs(["📁 Upload & Analyze CSV", "🔍 Filter User Tasks"])
+    tab1, tab2 = st.tabs(["📁 Upload & Analyse CSV", "🔍 Filter User Tasks"])
     
     with tab1:
         # File upload
