@@ -97,17 +97,17 @@ def save_to_database(df, engine):
         return 0
 
 @st.cache_data(ttl=300)  # Cache for 5 minutes
-def get_users_from_database(engine):
+def get_users_from_database(_engine):
     """Get list of unique users from database"""
     try:
-        with engine.connect() as conn:
+        with _engine.connect() as conn:
             result = conn.execute(text('SELECT DISTINCT user_name FROM trello_time_tracking ORDER BY user_name'))
             return [row[0] for row in result]
     except Exception as e:
         st.error(f"Error fetching users: {str(e)}")
         return []
 
-def get_user_tasks_from_database(engine, user_name, start_date=None, end_date=None):
+def get_user_tasks_from_database(_engine, user_name, start_date=None, end_date=None):
     """Get user tasks from database with optional date filtering"""
     try:
         query = '''
@@ -127,7 +127,7 @@ def get_user_tasks_from_database(engine, user_name, start_date=None, end_date=No
         
         query += ' GROUP BY card_name, list_name, date_started ORDER BY card_name, list_name'
         
-        with engine.connect() as conn:
+        with _engine.connect() as conn:
             result = conn.execute(text(query), params)
             data = []
             for row in result:
