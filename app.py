@@ -622,21 +622,35 @@ def main():
                                 unique_stages = book_data['List'].unique()
                                 estimated_time = sum(default_stage_estimates.get(stage, 3600) for stage in unique_stages)
                             
-                            # Create expandable section for each book
-                            with st.expander(f"{book_title}", expanded=False):
-                                # Overall progress bar
-                                col1, col2 = st.columns([3, 1])
-                                
-                                with col1:
-                                    if estimated_time > 0:
-                                        completion_percentage = (total_time_spent / estimated_time) * 100
-                                        st.progress(min(completion_percentage / 100, 1.0))
-                                        st.write(f"**Overall Progress:** {format_seconds_to_time(total_time_spent)}/{format_seconds_to_time(estimated_time)} ({completion_percentage:.1f}%)")
-                                    else:
-                                        st.write(f"**Total Time:** {format_seconds_to_time(total_time_spent)} (No estimate)")
-                                
-                                with col2:
-                                    st.metric("Total Tasks", len(book_data))
+                            # Calculate completion for dropdown display
+                            if estimated_time > 0:
+                                completion_percentage = (total_time_spent / estimated_time) * 100
+                                progress_bar_html = f"""
+                                <div style="width: 100%; background-color: #f0f0f0; border-radius: 5px; height: 8px; margin: 5px 0;">
+                                    <div style="width: {min(completion_percentage, 100):.1f}%; background-color: #00ff00; height: 100%; border-radius: 5px;"></div>
+                                </div>
+                                """
+                                title_with_progress = f"""
+                                <div style="font-size: 18px; font-weight: bold; margin-bottom: 5px;">{book_title}</div>
+                                {progress_bar_html}
+                                <div style="font-size: 14px; color: #666;">{format_seconds_to_time(total_time_spent)}/{format_seconds_to_time(estimated_time)} ({completion_percentage:.1f}%)</div>
+                                """
+                            else:
+                                title_with_progress = f"""
+                                <div style="font-size: 18px; font-weight: bold; margin-bottom: 5px;">{book_title}</div>
+                                <div style="font-size: 14px; color: #666;">Total: {format_seconds_to_time(total_time_spent)} (No estimate)</div>
+                                """
+                            
+                            # Create expandable section with enhanced title
+                            st.markdown(title_with_progress, unsafe_allow_html=True)
+                            with st.expander("", expanded=False):
+                                # Detailed progress inside
+                                if estimated_time > 0:
+                                    completion_percentage = (total_time_spent / estimated_time) * 100
+                                    st.progress(min(completion_percentage / 100, 1.0))
+                                    st.write(f"**Overall Progress:** {format_seconds_to_time(total_time_spent)}/{format_seconds_to_time(estimated_time)} ({completion_percentage:.1f}%)")
+                                else:
+                                    st.write(f"**Total Time:** {format_seconds_to_time(total_time_spent)} (No estimate)")
                                 
                                 st.markdown("---")
                                 
@@ -765,11 +779,16 @@ def main():
                                                         placeholder="01:30:00"
                                                     )
                                                     
-                                                    # Hide the submit button with CSS
+                                                    # Hide the submit button and form styling with CSS
                                                     st.markdown("""
                                                     <style>
                                                     div[data-testid="stForm"] button {
                                                         display: none;
+                                                    }
+                                                    div[data-testid="stForm"] {
+                                                        border: none !important;
+                                                        background: none !important;
+                                                        padding: 0 !important;
                                                     }
                                                     </style>
                                                     """, unsafe_allow_html=True)
