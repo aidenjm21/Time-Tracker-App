@@ -453,6 +453,10 @@ def main():
         st.header("Manual Data Entry")
         st.markdown("Add individual time tracking entries for detailed stage-specific analysis.")
         
+        # Show permanent success message if book was created
+        if 'book_created_message' in st.session_state:
+            st.success(st.session_state.book_created_message)
+        
         # General fields
         col1, col2 = st.columns(2)
         with col1:
@@ -538,57 +542,7 @@ def main():
         st.write(f"**Total Time Estimation: {total_estimation:.1f} hours**")
         st.markdown("---")
         
-        # Manual Time Recording Section
-        st.subheader("Manual Time Recording")
-        st.markdown("*Record actual time spent on work with specific dates. This adds completed work time to the database.*")
-        
-        # Option to record actual time spent
-        record_actual_time = st.checkbox("Record actual time spent on work")
-        actual_time_entries = {}
-        
-        if record_actual_time:
-            # Date and time selection (UTC+1)
-            col1, col2 = st.columns(2)
-            with col1:
-                work_date = st.date_input("Work Date", value=datetime.now(UTC_PLUS_1).date())
-            with col2:
-                work_time = st.time_input("Work Start Time", value=datetime.now(UTC_PLUS_1).time())
-            
-            # Combine date and time with UTC+1 timezone
-            work_datetime = datetime.combine(work_date, work_time, UTC_PLUS_1)
-            
-            st.markdown("**Record Time Spent:**")
-            for field_label, list_name, user_options in time_fields:
-                st.markdown(f"**{field_label}**")
-                col1, col2, col3 = st.columns([2, 1, 1])
-                
-                with col1:
-                    actual_user = st.selectbox(
-                        f"User for {field_label} actual time",
-                        user_options,
-                        key=f"actual_user_{list_name.replace(' ', '_').lower()}",
-                        label_visibility="collapsed"
-                    )
-                
-                with col2:
-                    actual_time_value = st.number_input(
-                        f"Actual time for {field_label}",
-                        min_value=0.0,
-                        step=0.1,
-                        format="%.1f",
-                        key=f"actual_time_{list_name.replace(' ', '_').lower()}",
-                        label_visibility="collapsed",
-                        help="Hours actually spent"
-                    )
-                
-                with col3:
-                    if actual_user != "None" and actual_time_value > 0:
-                        st.write(f"✓ {actual_time_value}h")
-                        actual_time_entries[list_name] = {
-                            'user': actual_user,
-                            'time_hours': actual_time_value,
-                            'work_datetime': work_datetime
-                        }
+
         
         st.markdown("---")
         
@@ -596,8 +550,8 @@ def main():
         if st.button("Add Entry", type="primary", key="manual_submit"):
             if not card_name:
                 st.error("Please fill in Card Name field")
-            elif not time_entries and not actual_time_entries:
-                st.error("Please add at least one time entry (estimate or actual time)")
+            elif not time_entries:
+                st.error("Please add at least one time entry with a user assigned")
             else:
                 try:
                     entries_added = 0
@@ -629,27 +583,7 @@ def main():
                             })
                             entries_added += 1
                         
-                        # Add actual time entries (completed work with specific dates)
-                        for list_name, actual_data in actual_time_entries.items():
-                            # Convert hours to seconds for actual time spent
-                            actual_seconds = int(actual_data['time_hours'] * 3600)
-                            
-                            # Insert into database with actual time spent and session start time
-                            conn.execute(text('''
-                                INSERT INTO trello_time_tracking 
-                                (card_name, user_name, list_name, time_spent_seconds, card_estimate_seconds, board_name, created_at, session_start_time)
-                                VALUES (:card_name, :user_name, :list_name, :time_spent_seconds, :card_estimate_seconds, :board_name, :created_at, :session_start_time)
-                            '''), {
-                                'card_name': card_name,
-                                'user_name': actual_data['user'],
-                                'list_name': list_name,
-                                'time_spent_seconds': actual_seconds,  # Record actual time spent
-                                'card_estimate_seconds': 0,  # No estimate for actual time entries
-                                'board_name': board_name if board_name else 'Manual Entry',
-                                'created_at': current_time,
-                                'session_start_time': actual_data['work_datetime']  # Record when work was done
-                            })
-                            entries_added += 1
+
                         
                         conn.commit()
                     
@@ -658,29 +592,19 @@ def main():
                         st.session_state.active_tab = 1  # Add Book tab
                         
                         estimate_count = len(time_entries)
-                        actual_count = len(actual_time_entries)
                         
-                        success_msg = f"Successfully added {entries_added} entries for '{card_name}'"
-                        if estimate_count > 0 and actual_count > 0:
-                            success_msg += f" ({estimate_count} task assignments, {actual_count} completed work sessions)"
-                        elif estimate_count > 0:
-                            success_msg += f" ({estimate_count} task assignments - use Book Progress tab to track actual work)"
-                        elif actual_count > 0:
-                            success_msg += f" ({actual_count} completed work sessions with recorded dates/times)"
+                        # Store success message in session state for permanent display
+                        st.session_state.book_created_message = f"Book '{card_name}' created successfully with {estimate_count} task assignments!"
                         
-                        st.success(success_msg)
+                        # Clear form fields by explicitly setting them to empty/default values
+                        st.session_state.manual_card_name = ""
+                        st.session_state.manual_board_name = ""
                         
-                        # Clear all form fields after successful entry by clearing all session state
-                        # This ensures a completely fresh form for the next entry
-                        keys_to_keep = {'active_tab', 'timers', 'timer_start_times'}  # Keep essential session state
-                        keys_to_delete = []
-                        
-                        for key in st.session_state.keys():
-                            if key not in keys_to_keep:
-                                keys_to_delete.append(key)
-                        
-                        for key in keys_to_delete:
-                            del st.session_state[key]
+                        # Clear all the time entry fields
+                        for field_label, list_name, user_options in time_fields:
+                            list_key = list_name.replace(' ', '_').lower()
+                            st.session_state[f"user_{list_key}"] = "None"
+                            st.session_state[f"time_{list_key}"] = 0.0
                         
                         st.rerun()
                     else:

@@ -128,7 +128,9 @@ Changelog:
 - July 02, 2025. Fixed Book Progress display: updated stage names to match actual form fields (1st Edit, 2nd Edit, Design R&D, In Design) and corrected default estimates
 - July 02, 2025. Implemented UTC+1 timezone for all date/time operations including timers, manual entries, and session tracking
 - July 02, 2025. Removed circular scroll-to-top button due to compatibility issues with Streamlit
-- July 02, 2025. Fixed automatic form clearing: improved to clear all form fields completely after successful entry submission
+- July 02, 2025. Removed Manual Time Recording section from Add Book tab as requested
+- July 02, 2025. Fixed form clearing: implemented explicit field clearing with default values after successful book creation
+- July 02, 2025. Added permanent success message displayed at top of Add Book tab when books are created
 ```
 
 ## User Preferences
