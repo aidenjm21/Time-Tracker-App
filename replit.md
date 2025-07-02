@@ -135,6 +135,7 @@ Changelog:
 - July 02, 2025. Implemented comprehensive form clearing: all form field keys removed from session state after book creation to ensure complete reset
 - July 02, 2025. Improved tab switching responsiveness by adding immediate rerun when tab selection changes
 - July 02, 2025. Added delete button to Book Progress tab alongside archive button with double-click confirmation for permanent deletion
+- July 02, 2025. Fixed time estimation display in Book Progress - individual task estimates now show correct values from database instead of defaulting to 1 hour
 ```
 
 ## User Preferences

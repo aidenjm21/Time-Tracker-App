@@ -765,32 +765,34 @@ def main():
                                             
                                             # Get estimated time from the database for this specific user/stage combination
                                             user_stage_data = stage_data[stage_data['User'] == user_name]
-                                            estimated_time = 3600  # Default 1 hour
+                                            estimated_time_for_user = 3600  # Default 1 hour
                                             
                                             if not user_stage_data.empty and 'Card estimate(s)' in user_stage_data.columns:
                                                 estimate_val = user_stage_data['Card estimate(s)'].iloc[0]
                                                 if not pd.isna(estimate_val) and estimate_val > 0:
-                                                    estimated_time = estimate_val
-                                        
-                                        # Task details container
-                                        task_container = st.container()
-                                        
-                                        with task_container:
-                                            # Create columns for task info and timer with better spacing
-                                            col1, col2, col3 = st.columns([4, 1, 3])
+                                                    estimated_time_for_user = estimate_val
                                             
-                                            with col1:
-                                                st.write(f"**User:** {user_name}")
-                                                st.write(f"**Progress:** {format_seconds_to_time(actual_time)}/{format_seconds_to_time(estimated_time)}")
+                                            # Task details container
+                                            task_container = st.container()
+                                            
+                                            with task_container:
+                                                # Create columns for task info and timer with better spacing
+                                                col1, col2, col3 = st.columns([4, 1, 3])
                                                 
-                                                # Progress bar
-                                                progress_percentage = (actual_time / estimated_time) if estimated_time > 0 else 0
-                                                st.progress(min(progress_percentage, 1.0))
-                                                
-                                                if progress_percentage > 1.0:
-                                                    st.write(f"{(progress_percentage - 1) * 100:.1f}% over estimate")
-                                                else:
-                                                    st.write(f"COMPLETE: {progress_percentage * 100:.1f}%")
+                                                with col1:
+                                                    st.write(f"**User:** {user_name}")
+                                                    st.write(f"**Progress:** {format_seconds_to_time(actual_time)}/{format_seconds_to_time(estimated_time_for_user)}")
+                                                    
+                                                    # Progress bar
+                                                    progress_percentage = (actual_time / estimated_time_for_user) if estimated_time_for_user > 0 else 0
+                                                    st.progress(min(progress_percentage, 1.0))
+                                                    
+                                                    if progress_percentage > 1.0:
+                                                        st.write(f"{(progress_percentage - 1) * 100:.1f}% over estimate")
+                                                    elif progress_percentage == 1.0:
+                                                        st.write("COMPLETE: 100%")
+                                                    else:
+                                                        st.write(f"{progress_percentage * 100:.1f}% complete")
                                             
                                             with col2:
                                                 # Empty space - timer moved to button column
