@@ -458,6 +458,27 @@ def main():
         # Check if form should be cleared
         clear_form = st.session_state.get('clear_form', False)
         if clear_form:
+            # Define all form field keys that need to be cleared
+            form_keys_to_clear = [
+                "manual_card_name", "manual_board_name",
+                # Time tracking field keys
+                "user_editorial_r&d", "time_editorial_r&d",
+                "user_editorial_writing", "time_editorial_writing", 
+                "user_1st_edit", "time_1st_edit",
+                "user_2nd_edit", "time_2nd_edit",
+                "user_design_r&d", "time_design_r&d",
+                "user_in_design", "time_in_design",
+                "user_1st_proof", "time_1st_proof",
+                "user_2nd_proof", "time_2nd_proof",
+                "user_editorial_sign_off", "time_editorial_sign_off",
+                "user_design_sign_off", "time_design_sign_off"
+            ]
+            
+            # Clear all form field keys from session state
+            for key in form_keys_to_clear:
+                if key in st.session_state:
+                    del st.session_state[key]
+            
             # Clear the flag
             del st.session_state['clear_form']
         
@@ -502,32 +523,20 @@ def main():
             col1, col2 = st.columns([2, 1])
             
             with col1:
-                # Create unique key for clearing behavior
-                user_key = f"user_{list_name.replace(' ', '_').lower()}"
-                if clear_form and user_key in st.session_state:
-                    # Remove the key to force default value
-                    del st.session_state[user_key]
-                    
                 selected_user = st.selectbox(
                     f"User for {field_label}",
                     user_options,
-                    key=user_key,
+                    key=f"user_{list_name.replace(' ', '_').lower()}",
                     label_visibility="collapsed"
                 )
             
             with col2:
-                # Create unique key for clearing behavior
-                time_key = f"time_{list_name.replace(' ', '_').lower()}"
-                if clear_form and time_key in st.session_state:
-                    # Remove the key to force default value
-                    del st.session_state[time_key]
-                    
                 time_value = st.number_input(
                     f"Time for {field_label}",
                     min_value=0.0,
                     step=0.1,
                     format="%.1f",
-                    key=time_key,
+                    key=f"time_{list_name.replace(' ', '_').lower()}",
                     label_visibility="collapsed"
                 )
             
