@@ -67,7 +67,7 @@ def save_to_database(df, engine):
                 'time_spent_seconds': int(row['Time spent (s)']),
                 'date_started': date_started,
                 'card_estimate_seconds': int(row.get('Card estimate(s)', 0)) if pd.notna(row.get('Card estimate(s)', 0)) else None,
-                'board_name': row.get('Board name', ''),
+                'board_name': row.get('Board', ''),
                 'labels': row.get('Labels', '')
             }
             records_to_insert.append(data)
@@ -605,11 +605,6 @@ def main():
                         help="Search for specific books by typing part of the title",
                         key="completion_search"
                     )
-                    
-                    # Debug: Check available columns
-                    st.write("Available columns in database:", list(df_from_db.columns))
-                    if not df_from_db.empty:
-                        st.write("Sample data:", df_from_db.head(1).to_dict())
                     
                     book_completion = process_book_completion(df_from_db, search_filter=search_query if search_query else None)
                     
