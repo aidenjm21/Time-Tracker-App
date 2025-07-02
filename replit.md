@@ -2,7 +2,7 @@
 
 ## Overview
 
-This is a Streamlit-based time tracking analytics application that processes and visualizes time spent data, particularly focused on book reading activities. The application provides data analysis capabilities including completion status tracking, user activity summaries, and time allocation reporting.
+This is a Streamlit-based time tracking application focused on book production management. The application provides manual data entry for detailed stage-specific time tracking, completion status visualization, and user activity analysis. It supports comprehensive book production workflows including editorial stages, proofing cycles, and design processes.
 
 ## System Architecture
 
@@ -20,7 +20,7 @@ This is a Streamlit-based time tracking analytics application that processes and
 **Data Processing:**
 - Pandas for data manipulation and analysis
 - Numpy for numerical computations
-- CSV/Excel file upload support for data ingestion
+- Manual data entry forms for time tracking input
 
 ## Key Components
 
@@ -47,22 +47,25 @@ This is a Streamlit-based time tracking analytics application that processes and
 
 ## Data Flow
 
-1. **Input**: User uploads time tracking data (CSV/Excel format)
+1. **Input**: Manual data entry through web forms
 2. **Processing**: 
-   - Data is loaded into pandas DataFrame
+   - Data validated and stored in PostgreSQL database
    - Grouped by 'Card name' (book titles)
    - Aggregated by user and time spent
    - Completion ratios calculated
 3. **Output**: 
-   - Book summary tables
+   - Book completion progress visualization
    - User activity reports
-   - Time allocation visualizations
+   - Time allocation analysis
 
-**Expected Data Schema:**
-- `Card name`: Book or task identifier
-- `Time spent (s)`: Time spent in seconds
-- `User`: User identifier
-- Additional fields for estimates and metadata
+**Data Schema:**
+- `card_name`: Book or task identifier
+- `time_spent_seconds`: Time spent in seconds
+- `user_name`: User identifier
+- `list_name`: Production stage identifier
+- `board_name`: Project board identifier
+- `date_started`: Optional start date
+- `created_at`: Entry timestamp
 
 ## External Dependencies
 
@@ -110,6 +113,7 @@ Changelog:
 - July 02, 2025. Added separate "Book Completion" tab with visual progress bars, current stage tracking, and search functionality
 - July 02, 2025. Added manual data entry form above CSV upload with detailed stage-specific time tracking fields (Editorial R&D, Writing, Proofs 1-5, Sign-offs, Design stages)
 - July 02, 2025. Removed Database Management tab and all related code per user request
+- July 02, 2025. Removed CSV upload functionality - app now focuses exclusively on manual data entry with stage-specific time tracking
 ```
 
 ## User Preferences

@@ -44,58 +44,7 @@ def init_database():
         st.error(f"Database initialisation failed: {str(e)}")
         return None
 
-def save_to_database(df, engine):
-    """Save CSV data to database using bulk operations, ignoring duplicates"""
-    try:
-        # Prepare all data first
-        records_to_insert = []
-        
-        for _, row in df.iterrows():
-            # Parse date if available
-            date_started = None
-            if 'Date started (f)' in df.columns and pd.notna(row['Date started (f)']):
-                try:
-                    date_started = pd.to_datetime(row['Date started (f)'], errors='coerce').date()
-                except:
-                    pass
-            
-            # Prepare data for insertion
-            data = {
-                'card_name': row['Card name'],
-                'user_name': row['User'],
-                'list_name': row['List'],
-                'time_spent_seconds': int(row['Time spent (s)']),
-                'date_started': date_started,
-                'card_estimate_seconds': int(row.get('Card estimate(s)', 0)) if pd.notna(row.get('Card estimate(s)', 0)) else None,
-                'board_name': row.get('Board', ''),
-                'labels': row.get('Labels', '')
-            }
-            records_to_insert.append(data)
-        
-        # Use bulk insert with ON CONFLICT DO NOTHING for better performance
-        records_added = 0
-        with engine.connect() as conn:
-            for data in records_to_insert:
-                try:
-                    result = conn.execute(text('''
-                        INSERT INTO trello_time_tracking 
-                        (card_name, user_name, list_name, time_spent_seconds, date_started, 
-                         card_estimate_seconds, board_name, labels)
-                        VALUES (:card_name, :user_name, :list_name, :time_spent_seconds, 
-                                :date_started, :card_estimate_seconds, :board_name, :labels)
-                        ON CONFLICT (card_name, user_name, list_name, date_started, time_spent_seconds) 
-                        DO NOTHING
-                    '''), data)
-                    if result.rowcount > 0:
-                        records_added += 1
-                except:
-                    continue
-            conn.commit()
-        
-        return records_added
-    except Exception as e:
-        st.error(f"Error saving to database: {str(e)}")
-        return 0
+
 
 @st.cache_data(ttl=300)  # Cache for 5 minutes
 def get_users_from_database(_engine):
@@ -417,19 +366,11 @@ def process_user_task_breakdown(df):
         st.error(f"Error processing user task breakdown: {str(e)}")
         return pd.DataFrame()
 
-def validate_csv_columns(df):
-    """Validate that the CSV has required columns"""
-    required_columns = ['Card name', 'User', 'List', 'Time spent (s)']
-    missing_columns = [col for col in required_columns if col not in df.columns]
-    
-    if missing_columns:
-        return False, f"Missing required columns: {', '.join(missing_columns)}"
-    
-    return True, "Valid"
+
 
 def main():
-    st.title("Trello Time Tracking Analysis")
-    st.markdown("Upload your Trello CSV export to analyse book production summaries and user task breakdowns.")
+    st.title("Book Production Time Tracking")
+    st.markdown("Track time spent on different stages of book production with detailed stage-specific analysis.")
     
     # Initialise database
     engine = init_database()
@@ -438,7 +379,7 @@ def main():
         return
     
     # Create tabs for different views
-    tab1, tab2, tab3 = st.tabs(["📁 Upload & Analyse CSV", "📊 Book Completion", "🔍 Filter User Tasks"])
+    tab1, tab2, tab3 = st.tabs(["📝 Data Entry", "📊 Book Completion", "🔍 Filter User Tasks"])
     
     with tab1:
         # Manual Data Entry Form
@@ -572,137 +513,6 @@ def main():
                         
                 except Exception as e:
                     st.error(f"Error adding manual entry: {str(e)}")
-        
-        st.markdown("---")  # Separator between manual entry and CSV upload
-        
-        # File upload
-        st.header("📁 CSV File Upload")
-        uploaded_file = st.file_uploader(
-            "Choose a CSV file", 
-            type="csv",
-            help="Upload your Trello time tracking CSV export"
-        )
-    
-        if uploaded_file is not None:
-            try:
-                # Read the CSV file
-                df = pd.read_csv(uploaded_file)
-                
-                # Display basic info about the uploaded file
-                st.success(f"Successfully loaded CSV with {len(df)} rows and {len(df.columns)} columns")
-                
-                # Validate required columns
-                is_valid, validation_message = validate_csv_columns(df)
-                
-                if not is_valid:
-                    st.error(f"Invalid CSV format: {validation_message}")
-                    st.info("Required columns: Card name, User, List, Time spent (s)")
-                    st.info("Optional columns: Card estimate(s)")
-                    return
-                
-                # Save to database
-                records_added = save_to_database(df, engine)
-                
-                if records_added > 0:
-                    st.success(f"Added {records_added} new records to database (duplicates ignored)")
-                else:
-                    st.info("No new records added - all data already exists in database")
-                
-                # Display column names for reference
-                with st.expander("View CSV Column Names"):
-                    st.write("Columns found in your CSV:")
-                    for col in df.columns:
-                        st.write(f"• {col}")
-                
-                # Process and display Book Summary Table
-                st.header("📚 Book Summary Table")
-                book_summary = process_book_summary(df)
-                
-                if not book_summary.empty:
-                    st.dataframe(
-                        book_summary,
-                        use_container_width=True,
-                        hide_index=True
-                    )
-                    
-                    # Add download button for book summary
-                    csv_buffer = io.StringIO()
-                    book_summary.to_csv(csv_buffer, index=False)
-                    st.download_button(
-                        label="📥 Download Book Summary as CSV",
-                        data=csv_buffer.getvalue(),
-                        file_name="book_summary.csv",
-                        mime="text/csv"
-                    )
-                else:
-                    st.warning("No data available for Book Summary Table")
-                
-                # Process and display User Task Breakdown
-                st.header("👥 User Task Breakdown")
-                user_breakdown = process_user_task_breakdown(df)
-                
-                if not user_breakdown.empty:
-                    st.dataframe(
-                        user_breakdown,
-                        use_container_width=True,
-                        hide_index=True
-                    )
-                    
-                    # Add download button for user breakdown
-                    csv_buffer = io.StringIO()
-                    user_breakdown.to_csv(csv_buffer, index=False)
-                    st.download_button(
-                        label="📥 Download User Task Breakdown as CSV",
-                        data=csv_buffer.getvalue(),
-                        file_name="user_task_breakdown.csv",
-                        mime="text/csv"
-                    )
-                else:
-                    st.warning("No data available for User Task Breakdown Table")
-                
-                # Display summary statistics
-                if not df.empty:
-                    st.header("📊 Summary Statistics")
-                    col1, col2, col3, col4 = st.columns(4)
-                    
-                    with col1:
-                        st.metric("Total Books", int(df['Card name'].nunique()))
-                    
-                    with col2:
-                        st.metric("Total Users", int(df['User'].nunique()))
-                    
-                    with col3:
-                        total_time_hours = df['Time spent (s)'].sum() / 3600
-                        st.metric("Total Time (Hours)", f"{total_time_hours:.1f}")
-                    
-                    with col4:
-                        st.metric("Total Tasks", len(df))
-            
-            except Exception as e:
-                st.error(f"Error processing CSV file: {str(e)}")
-                st.info("Please ensure your CSV file is properly formatted and contains the required columns.")
-        
-        else:
-            # Show instructions when no file is uploaded
-            st.info("Please upload a CSV file to begin analysis.")
-            
-            with st.expander("📋 Expected CSV Format"):
-                st.markdown("""
-                Your Trello CSV export should contain the following columns:
-                
-                **Required columns:**
-                - `Card name` - The book title
-                - `User` - Team member name
-                - `List` - Stage of process/task
-                - `Time spent (s)` - Actual time spent in seconds
-                
-                **Optional columns:**
-                - `Card estimate(s)` - Estimated creation time in seconds
-                - `Date started (f)` - Date when the task was started in mm/dd/yyyy format (displayed as dd/mm/yyyy in User Task Breakdown)
-                - `Board name` - Trello board name
-                - `Labels` - Any labels associated with the card
-                - Any other Trello export columns
-                """)
     
     with tab2:
         st.header("📊 Book Completion Progress")
@@ -749,7 +559,7 @@ def main():
                 else:
                     st.warning("No data available in database")
             else:
-                st.info("No data available. Please upload a CSV file first in the 'Upload & Analyse CSV' tab.")
+                st.info("No data available. Please add entries in the 'Data Entry' tab.")
                 
         except Exception as e:
             st.error(f"Error accessing database: {str(e)}")
@@ -762,7 +572,7 @@ def main():
         users = get_users_from_database(engine)
         
         if not users:
-            st.info("No users found in database. Please upload CSV data first.")
+            st.info("No users found in database. Please add entries in the 'Data Entry' tab first.")
             return
         
         # User selection dropdown
