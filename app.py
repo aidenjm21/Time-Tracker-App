@@ -305,7 +305,7 @@ def process_book_completion(df, search_filter=None):
             
             visual_progress = f"""
             <div style="padding: 10px; border: 1px solid #ddd; border-radius: 8px; margin: 2px 0; background-color: #fafafa;">
-                <div style="font-weight: bold; font-size: 14px; margin-bottom: 5px;">{book_title}</div>
+                <div style="font-weight: bold; font-size: 14px; margin-bottom: 5px; color: #000;">{book_title}</div>
                 <div style="font-size: 12px; color: #666; margin-bottom: 8px;">Current stage: {most_recent_list}</div>
                 <div>{progress_bar_html}</div>
             </div>
