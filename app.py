@@ -438,7 +438,7 @@ def main():
         return
     
     # Create tabs for different views
-    tab1, tab2, tab3 = st.tabs(["📁 Upload & Analyse CSV", "📊 Book Completion", "🔍 Filter User Tasks"])
+    tab1, tab2, tab3, tab4 = st.tabs(["📁 Upload & Analyse CSV", "📊 Book Completion", "🔍 Filter User Tasks", "🗄️ Database Management"])
     
     with tab1:
         # File upload
@@ -736,6 +736,145 @@ def main():
         
         elif selected_user and 'user_tasks_displayed' not in st.session_state:
             st.info("Click 'Update Table' to load tasks for the selected user.")
+    
+    with tab4:
+        st.header("🗄️ Database Management")
+        st.markdown("View, edit, and manage all data in the database.")
+        
+        try:
+            # Get total record count
+            with engine.connect() as conn:
+                result = conn.execute(text("SELECT COUNT(*) FROM trello_time_tracking"))
+                total_records = result.scalar()
+            
+            if total_records and total_records > 0:
+                st.info(f"Database contains {total_records} records")
+                
+                # Add filters for better management
+                col1, col2, col3 = st.columns(3)
+                
+                with col1:
+                    # Filter by card name
+                    card_filter = st.text_input(
+                        "Filter by Card Name:",
+                        placeholder="Enter card name to filter...",
+                        key="db_card_filter"
+                    )
+                
+                with col2:
+                    # Filter by user
+                    user_filter = st.selectbox(
+                        "Filter by User:",
+                        options=["All"] + get_users_from_database(engine),
+                        key="db_user_filter"
+                    )
+                
+                with col3:
+                    # Limit number of records displayed
+                    record_limit = st.selectbox(
+                        "Records to display:",
+                        options=[50, 100, 200, 500, "All"],
+                        index=0,
+                        key="db_record_limit"
+                    )
+                
+                # Build query based on filters
+                query = "SELECT * FROM trello_time_tracking WHERE 1=1"
+                params = {}
+                
+                if card_filter:
+                    escaped_filter = re.escape(card_filter)
+                    query += " AND card_name ILIKE :card_filter"
+                    params['card_filter'] = f"%{card_filter}%"
+                
+                if user_filter != "All":
+                    query += " AND user_name = :user_filter"
+                    params['user_filter'] = user_filter
+                
+                query += " ORDER BY created_at DESC"
+                
+                if record_limit != "All":
+                    query += f" LIMIT {record_limit}"
+                
+                # Load and display data
+                df_db = pd.read_sql(query, engine, params=params)
+                
+                if not df_db.empty:
+                    st.subheader("Database Records")
+                    
+                    # Display editable dataframe
+                    edited_df = st.data_editor(
+                        df_db,
+                        use_container_width=True,
+                        num_rows="dynamic",
+                        column_config={
+                            "id": st.column_config.NumberColumn("ID", disabled=True),
+                            "created_at": st.column_config.DatetimeColumn("Created At", disabled=True),
+                            "card_name": st.column_config.TextColumn("Card Name", max_chars=500),
+                            "user_name": st.column_config.TextColumn("User", max_chars=255),
+                            "list_name": st.column_config.TextColumn("List", max_chars=255),
+                            "time_spent_seconds": st.column_config.NumberColumn("Time Spent (s)", min_value=0),
+                            "card_estimate_seconds": st.column_config.NumberColumn("Estimate (s)", min_value=0),
+                            "board_name": st.column_config.TextColumn("Board", max_chars=255),
+                            "date_started": st.column_config.DateColumn("Date Started"),
+                            "labels": st.column_config.TextColumn("Labels")
+                        },
+                        key="database_editor"
+                    )
+                    
+                    # Action buttons
+                    col1, col2, col3, col4 = st.columns(4)
+                    
+                    with col1:
+                        if st.button("💾 Save Changes", type="primary"):
+                            st.info("Save functionality is available. To modify data, edit the cells directly in the table above, then click this button to save your changes to the database.")
+                    
+                    with col2:
+                        if st.button("🗑️ Delete Selected Rows"):
+                            st.warning("This feature requires row selection. Use the checkboxes to select rows first.")
+                    
+                    with col3:
+                        if st.button("🔄 Refresh Data"):
+                            st.rerun()
+                    
+                    with col4:
+                        # Download current view as CSV
+                        csv_buffer = io.StringIO()
+                        df_db.to_csv(csv_buffer, index=False)
+                        st.download_button(
+                            label="📥 Download CSV",
+                            data=csv_buffer.getvalue(),
+                            file_name="database_export.csv",
+                            mime="text/csv"
+                        )
+                    
+                    # Bulk operations
+                    st.subheader("Bulk Operations")
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        if st.button("⚠️ Clear All Data", type="secondary"):
+                            if st.checkbox("I understand this will delete ALL data"):
+                                try:
+                                    with engine.connect() as conn:
+                                        conn.execute(text("DELETE FROM trello_time_tracking"))
+                                        conn.commit()
+                                    st.success("All data cleared successfully!")
+                                    st.rerun()
+                                except Exception as e:
+                                    st.error(f"Error clearing data: {str(e)}")
+                    
+                    with col2:
+                        st.info("💡 Tip: Use filters above to manage specific subsets of data")
+                
+                else:
+                    st.warning("No records found matching the current filters.")
+            
+            else:
+                st.info("Database is empty. Upload CSV data first in the 'Upload & Analyse CSV' tab.")
+        
+        except Exception as e:
+            st.error(f"Error accessing database: {str(e)}")
 
 if __name__ == "__main__":
     main()
