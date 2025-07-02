@@ -700,10 +700,33 @@ def main():
                                                 if task_key in st.session_state.timers and st.session_state.timers[task_key]:
                                                     # Timer is running - show session time
                                                     if task_key in st.session_state.timer_start_times:
-                                                        elapsed = datetime.now() - st.session_state.timer_start_times[task_key]
-                                                        elapsed_seconds = int(elapsed.total_seconds())
+                                                        start_time = st.session_state.timer_start_times[task_key]
+                                                        start_timestamp = int(start_time.timestamp() * 1000)  # Convert to milliseconds
+                                                        
                                                         st.write("**Session Time:**")
-                                                        st.write(f"{format_seconds_to_time(elapsed_seconds)}")
+                                                        # Create a div with JavaScript timer that updates every second
+                                                        st.markdown(f"""
+                                                        <div id="timer_{task_key.replace(' ', '_').replace('/', '_')}">00:00:00</div>
+                                                        <script>
+                                                        function updateTimer() {{
+                                                            const startTime = {start_timestamp};
+                                                            const now = Date.now();
+                                                            const elapsed = Math.floor((now - startTime) / 1000);
+                                                            
+                                                            const hours = Math.floor(elapsed / 3600).toString().padStart(2, '0');
+                                                            const minutes = Math.floor((elapsed % 3600) / 60).toString().padStart(2, '0');
+                                                            const seconds = (elapsed % 60).toString().padStart(2, '0');
+                                                            
+                                                            const timerElement = document.getElementById('timer_{task_key.replace(' ', '_').replace('/', '_')}');
+                                                            if (timerElement) {{
+                                                                timerElement.textContent = hours + ':' + minutes + ':' + seconds;
+                                                            }}
+                                                        }}
+                                                        
+                                                        updateTimer();
+                                                        setInterval(updateTimer, 1000);
+                                                        </script>
+                                                        """, unsafe_allow_html=True)
                                                     else:
                                                         st.write("**Session Time:**")
                                                         st.write("00:00:00")
@@ -758,11 +781,8 @@ def main():
                                                         st.rerun()
                                             
                                             with col4:
-                                                # Status indicator
-                                                if task_key in st.session_state.timers and st.session_state.timers[task_key]:
-                                                    st.write("RECORDING")
-                                                else:
-                                                    st.write("READY")
+                                                # Empty space for future features
+                                                st.write("")
                                         
                                         st.markdown("---")
                                 
