@@ -121,6 +121,7 @@ Changelog:
 - July 02, 2025. Implemented tab state persistence using dropdown selector to prevent jumping back to first tab on button clicks
 - July 02, 2025. Removed emojis from archive functionality and added delete button with double-click confirmation
 - July 02, 2025. Reorganized and renamed tabs: Book Progress (formerly Book Completion), Add Book (formerly Data Entry), Archive, User Data (formerly Filter User Tasks)
+- July 02, 2025. Added session tracking: records date and time when timer sessions start, displays in User Data tab as "Session Started" column with DD/MM/YYYY HH:MM format
 ```
 
 ## User Preferences

@@ -67,30 +67,37 @@ def get_user_tasks_from_database(_engine, user_name, start_date=None, end_date=N
     """Get user tasks from database with optional date filtering"""
     try:
         query = '''
-            SELECT card_name, list_name, date_started, SUM(time_spent_seconds) as total_time
+            SELECT card_name, list_name, session_start_time, SUM(time_spent_seconds) as total_time
             FROM trello_time_tracking 
-            WHERE user_name = :user_name
+            WHERE user_name = :user_name AND time_spent_seconds > 0
         '''
         params = {'user_name': user_name}
         
         if start_date:
-            query += ' AND date_started >= :start_date'
+            query += ' AND session_start_time >= :start_date'
             params['start_date'] = start_date
         
         if end_date:
-            query += ' AND date_started <= :end_date'
+            query += ' AND session_start_time <= :end_date'
             params['end_date'] = end_date
         
-        query += ' GROUP BY card_name, list_name, date_started ORDER BY card_name, list_name'
+        query += ' GROUP BY card_name, list_name, session_start_time ORDER BY session_start_time DESC, card_name, list_name'
         
         with _engine.connect() as conn:
             result = conn.execute(text(query), params)
             data = []
             for row in result:
+                session_start = row[2]
+                if session_start:
+                    # Format as DD/MM/YYYY HH:MM
+                    date_time_str = session_start.strftime('%d/%m/%Y %H:%M')
+                else:
+                    date_time_str = 'Manual Entry'
+                    
                 data.append({
                     'Book Title': row[0],
                     'List': row[1],
-                    'Date': row[2].strftime('%d/%m/%Y') if row[2] else 'N/A',
+                    'Session Started': date_time_str,
                     'Time Spent': format_seconds_to_time(row[3])
                 })
             return pd.DataFrame(data)
@@ -530,8 +537,8 @@ def main():
                             # Insert into database with 0 time spent but store the estimate
                             conn.execute(text('''
                                 INSERT INTO trello_time_tracking 
-                                (card_name, user_name, list_name, time_spent_seconds, card_estimate_seconds, board_name, created_at)
-                                VALUES (:card_name, :user_name, :list_name, :time_spent_seconds, :card_estimate_seconds, :board_name, :created_at)
+                                (card_name, user_name, list_name, time_spent_seconds, card_estimate_seconds, board_name, created_at, session_start_time)
+                                VALUES (:card_name, :user_name, :list_name, :time_spent_seconds, :card_estimate_seconds, :board_name, :created_at, :session_start_time)
                             '''), {
                                 'card_name': card_name,
                                 'user_name': entry_data['user'],
@@ -539,7 +546,8 @@ def main():
                                 'time_spent_seconds': 0,  # Start with 0 time spent
                                 'card_estimate_seconds': estimate_seconds,  # Store the estimate
                                 'board_name': board_name if board_name else 'Manual Entry',
-                                'created_at': current_time
+                                'created_at': current_time,
+                                'session_start_time': None  # No active session for manual entries
                             })
                             entries_added += 1
                         
@@ -743,15 +751,16 @@ def main():
                                                                     with engine.connect() as conn:
                                                                         conn.execute(text('''
                                                                             INSERT INTO trello_time_tracking 
-                                                                            (card_name, user_name, list_name, time_spent_seconds, board_name, created_at)
-                                                                            VALUES (:card_name, :user_name, :list_name, :time_spent_seconds, :board_name, :created_at)
+                                                                            (card_name, user_name, list_name, time_spent_seconds, board_name, created_at, session_start_time)
+                                                                            VALUES (:card_name, :user_name, :list_name, :time_spent_seconds, :board_name, :created_at, :session_start_time)
                                                                         '''), {
                                                                             'card_name': book_title,
                                                                             'user_name': user_name,
                                                                             'list_name': stage_name,
                                                                             'time_spent_seconds': elapsed_seconds,
                                                                             'board_name': board_name,
-                                                                            'created_at': datetime.now()
+                                                                            'created_at': datetime.now(),
+                                                                            'session_start_time': st.session_state.timer_start_times[task_key]
                                                                         })
                                                                         conn.commit()
                                                                     
