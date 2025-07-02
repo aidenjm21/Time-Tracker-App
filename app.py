@@ -190,11 +190,17 @@ def process_book_summary(df):
             if pd.isna(estimated_time):
                 estimated_time = 0
             
+            # Get board name (assuming it's the same for all rows of the same book)
+            board_name = group['Board'].iloc[0] if 'Board' in group.columns else "Unknown"
+            if pd.isna(board_name):
+                board_name = "Unknown"
+            
             # Calculate completion status
             completion = calculate_completion_status(total_time_spent, estimated_time)
             
             book_summary_data.append({
                 'Book Title': book_title,
+                'Board': board_name,
                 'Main User': main_user,
                 'Time Spent': format_seconds_to_time(total_time_spent),
                 'Estimated Time': format_seconds_to_time(estimated_time),
@@ -293,6 +299,13 @@ def process_book_completion(df, search_filter=None):
             # Get most recent activity
             most_recent_list = get_most_recent_activity(df, book_title)
             
+            # Get board name
+            board_name = "Unknown"
+            if 'Board' in group.columns and len(group) > 0:
+                board_val = group['Board'].iloc[0]
+                if not pd.isna(board_val):
+                    board_name = board_val
+            
             # Calculate completion status
             completion = calculate_completion_status(total_time_spent, estimated_time)
             
@@ -306,6 +319,7 @@ def process_book_completion(df, search_filter=None):
             visual_progress = f"""
             <div style="padding: 10px; border: 1px solid #ddd; border-radius: 8px; margin: 2px 0; background-color: #fafafa;">
                 <div style="font-weight: bold; font-size: 14px; margin-bottom: 5px; color: #000;">{book_title}</div>
+                <div style="font-size: 11px; color: #888; margin-bottom: 5px;">Board: {board_name}</div>
                 <div style="font-size: 12px; color: #666; margin-bottom: 8px;">Current stage: {most_recent_list}</div>
                 <div>{progress_bar_html}</div>
             </div>
@@ -578,7 +592,7 @@ def main():
                 
                 # Get data from database for book completion
                 df_from_db = pd.read_sql(
-                    'SELECT card_name as "Card name", user_name as "User", list_name as "List", time_spent_seconds as "Time spent (s)", date_started as "Date started (f)", card_estimate_seconds as "Card estimate(s)" FROM trello_time_tracking', 
+                    'SELECT card_name as "Card name", user_name as "User", list_name as "List", time_spent_seconds as "Time spent (s)", date_started as "Date started (f)", card_estimate_seconds as "Card estimate(s)", board_name as "Board" FROM trello_time_tracking', 
                     engine
                 )
                 
