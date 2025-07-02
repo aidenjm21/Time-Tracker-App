@@ -405,10 +405,20 @@ def main():
         st.error("Could not connect to database. Please check your configuration.")
         return
     
-    # Create tabs for different views
-    tab1, tab2, tab3, tab4 = st.tabs(["Data Entry", "Book Completion", "Filter User Tasks", "Archive"])
+    # Initialize session state for active tab
+    if 'active_tab' not in st.session_state:
+        st.session_state.active_tab = 0
     
-    with tab1:
+    # Create tabs for different views
+    tab_names = ["Data Entry", "Book Completion", "Filter User Tasks", "Archive"]
+    selected_tab = st.selectbox("Select Tab:", tab_names, index=st.session_state.active_tab, key="tab_selector")
+    
+    # Update active tab when changed
+    if selected_tab != tab_names[st.session_state.active_tab]:
+        st.session_state.active_tab = tab_names.index(selected_tab)
+    
+    # Create individual tab sections based on selection
+    if selected_tab == "Data Entry":
         # Manual Data Entry Form
         st.header("Manual Data Entry")
         st.markdown("Add individual time tracking entries for detailed stage-specific analysis.")
@@ -537,6 +547,8 @@ def main():
                         conn.commit()
                     
                     if entries_added > 0:
+                        # Keep user on the Data Entry tab
+                        st.session_state.active_tab = 0  # Data Entry tab
                         st.success(f"Successfully created {entries_added} task assignments for '{card_name}'. All tasks start with 0:00:00 time - use Book Completion tab to track actual work.")
                         st.rerun()
                     else:
@@ -545,7 +557,7 @@ def main():
                 except Exception as e:
                     st.error(f"Error adding manual entry: {str(e)}")
     
-    with tab2:
+    elif selected_tab == "Book Completion":
         st.header("Book Completion Progress")
         st.markdown("Visual progress tracking for all books with individual task timers.")
         
@@ -855,6 +867,8 @@ def main():
                                             '''), {'card_name': book_title})
                                             conn.commit()
                                         
+                                        # Keep user on the current tab
+                                        st.session_state.active_tab = 1  # Book Completion tab
                                         st.success(f"'{book_title}' has been archived successfully!")
                                         st.rerun()
                                     except Exception as e:
@@ -874,7 +888,7 @@ def main():
         except Exception as e:
             st.error(f"Error accessing database: {str(e)}")
     
-    with tab3:
+    elif selected_tab == "Filter User Tasks":
         st.header("Filter User Tasks")
         st.markdown("Filter tasks by user and date range from all uploaded data.")
         
@@ -992,7 +1006,7 @@ def main():
         elif selected_user and 'user_tasks_displayed' not in st.session_state:
             st.info("Click 'Update Table' to load tasks for the selected user.")
     
-    with tab4:
+    elif selected_tab == "Archive":
         st.header("Archive")
         st.markdown("View and manage archived books.")
         
@@ -1089,6 +1103,8 @@ def main():
                                             '''), {'card_name': book_title})
                                             conn.commit()
                                         
+                                        # Keep user on the Archive tab
+                                        st.session_state.active_tab = 3  # Archive tab
                                         st.success(f"'{book_title}' has been unarchived successfully!")
                                         st.rerun()
                                     except Exception as e:
