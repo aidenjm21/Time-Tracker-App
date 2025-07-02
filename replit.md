@@ -130,7 +130,8 @@ Changelog:
 - July 02, 2025. Removed circular scroll-to-top button due to compatibility issues with Streamlit
 - July 02, 2025. Removed Manual Time Recording section from Add Book tab as requested
 - July 02, 2025. Fixed form clearing: implemented explicit field clearing with default values after successful book creation
-- July 02, 2025. Added permanent success message displayed at top of Add Book tab when books are created
+- July 02, 2025. Fixed session state modification error by using form clearing flag instead of direct modification
+- July 02, 2025. Moved success message from top to bottom of Add Book form (below the Add Entry button)
 ```
 
 ## User Preferences

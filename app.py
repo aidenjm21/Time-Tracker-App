@@ -453,16 +453,18 @@ def main():
         st.header("Manual Data Entry")
         st.markdown("Add individual time tracking entries for detailed stage-specific analysis.")
         
-        # Show permanent success message if book was created
-        if 'book_created_message' in st.session_state:
-            st.success(st.session_state.book_created_message)
+        # Check if form should be cleared
+        clear_form = st.session_state.get('clear_form', False)
+        if clear_form:
+            # Clear the flag
+            del st.session_state['clear_form']
         
         # General fields
         col1, col2 = st.columns(2)
         with col1:
-            card_name = st.text_input("Card Name", placeholder="Enter book title", key="manual_card_name")
+            card_name = st.text_input("Card Name", placeholder="Enter book title", key="manual_card_name", value="" if clear_form else None)
         with col2:
-            board_name = st.text_input("Board", placeholder="Enter board name", key="manual_board_name")
+            board_name = st.text_input("Board", placeholder="Enter board name", key="manual_board_name", value="" if clear_form else None)
             
         st.subheader("Task Assignment & Estimates")
         st.markdown("*Assign users to stages and set time estimates. All tasks start with 0 actual time - use the Book Completion tab to track actual work time.*")
@@ -502,17 +504,20 @@ def main():
                     f"User for {field_label}",
                     user_options,
                     key=f"user_{list_name.replace(' ', '_').lower()}",
-                    label_visibility="collapsed"
+                    label_visibility="collapsed",
+                    index=0 if clear_form else None
                 )
             
             with col2:
+                default_value = 0.0 if clear_form else 0.0
                 time_value = st.number_input(
                     f"Time for {field_label}",
                     min_value=0.0,
                     step=0.1,
                     format="%.1f",
                     key=f"time_{list_name.replace(' ', '_').lower()}",
-                    label_visibility="collapsed"
+                    label_visibility="collapsed",
+                    value=default_value
                 )
             
             # Handle user selection and calculate totals
@@ -520,16 +525,16 @@ def main():
                 final_user = selected_user
                 
                 # Store the entry if both user and time are provided
-                if final_user and time_value > 0:
+                if final_user and time_value and time_value > 0:
                     time_entries[list_name] = {
                         'user': final_user,
                         'time_hours': time_value
                     }
                 
-                # Add to category totals
-                if list_name in editorial_fields:
+                # Add to category totals (ensure time_value is not None)
+                if time_value and list_name in editorial_fields:
                     editorial_total += time_value
-                elif list_name in design_fields:
+                elif time_value and list_name in design_fields:
                     design_total += time_value
         
         total_estimation = editorial_total + design_total
@@ -596,15 +601,8 @@ def main():
                         # Store success message in session state for permanent display
                         st.session_state.book_created_message = f"Book '{card_name}' created successfully with {estimate_count} task assignments!"
                         
-                        # Clear form fields by explicitly setting them to empty/default values
-                        st.session_state.manual_card_name = ""
-                        st.session_state.manual_board_name = ""
-                        
-                        # Clear all the time entry fields
-                        for field_label, list_name, user_options in time_fields:
-                            list_key = list_name.replace(' ', '_').lower()
-                            st.session_state[f"user_{list_key}"] = "None"
-                            st.session_state[f"time_{list_key}"] = 0.0
+                        # Set flag to clear form on next render instead of modifying session state directly
+                        st.session_state.clear_form = True
                         
                         st.rerun()
                     else:
@@ -612,6 +610,10 @@ def main():
                         
                 except Exception as e:
                     st.error(f"Error adding manual entry: {str(e)}")
+        
+        # Show permanent success message if book was created (below the button)
+        if 'book_created_message' in st.session_state:
+            st.success(st.session_state.book_created_message)
     
     elif selected_tab == "Book Progress":
         st.header("Book Completion Progress")
