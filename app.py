@@ -622,35 +622,27 @@ def main():
                                 unique_stages = book_data['List'].unique()
                                 estimated_time = sum(default_stage_estimates.get(stage, 3600) for stage in unique_stages)
                             
-                            # Calculate completion for dropdown display
-                            if estimated_time > 0:
-                                completion_percentage = (total_time_spent / estimated_time) * 100
-                                progress_bar_html = f"""
-                                <div style="width: 100%; background-color: #f0f0f0; border-radius: 5px; height: 8px; margin: 5px 0;">
-                                    <div style="width: {min(completion_percentage, 100):.1f}%; background-color: #00ff00; height: 100%; border-radius: 5px;"></div>
-                                </div>
-                                """
-                                title_with_progress = f"""
-                                <div style="font-size: 18px; font-weight: bold; margin-bottom: 5px;">{book_title}</div>
-                                {progress_bar_html}
-                                <div style="font-size: 14px; color: #666;">{format_seconds_to_time(total_time_spent)}/{format_seconds_to_time(estimated_time)} ({completion_percentage:.1f}%)</div>
-                                """
-                            else:
-                                title_with_progress = f"""
-                                <div style="font-size: 18px; font-weight: bold; margin-bottom: 5px;">{book_title}</div>
-                                <div style="font-size: 14px; color: #666;">Total: {format_seconds_to_time(total_time_spent)} (No estimate)</div>
-                                """
+                            # Create expandable section with larger title
+                            title_html = f'<div style="font-size: 18px; font-weight: bold;">{book_title}</div>'
+                            st.markdown(title_html, unsafe_allow_html=True)
                             
-                            # Create expandable section with enhanced title
-                            st.markdown(title_with_progress, unsafe_allow_html=True)
                             with st.expander("", expanded=False):
-                                # Detailed progress inside
-                                if estimated_time > 0:
-                                    completion_percentage = (total_time_spent / estimated_time) * 100
-                                    st.progress(min(completion_percentage / 100, 1.0))
-                                    st.write(f"**Overall Progress:** {format_seconds_to_time(total_time_spent)}/{format_seconds_to_time(estimated_time)} ({completion_percentage:.1f}%)")
-                                else:
-                                    st.write(f"**Total Time:** {format_seconds_to_time(total_time_spent)} (No estimate)")
+                                # Progress bar and details inside dropdown
+                                col1, col2 = st.columns([1, 1])
+                                
+                                with col1:
+                                    if estimated_time > 0:
+                                        completion_percentage = (total_time_spent / estimated_time) * 100
+                                        # Create 50% width progress bar
+                                        progress_html = f"""
+                                        <div style="width: 50%; background-color: #f0f0f0; border-radius: 5px; height: 10px; margin: 10px 0;">
+                                            <div style="width: {min(completion_percentage, 100):.1f}%; background-color: #00ff00; height: 100%; border-radius: 5px;"></div>
+                                        </div>
+                                        """
+                                        st.markdown(progress_html, unsafe_allow_html=True)
+                                        st.write(f"**Overall Progress:** {format_seconds_to_time(total_time_spent)}/{format_seconds_to_time(estimated_time)} ({completion_percentage:.1f}%)")
+                                    else:
+                                        st.write(f"**Total Time:** {format_seconds_to_time(total_time_spent)} (No estimate)")
                                 
                                 st.markdown("---")
                                 
