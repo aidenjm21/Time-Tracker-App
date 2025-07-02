@@ -513,6 +513,33 @@ def main():
                         'time_hours': time_value
                     }
             
+            # Calculate and display time estimations
+            editorial_total = 0.0
+            design_total = 0.0
+            
+            # Get current values from session state (Streamlit form widgets)
+            editorial_fields = ["Editorial R&D", "Editorial Writing", "1st Proof", "2nd Proof", "3rd Proof", "4th Proof", "5th Proof", "Editorial Sign Off"]
+            design_fields = ["Cover Design", "Design Time", "Design Sign Off"]
+            
+            for field_label, list_name, user_options in time_fields:
+                time_key = f"time_{list_name.replace(' ', '_').lower()}"
+                if time_key in st.session_state:
+                    time_value = st.session_state[time_key]
+                    if list_name in editorial_fields:
+                        editorial_total += time_value
+                    elif list_name in design_fields:
+                        design_total += time_value
+            
+            total_estimation = editorial_total + design_total
+            
+            # Display calculations
+            st.markdown("---")
+            st.markdown("**Time Estimations:**")
+            st.write(f"Editorial Time Estimation: {editorial_total:.1f} hours")
+            st.write(f"Design Time Estimation: {design_total:.1f} hours")
+            st.write(f"**Total Time Estimation: {total_estimation:.1f} hours**")
+            st.markdown("---")
+            
             # Submit button
             submitted = st.form_submit_button("➕ Add Entry", type="primary")
             
