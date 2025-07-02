@@ -738,7 +738,6 @@ def main():
                                                                     
                                                                     st.session_state.timers[task_key] = False
                                                                     del st.session_state.timer_start_times[task_key]
-                                                                    st.success(f"Added {format_seconds_to_time(elapsed_seconds)} to {stage_name}")
                                                                     st.rerun()
                                                                     
                                                                 except Exception as e:
@@ -750,36 +749,9 @@ def main():
                                                             st.rerun()
                                                 
                                                 with timer_col:
-                                                    # Show timer only when running
+                                                    # Show "Recording" text when timer is running
                                                     if st.session_state.timers[task_key] and task_key in st.session_state.timer_start_times:
-                                                        timer_id = f"timer_{task_key.replace(' ', '_').replace('/', '_').replace(':', '_')}"
-                                                        
-                                                        # Use simple independent timer script
-                                                        timer_html = f"""
-                                                        <div id="{timer_id}" style="font-size: 16px; font-weight: bold;">00:00:00</div>
-                                                        <script>
-                                                        let seconds_{timer_id} = 0;
-                                                        
-                                                        function pad(num) {{
-                                                            return num.toString().padStart(2, '0');
-                                                        }}
-                                                        
-                                                        function updateTimer_{timer_id}() {{
-                                                            seconds_{timer_id}++;
-                                                            const hrs = Math.floor(seconds_{timer_id} / 3600);
-                                                            const mins = Math.floor((seconds_{timer_id} % 3600) / 60);
-                                                            const secs = seconds_{timer_id} % 60;
-                                                            
-                                                            const element = document.getElementById('{timer_id}');
-                                                            if (element) {{
-                                                                element.textContent = pad(hrs) + ':' + pad(mins) + ':' + pad(secs);
-                                                            }}
-                                                        }}
-                                                        
-                                                        setInterval(updateTimer_{timer_id}, 1000);
-                                                        </script>
-                                                        """
-                                                        st.components.v1.html(timer_html, height=30)
+                                                        st.write("**Recording**")
                                                     else:
                                                         st.write("")
                                         
