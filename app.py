@@ -630,8 +630,8 @@ def main():
                                 completion_percentage = 0
                                 progress_text = f"Total: {format_seconds_to_time(total_time_spent)} (No estimate)"
                             
-                            # Create expander label with progress text
-                            expander_label = f"{book_title} - {progress_text}"
+                            # Create expander label with title and progress on separate lines
+                            expander_label = f"{book_title}\n{progress_text}"
                             
                             with st.expander(expander_label, expanded=False):
                                 # Show progress bar at the top of expanded content
