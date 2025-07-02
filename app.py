@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from collections import Counter
 import io
 import os
+import re
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import IntegrityError
 
@@ -238,9 +239,12 @@ def create_progress_bar_html(completion_percentage):
         width = min(completion_percentage, 100)
         color = "#28a745"  # Green
         return f"""
-        <div style="background-color: #f0f0f0; border-radius: 10px; padding: 2px; width: 200px; height: 20px;">
-            <div style="background-color: {color}; width: {width}%; height: 16px; border-radius: 8px; text-align: center; line-height: 16px; color: white; font-size: 11px; font-weight: bold;">
-                {completion_percentage:.1f}%
+        <div style="margin-bottom: 5px;">
+            <div style="background-color: #f0f0f0; border-radius: 10px; padding: 2px; width: 200px; height: 20px;">
+                <div style="background-color: {color}; width: {width}%; height: 16px; border-radius: 8px;"></div>
+            </div>
+            <div style="font-size: 12px; font-weight: bold; color: {color}; text-align: center;">
+                {completion_percentage:.1f}% complete
             </div>
         </div>
         """
@@ -248,8 +252,11 @@ def create_progress_bar_html(completion_percentage):
         # Over allocation (red with overflow)
         over_percentage = completion_percentage - 100
         return f"""
-        <div style="background-color: #f0f0f0; border-radius: 10px; padding: 2px; width: 200px; height: 20px;">
-            <div style="background-color: #dc3545; width: 100%; height: 16px; border-radius: 8px; text-align: center; line-height: 16px; color: white; font-size: 11px; font-weight: bold;">
+        <div style="margin-bottom: 5px;">
+            <div style="background-color: #f0f0f0; border-radius: 10px; padding: 2px; width: 200px; height: 20px;">
+                <div style="background-color: #dc3545; width: 100%; height: 16px; border-radius: 8px;"></div>
+            </div>
+            <div style="font-size: 12px; font-weight: bold; color: #dc3545; text-align: center;">
                 {over_percentage:.1f}% over allocation
             </div>
         </div>
@@ -260,7 +267,9 @@ def process_book_completion(df, search_filter=None):
     try:
         # Apply search filter if provided
         if search_filter:
-            df = df[df['Card name'].str.contains(search_filter, case=False, na=False)]
+            # Escape special regex characters to handle punctuation properly
+            escaped_filter = re.escape(search_filter)
+            df = df[df['Card name'].str.contains(escaped_filter, case=False, na=False)]
             
         if df.empty:
             return pd.DataFrame()
