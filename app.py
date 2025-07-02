@@ -393,8 +393,8 @@ def main():
         with col2:
             board_name = st.text_input("Board", placeholder="Enter board name", key="manual_board_name")
             
-        st.subheader("Time Tracking Fields")
-        st.markdown("*Assign different users to different stages. Leave time as 0 to skip a stage.*")
+        st.subheader("Task Assignment & Estimates")
+        st.markdown("*Assign users to stages and set time estimates. All tasks start with 0 actual time - use the Book Completion tab to track actual work time.*")
         
         # Define user groups for different types of work (alphabetically ordered)
         editorial_users = ["None", "Bethany Latham", "Charis Mather", "Noah Leatherland", "Rebecca Phillips-Bartlett"]
@@ -485,10 +485,10 @@ def main():
                     
                     with engine.connect() as conn:
                         for list_name, entry_data in time_entries.items():
-                            # Convert hours to seconds
-                            time_seconds = int(entry_data['time_hours'] * 3600)
+                            # Create task entry with 0 time spent - users will use timer to track actual time
+                            # The time_hours value from the form is just for estimation display, not actual time spent
                             
-                            # Insert into database
+                            # Insert into database with 0 time spent
                             conn.execute(text('''
                                 INSERT INTO trello_time_tracking 
                                 (card_name, user_name, list_name, time_spent_seconds, board_name, created_at)
@@ -497,7 +497,7 @@ def main():
                                 'card_name': card_name,
                                 'user_name': entry_data['user'],
                                 'list_name': list_name,
-                                'time_spent_seconds': time_seconds,
+                                'time_spent_seconds': 0,  # Start with 0 time spent
                                 'board_name': board_name if board_name else 'Manual Entry',
                                 'created_at': current_time
                             })
@@ -506,10 +506,10 @@ def main():
                         conn.commit()
                     
                     if entries_added > 0:
-                        st.success(f"Successfully added {entries_added} entries for '{card_name}' with different users for each stage")
+                        st.success(f"Successfully created {entries_added} task assignments for '{card_name}'. All tasks start with 0:00:00 time - use Book Completion tab to track actual work.")
                         st.rerun()
                     else:
-                        st.warning("No entries added - please enter time values greater than 0 with users assigned")
+                        st.warning("No tasks created - please assign users to stages (time estimates are optional)")
                         
                 except Exception as e:
                     st.error(f"Error adding manual entry: {str(e)}")
