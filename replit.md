@@ -136,6 +136,7 @@ Changelog:
 - July 02, 2025. Improved tab switching responsiveness by adding immediate rerun when tab selection changes
 - July 02, 2025. Added delete button to Book Progress tab alongside archive button with double-click confirmation for permanent deletion
 - July 02, 2025. Fixed time estimation display in Book Progress - individual task estimates now show correct values from database instead of defaulting to 1 hour
+- July 02, 2025. Improved estimate retrieval logic to handle multiple database records per user/stage by prioritizing records with actual estimate values
 ```
 
 ## User Preferences

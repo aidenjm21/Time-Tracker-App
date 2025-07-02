@@ -768,9 +768,11 @@ def main():
                                             estimated_time_for_user = 3600  # Default 1 hour
                                             
                                             if not user_stage_data.empty and 'Card estimate(s)' in user_stage_data.columns:
-                                                estimate_val = user_stage_data['Card estimate(s)'].iloc[0]
-                                                if not pd.isna(estimate_val) and estimate_val > 0:
-                                                    estimated_time_for_user = estimate_val
+                                                # Find the first record that has a non-null, non-zero estimate
+                                                estimates = user_stage_data['Card estimate(s)'].dropna()
+                                                non_zero_estimates = estimates[estimates > 0]
+                                                if not non_zero_estimates.empty:
+                                                    estimated_time_for_user = non_zero_estimates.iloc[0]
                                             
                                             # Task details container
                                             task_container = st.container()
