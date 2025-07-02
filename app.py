@@ -516,7 +516,13 @@ def main():
     
     with tab2:
         st.header("📊 Book Completion Progress")
-        st.markdown("Visual progress tracking for all books with search functionality.")
+        st.markdown("Visual progress tracking for all books with individual task timers.")
+        
+        # Initialize session state for timers
+        if 'timers' not in st.session_state:
+            st.session_state.timers = {}
+        if 'timer_start_times' not in st.session_state:
+            st.session_state.timer_start_times = {}
         
         # Check if we have data from database
         try:
@@ -529,7 +535,7 @@ def main():
                 
                 # Get data from database for book completion
                 df_from_db = pd.read_sql(
-                    'SELECT card_name as "Card name", user_name as "User", list_name as "List", time_spent_seconds as "Time spent (s)", date_started as "Date started (f)", card_estimate_seconds as "Card estimate(s)", board_name as "Board" FROM trello_time_tracking', 
+                    'SELECT card_name as "Card name", user_name as "User", list_name as "List", time_spent_seconds as "Time spent (s)", date_started as "Date started (f)", card_estimate_seconds as "Card estimate(s)", board_name as "Board", created_at FROM trello_time_tracking ORDER BY created_at DESC', 
                     engine
                 )
                 
@@ -542,15 +548,138 @@ def main():
                         key="completion_search"
                     )
                     
-                    book_completion = process_book_completion(df_from_db, search_filter=search_query if search_query else None)
+                    # Filter books based on search
+                    filtered_df = df_from_db
+                    if search_query:
+                        filtered_df = df_from_db[df_from_db['Card name'].str.contains(search_query, case=False, na=False)]
                     
-                    if not book_completion.empty:
-                        st.write(f"Found {len(book_completion)} books to display")
+                    # Get unique books
+                    unique_books = filtered_df['Card name'].unique()
+                    
+                    if len(unique_books) > 0:
+                        st.write(f"Found {len(unique_books)} books to display")
                         
-                        # Display the visual progress for each book
-                        for idx, row in book_completion.iterrows():
-                            st.markdown(row['Visual Progress'], unsafe_allow_html=True)
-                            st.markdown("---")  # Separator between books
+                        # Display each book with enhanced visualization
+                        for book_title in unique_books:
+                            book_data = filtered_df[filtered_df['Card name'] == book_title]
+                            
+                            # Calculate overall progress
+                            total_time_spent = book_data['Time spent (s)'].sum()
+                            estimated_time = 0
+                            if 'Card estimate(s)' in book_data.columns and len(book_data) > 0:
+                                est_val = book_data['Card estimate(s)'].iloc[0]
+                                if not pd.isna(est_val):
+                                    estimated_time = est_val
+                            
+                            # Create expandable section for each book
+                            with st.expander(f"📖 {book_title}", expanded=False):
+                                # Overall progress bar
+                                col1, col2 = st.columns([3, 1])
+                                
+                                with col1:
+                                    if estimated_time > 0:
+                                        completion_percentage = (total_time_spent / estimated_time) * 100
+                                        st.progress(min(completion_percentage / 100, 1.0))
+                                        st.write(f"**Overall Progress:** {format_seconds_to_time(total_time_spent)}/{format_seconds_to_time(estimated_time)} ({completion_percentage:.1f}%)")
+                                    else:
+                                        st.write(f"**Total Time:** {format_seconds_to_time(total_time_spent)} (No estimate)")
+                                
+                                with col2:
+                                    st.metric("Total Tasks", len(book_data))
+                                
+                                st.markdown("---")
+                                
+                                # Group by stage/list and show individual tasks
+                                stages = book_data.groupby('List')
+                                
+                                for stage_name, stage_data in stages:
+                                    st.subheader(f"🎯 {stage_name}")
+                                    
+                                    # Show all tasks for this stage
+                                    for idx, task in stage_data.iterrows():
+                                        task_key = f"{book_title}_{stage_name}_{task['User']}"
+                                        
+                                        # Task details container
+                                        task_container = st.container()
+                                        
+                                        with task_container:
+                                            # Create columns for task info and timer
+                                            col1, col2, col3, col4 = st.columns([2, 1, 1, 1])
+                                            
+                                            with col1:
+                                                st.write(f"**User:** {task['User']}")
+                                                st.write(f"**Time:** {format_seconds_to_time(task['Time spent (s)'])}")
+                                            
+                                            with col2:
+                                                # Timer display
+                                                if task_key in st.session_state.timers and st.session_state.timers[task_key]:
+                                                    # Timer is running
+                                                    if task_key in st.session_state.timer_start_times:
+                                                        elapsed = datetime.now() - st.session_state.timer_start_times[task_key]
+                                                        elapsed_seconds = int(elapsed.total_seconds())
+                                                        st.write(f"⏱️ {format_seconds_to_time(elapsed_seconds)}")
+                                                    else:
+                                                        st.write("⏱️ 00:00:00")
+                                                else:
+                                                    st.write("⏱️ Stopped")
+                                            
+                                            with col3:
+                                                # Start/Stop timer button
+                                                if task_key not in st.session_state.timers:
+                                                    st.session_state.timers[task_key] = False
+                                                
+                                                if st.session_state.timers[task_key]:
+                                                    if st.button("⏹️ Stop", key=f"stop_{task_key}"):
+                                                        # Stop timer and add time to database
+                                                        if task_key in st.session_state.timer_start_times:
+                                                            elapsed = datetime.now() - st.session_state.timer_start_times[task_key]
+                                                            elapsed_seconds = int(elapsed.total_seconds())
+                                                            
+                                                            # Add elapsed time to database
+                                                            try:
+                                                                with engine.connect() as conn:
+                                                                    conn.execute(text('''
+                                                                        INSERT INTO trello_time_tracking 
+                                                                        (card_name, user_name, list_name, time_spent_seconds, board_name, created_at)
+                                                                        VALUES (:card_name, :user_name, :list_name, :time_spent_seconds, :board_name, :created_at)
+                                                                    '''), {
+                                                                        'card_name': book_title,
+                                                                        'user_name': task['User'],
+                                                                        'list_name': stage_name,
+                                                                        'time_spent_seconds': elapsed_seconds,
+                                                                        'board_name': task['Board'],
+                                                                        'created_at': datetime.now()
+                                                                    })
+                                                                    conn.commit()
+                                                                
+                                                                st.session_state.timers[task_key] = False
+                                                                del st.session_state.timer_start_times[task_key]
+                                                                st.success(f"Added {format_seconds_to_time(elapsed_seconds)} to {stage_name}")
+                                                                st.rerun()
+                                                                
+                                                            except Exception as e:
+                                                                st.error(f"Error saving time: {str(e)}")
+                                                else:
+                                                    if st.button("▶️ Start", key=f"start_{task_key}"):
+                                                        st.session_state.timers[task_key] = True
+                                                        st.session_state.timer_start_times[task_key] = datetime.now()
+                                                        st.rerun()
+                                            
+                                            with col4:
+                                                # User selector for timer (in case they want to switch users)
+                                                if task_key in st.session_state.timers and st.session_state.timers[task_key]:
+                                                    st.write("🔴 Recording")
+                                                else:
+                                                    st.write("")
+                                        
+                                        st.markdown("---")
+                                
+                                # Show refresh button if there are running timers
+                                running_timers = [k for k, v in st.session_state.timers.items() if v and book_title in k]
+                                if running_timers:
+                                    st.write(f"⏰ {len(running_timers)} timer(s) running")
+                                    if st.button("🔄 Refresh Timers", key=f"refresh_{book_title}"):
+                                        st.rerun()
                     else:
                         if search_query:
                             st.warning(f"No books found matching '{search_query}'")
