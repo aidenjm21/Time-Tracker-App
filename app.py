@@ -670,25 +670,17 @@ def main():
                         
                         st.success(success_msg)
                         
-                        # Clear all form fields after successful entry
-                        form_keys_to_clear = [
-                            "manual_card_name", "manual_board_name", "record_actual_time"
-                        ]
+                        # Clear all form fields after successful entry by clearing all session state
+                        # This ensures a completely fresh form for the next entry
+                        keys_to_keep = {'active_tab', 'timers', 'timer_start_times'}  # Keep essential session state
+                        keys_to_delete = []
                         
-                        # Clear time entry fields
-                        for field_label, list_name, user_options in time_fields:
-                            list_key = list_name.replace(' ', '_').lower()
-                            form_keys_to_clear.extend([
-                                f"user_{list_key}",
-                                f"time_{list_key}",
-                                f"actual_user_{list_key}",
-                                f"actual_time_{list_key}"
-                            ])
+                        for key in st.session_state.keys():
+                            if key not in keys_to_keep:
+                                keys_to_delete.append(key)
                         
-                        # Clear the session state for all form fields
-                        for key in form_keys_to_clear:
-                            if key in st.session_state:
-                                del st.session_state[key]
+                        for key in keys_to_delete:
+                            del st.session_state[key]
                         
                         st.rerun()
                     else:
@@ -1297,94 +1289,7 @@ def main():
         except Exception as e:
             st.error(f"Error accessing archived data: {str(e)}")
 
-def add_scroll_to_top_button():
-    """Add a sticky scroll-to-top button in the bottom left corner"""
-    # Using streamlit-javascript to inject working scroll functionality
-    st.markdown("""
-    <style>
-    .scroll-to-top {
-        position: fixed;
-        bottom: 20px;
-        left: 20px;
-        width: 50px;
-        height: 50px;
-        background-color: #007bff;
-        color: white;
-        border: none;
-        border-radius: 50%;
-        cursor: pointer;
-        font-size: 18px;
-        z-index: 1000;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.3);
-        transition: all 0.3s ease;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        text-decoration: none;
-        opacity: 0.8;
-    }
-    
-    .scroll-to-top:hover {
-        background-color: #0056b3;
-        transform: scale(1.1);
-        opacity: 1;
-    }
-    
-    .scroll-to-top:active {
-        transform: scale(0.95);
-    }
-    </style>
-    """, unsafe_allow_html=True)
-    
-    # Create the button with a unique ID and attach JavaScript
-    st.markdown("""
-    <div id="scroll-to-top-btn" class="scroll-to-top" title="Scroll to top">
-        ↑
-    </div>
-    
-    <script>
-    (function() {
-        // Remove any existing event listeners
-        const existingBtn = document.getElementById('scroll-to-top-btn');
-        if (existingBtn && existingBtn.onclick) {
-            existingBtn.onclick = null;
-        }
-        
-        // Add new event listener
-        setTimeout(function() {
-            const btn = document.getElementById('scroll-to-top-btn');
-            if (btn) {
-                btn.onclick = function() {
-                    // Try to scroll the main content area
-                    const scrollTargets = [
-                        document.querySelector('.main'),
-                        document.querySelector('[data-testid="stAppViewContainer"]'),
-                        document.documentElement,
-                        document.body,
-                        window
-                    ];
-                    
-                    for (let target of scrollTargets) {
-                        if (target) {
-                            try {
-                                if (target === window) {
-                                    target.scrollTo({top: 0, behavior: 'smooth'});
-                                } else {
-                                    target.scrollTop = 0;
-                                }
-                                break;
-                            } catch (e) {
-                                continue;
-                            }
-                        }
-                    }
-                };
-            }
-        }, 100);
-    })();
-    </script>
-    """, unsafe_allow_html=True)
+
 
 if __name__ == "__main__":
     main()
-    add_scroll_to_top_button()
