@@ -837,7 +837,80 @@ def main():
                     
                     with col1:
                         if st.button("💾 Save Changes", type="primary"):
-                            st.info("Note: Streamlit data_editor automatically handles cell editing. Changes are shown in the interface but manual database updates require additional implementation.")
+                            try:
+                                # Compare edited data with original and update database
+                                changes_made = 0
+                                
+                                # Get the original data again for comparison
+                                with engine.connect() as conn:
+                                    if card_filter or user_filter != "All":
+                                        conditions = []
+                                        if card_filter:
+                                            safe_filter = card_filter.replace("'", "''")
+                                            conditions.append(f"card_name ILIKE '%{safe_filter}%'")
+                                        if user_filter != "All":
+                                            safe_user = user_filter.replace("'", "''")
+                                            conditions.append(f"user_name = '{safe_user}'")
+                                        
+                                        where_clause = " AND ".join(conditions)
+                                        query = f"SELECT * FROM trello_time_tracking WHERE {where_clause} ORDER BY created_at DESC"
+                                    else:
+                                        query = "SELECT * FROM trello_time_tracking ORDER BY created_at DESC"
+                                    
+                                    if record_limit != "All":
+                                        query += f" LIMIT {record_limit}"
+                                    
+                                    result = conn.execute(text(query))
+                                    original_rows = result.fetchall()
+                                    original_df = pd.DataFrame([dict(row._mapping) for row in original_rows]) if original_rows else pd.DataFrame()
+                                
+                                # Update each changed record
+                                for idx in range(len(edited_df)):
+                                    if idx < len(original_df):
+                                        edited_row = edited_df.iloc[idx]
+                                        original_row = original_df.iloc[idx]
+                                        
+                                        # Check if this row has changes
+                                        row_changed = False
+                                        for col in ['card_name', 'user_name', 'list_name', 'time_spent_seconds', 'card_estimate_seconds', 'board_name', 'labels']:
+                                            if col in edited_row and col in original_row:
+                                                if str(edited_row[col]) != str(original_row[col]):
+                                                    row_changed = True
+                                                    break
+                                        
+                                        if row_changed:
+                                            with engine.connect() as conn:
+                                                conn.execute(text('''
+                                                    UPDATE trello_time_tracking 
+                                                    SET card_name = :card_name,
+                                                        user_name = :user_name,
+                                                        list_name = :list_name,
+                                                        time_spent_seconds = :time_spent_seconds,
+                                                        card_estimate_seconds = :card_estimate_seconds,
+                                                        board_name = :board_name,
+                                                        labels = :labels
+                                                    WHERE id = :id
+                                                '''), {
+                                                    'id': edited_row['id'],
+                                                    'card_name': edited_row['card_name'],
+                                                    'user_name': edited_row['user_name'],
+                                                    'list_name': edited_row['list_name'],
+                                                    'time_spent_seconds': edited_row['time_spent_seconds'],
+                                                    'card_estimate_seconds': edited_row['card_estimate_seconds'],
+                                                    'board_name': edited_row['board_name'],
+                                                    'labels': edited_row['labels']
+                                                })
+                                                conn.commit()
+                                                changes_made += 1
+                                
+                                if changes_made > 0:
+                                    st.success(f"Successfully updated {changes_made} records in the database!")
+                                    st.rerun()
+                                else:
+                                    st.info("No changes detected to save.")
+                                    
+                            except Exception as e:
+                                st.error(f"Error saving changes: {str(e)}")
                     
                     with col2:
                         # Add manual deletion by ID
