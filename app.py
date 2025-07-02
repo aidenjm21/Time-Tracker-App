@@ -594,18 +594,21 @@ def main():
                                 
                                 st.markdown("---")
                                 
-                                # Group by stage/list and show individual tasks
+                                # Group by stage/list and aggregate by user
                                 stages = book_data.groupby('List')
                                 
                                 stage_counter = 0
                                 for stage_name, stage_data in stages:
                                     st.subheader(f"🎯 {stage_name}")
                                     
-                                    # Show all tasks for this stage
-                                    task_counter = 0
-                                    for idx, task in stage_data.iterrows():
-                                        task_key = f"{book_title}_{stage_name}_{task['User']}_{stage_counter}_{task_counter}"
-                                        task_counter += 1
+                                    # Aggregate time by user for this stage
+                                    user_aggregated = stage_data.groupby('User')['Time spent (s)'].sum().reset_index()
+                                    
+                                    # Show one task per user for this stage
+                                    for idx, user_task in user_aggregated.iterrows():
+                                        user_name = user_task['User']
+                                        total_time = user_task['Time spent (s)']
+                                        task_key = f"{book_title}_{stage_name}_{user_name}"
                                         
                                         # Task details container
                                         task_container = st.container()
@@ -615,8 +618,8 @@ def main():
                                             col1, col2, col3, col4 = st.columns([2, 1, 1, 1])
                                             
                                             with col1:
-                                                st.write(f"**User:** {task['User']}")
-                                                st.write(f"**Time:** {format_seconds_to_time(task['Time spent (s)'])}")
+                                                st.write(f"**User:** {user_name}")
+                                                st.write(f"**Total Time:** {format_seconds_to_time(total_time)}")
                                             
                                             with col2:
                                                 # Timer display
@@ -645,6 +648,10 @@ def main():
                                                             
                                                             # Add elapsed time to database
                                                             try:
+                                                                # Get board name from original data
+                                                                user_original_data = stage_data[stage_data['User'] == user_name].iloc[0]
+                                                                board_name = user_original_data['Board']
+                                                                
                                                                 with engine.connect() as conn:
                                                                     conn.execute(text('''
                                                                         INSERT INTO trello_time_tracking 
@@ -652,10 +659,10 @@ def main():
                                                                         VALUES (:card_name, :user_name, :list_name, :time_spent_seconds, :board_name, :created_at)
                                                                     '''), {
                                                                         'card_name': book_title,
-                                                                        'user_name': task['User'],
+                                                                        'user_name': user_name,
                                                                         'list_name': stage_name,
                                                                         'time_spent_seconds': elapsed_seconds,
-                                                                        'board_name': task['Board'],
+                                                                        'board_name': board_name,
                                                                         'created_at': datetime.now()
                                                                     })
                                                                     conn.commit()
@@ -674,11 +681,11 @@ def main():
                                                         st.rerun()
                                             
                                             with col4:
-                                                # User selector for timer (in case they want to switch users)
+                                                # Status indicator
                                                 if task_key in st.session_state.timers and st.session_state.timers[task_key]:
                                                     st.write("🔴 Recording")
                                                 else:
-                                                    st.write("")
+                                                    st.write("⏸️ Ready")
                                         
                                         st.markdown("---")
                                 

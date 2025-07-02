@@ -114,6 +114,7 @@ Changelog:
 - July 02, 2025. Added manual data entry form above CSV upload with detailed stage-specific time tracking fields (Editorial R&D, Writing, Proofs 1-5, Sign-offs, Design stages)
 - July 02, 2025. Removed Database Management tab and all related code per user request
 - July 02, 2025. Removed CSV upload functionality - app now focuses exclusively on manual data entry with stage-specific time tracking
+- July 02, 2025. Enhanced Book Completion tab with expandable dropdowns, individual task timers, and aggregated time tracking per user/stage combination
 ```
 
 ## User Preferences
