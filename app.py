@@ -669,6 +669,27 @@ def main():
                             success_msg += f" ({actual_count} completed work sessions with recorded dates/times)"
                         
                         st.success(success_msg)
+                        
+                        # Clear all form fields after successful entry
+                        form_keys_to_clear = [
+                            "manual_card_name", "manual_board_name", "record_actual_time"
+                        ]
+                        
+                        # Clear time entry fields
+                        for field_label, list_name, user_options in time_fields:
+                            list_key = list_name.replace(' ', '_').lower()
+                            form_keys_to_clear.extend([
+                                f"user_{list_key}",
+                                f"time_{list_key}",
+                                f"actual_user_{list_key}",
+                                f"actual_time_{list_key}"
+                            ])
+                        
+                        # Clear the session state for all form fields
+                        for key in form_keys_to_clear:
+                            if key in st.session_state:
+                                del st.session_state[key]
+                        
                         st.rerun()
                     else:
                         st.warning("No tasks created - please assign users to stages (time estimates are optional)")
@@ -1278,6 +1299,7 @@ def main():
 
 def add_scroll_to_top_button():
     """Add a sticky scroll-to-top button in the bottom left corner"""
+    # Using streamlit-javascript to inject working scroll functionality
     st.markdown("""
     <style>
     .scroll-to-top {
@@ -1312,10 +1334,55 @@ def add_scroll_to_top_button():
         transform: scale(0.95);
     }
     </style>
+    """, unsafe_allow_html=True)
     
-    <button class="scroll-to-top" onclick="window.scrollTo({top: 0, behavior: 'smooth'})" title="Scroll to top">
+    # Create the button with a unique ID and attach JavaScript
+    st.markdown("""
+    <div id="scroll-to-top-btn" class="scroll-to-top" title="Scroll to top">
         ↑
-    </button>
+    </div>
+    
+    <script>
+    (function() {
+        // Remove any existing event listeners
+        const existingBtn = document.getElementById('scroll-to-top-btn');
+        if (existingBtn && existingBtn.onclick) {
+            existingBtn.onclick = null;
+        }
+        
+        // Add new event listener
+        setTimeout(function() {
+            const btn = document.getElementById('scroll-to-top-btn');
+            if (btn) {
+                btn.onclick = function() {
+                    // Try to scroll the main content area
+                    const scrollTargets = [
+                        document.querySelector('.main'),
+                        document.querySelector('[data-testid="stAppViewContainer"]'),
+                        document.documentElement,
+                        document.body,
+                        window
+                    ];
+                    
+                    for (let target of scrollTargets) {
+                        if (target) {
+                            try {
+                                if (target === window) {
+                                    target.scrollTo({top: 0, behavior: 'smooth'});
+                                } else {
+                                    target.scrollTop = 0;
+                                }
+                                break;
+                            } catch (e) {
+                                continue;
+                            }
+                        }
+                    }
+                };
+            }
+        }, 100);
+    })();
+    </script>
     """, unsafe_allow_html=True)
 
 if __name__ == "__main__":
