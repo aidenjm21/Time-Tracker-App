@@ -125,6 +125,8 @@ Changelog:
 - July 02, 2025. Fixed alphabetical sorting: books remain in alphabetical order when timer sessions end, preventing list reordering and auto-collapse
 - July 02, 2025. Added "Time Allocation" column to User Data table showing estimated time for each task alongside actual time spent
 - July 02, 2025. Enhanced manual entry form with dual functionality: task assignment (estimates) and manual time recording (actual completed work with specific dates/times)
+- July 02, 2025. Fixed Book Progress display: updated stage names to match actual form fields (1st Edit, 2nd Edit, Design R&D, In Design) and corrected default estimates
+- July 02, 2025. Implemented UTC+1 timezone for all date/time operations including timers, manual entries, and session tracking
 ```
 
 ## User Preferences

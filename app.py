@@ -1,13 +1,16 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from collections import Counter
 import io
 import os
 import re
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import IntegrityError
+
+# Set UTC+1 timezone
+UTC_PLUS_1 = timezone(timedelta(hours=1))
 
 @st.cache_resource
 def init_database():
@@ -544,15 +547,15 @@ def main():
         actual_time_entries = {}
         
         if record_actual_time:
-            # Date and time selection
+            # Date and time selection (UTC+1)
             col1, col2 = st.columns(2)
             with col1:
-                work_date = st.date_input("Work Date", value=datetime.now().date())
+                work_date = st.date_input("Work Date", value=datetime.now(UTC_PLUS_1).date())
             with col2:
-                work_time = st.time_input("Work Start Time", value=datetime.now().time())
+                work_time = st.time_input("Work Start Time", value=datetime.now(UTC_PLUS_1).time())
             
-            # Combine date and time
-            work_datetime = datetime.combine(work_date, work_time)
+            # Combine date and time with UTC+1 timezone
+            work_datetime = datetime.combine(work_date, work_time, UTC_PLUS_1)
             
             st.markdown("**Record Time Spent:**")
             for field_label, list_name, user_options in time_fields:
@@ -598,7 +601,7 @@ def main():
             else:
                 try:
                     entries_added = 0
-                    current_time = datetime.now()
+                    current_time = datetime.now(UTC_PLUS_1)
                     
                     with engine.connect() as conn:
                         # Add estimate entries (task assignments with 0 time spent)
@@ -741,17 +744,16 @@ def main():
                             # If no estimates in database, use reasonable defaults per stage
                             if estimated_time == 0:
                                 default_stage_estimates = {
-                                    'Editorial R&D': 2 * 3600,      # 2 hours default
-                                    'Editorial Writing': 8 * 3600,   # 8 hours default 
-                                    '1st Proof': 2 * 3600,          # 2 hours default
-                                    '2nd Proof': 1.5 * 3600,        # 1.5 hours default
-                                    '3rd Proof': 1 * 3600,          # 1 hour default
-                                    '4th Proof': 1 * 3600,          # 1 hour default
-                                    '5th Proof': 1 * 3600,          # 1 hour default
+                                    'Editorial R&D': 2 * 3600,        # 2 hours default
+                                    'Editorial Writing': 8 * 3600,    # 8 hours default 
+                                    '1st Edit': 4 * 3600,             # 4 hours default
+                                    '2nd Edit': 2 * 3600,             # 2 hours default
+                                    'Design R&D': 3 * 3600,           # 3 hours default
+                                    'In Design': 6 * 3600,            # 6 hours default
+                                    '1st Proof': 2 * 3600,            # 2 hours default
+                                    '2nd Proof': 1.5 * 3600,          # 1.5 hours default
                                     'Editorial Sign Off': 0.5 * 3600, # 30 minutes default
-                                    'Cover Design': 4 * 3600,       # 4 hours default
-                                    'Design Time': 6 * 3600,        # 6 hours default
-                                    'Design Sign Off': 0.5 * 3600   # 30 minutes default
+                                    'Design Sign Off': 0.5 * 3600     # 30 minutes default
                                 }
                                 unique_stages = book_data['List'].unique()
                                 estimated_time = sum(default_stage_estimates.get(stage, 3600) for stage in unique_stages)
@@ -776,11 +778,11 @@ def main():
                                 
                                 st.markdown("---")
                                 
-                                # Define the order of stages to match the data entry form
+                                # Define the order of stages to match the actual data entry form
                                 stage_order = [
-                                    'Editorial R&D', 'Editorial Writing', '1st Proof', '2nd Proof', 
-                                    '3rd Proof', '4th Proof', '5th Proof', 'Editorial Sign Off',
-                                    'Cover Design', 'Design Time', 'Design Sign Off'
+                                    'Editorial R&D', 'Editorial Writing', '1st Edit', '2nd Edit',
+                                    'Design R&D', 'In Design', '1st Proof', '2nd Proof', 
+                                    'Editorial Sign Off', 'Design Sign Off'
                                 ]
                                 
                                 # Group by stage/list and aggregate by user
@@ -848,7 +850,7 @@ def main():
                                                         if st.button("Stop", key=f"stop_{task_key}"):
                                                             # Stop timer and add time to database
                                                             if task_key in st.session_state.timer_start_times:
-                                                                elapsed = datetime.now() - st.session_state.timer_start_times[task_key]
+                                                                elapsed = datetime.now(UTC_PLUS_1) - st.session_state.timer_start_times[task_key]
                                                                 elapsed_seconds = int(elapsed.total_seconds())
                                                                 
                                                                 # Add elapsed time to database
@@ -868,7 +870,7 @@ def main():
                                                                             'list_name': stage_name,
                                                                             'time_spent_seconds': elapsed_seconds,
                                                                             'board_name': board_name,
-                                                                            'created_at': datetime.now(),
+                                                                            'created_at': datetime.now(UTC_PLUS_1),
                                                                             'session_start_time': st.session_state.timer_start_times[task_key]
                                                                         })
                                                                         conn.commit()
@@ -882,7 +884,7 @@ def main():
                                                     else:
                                                         if st.button("Start", key=f"start_{task_key}"):
                                                             st.session_state.timers[task_key] = True
-                                                            st.session_state.timer_start_times[task_key] = datetime.now()
+                                                            st.session_state.timer_start_times[task_key] = datetime.now(UTC_PLUS_1)
                                                             st.rerun()
                                                 
                                                 with timer_col:
@@ -946,7 +948,7 @@ def main():
                                                                                 'list_name': stage_name,
                                                                                 'time_spent_seconds': total_seconds,
                                                                                 'board_name': board_name,
-                                                                                'created_at': datetime.now()
+                                                                                'created_at': datetime.now(UTC_PLUS_1)
                                                                             })
                                                                             conn.commit()
                                                                         
