@@ -132,6 +132,8 @@ Changelog:
 - July 02, 2025. Fixed form clearing: implemented explicit field clearing with default values after successful book creation
 - July 02, 2025. Fixed session state modification error by using form clearing flag instead of direct modification
 - July 02, 2025. Moved success message from top to bottom of Add Book form (below the Add Entry button)
+- July 02, 2025. Fixed complete form clearing: both user and time fields now reset to default values after book creation
+- July 02, 2025. Improved tab switching responsiveness by adding immediate rerun when tab selection changes
 ```
 
 ## User Preferences

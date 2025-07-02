@@ -443,9 +443,11 @@ def main():
     tab_names = ["Book Progress", "Add Book", "Archive", "User Data"]
     selected_tab = st.selectbox("Select Tab:", tab_names, index=st.session_state.active_tab, key="tab_selector")
     
-    # Update active tab when changed
-    if selected_tab != tab_names[st.session_state.active_tab]:
-        st.session_state.active_tab = tab_names.index(selected_tab)
+    # Update active tab when changed - force immediate update
+    current_index = tab_names.index(selected_tab)
+    if current_index != st.session_state.active_tab:
+        st.session_state.active_tab = current_index
+        st.rerun()
     
     # Create individual tab sections based on selection
     if selected_tab == "Add Book":
@@ -500,24 +502,33 @@ def main():
             col1, col2 = st.columns([2, 1])
             
             with col1:
+                # Create unique key for clearing behavior
+                user_key = f"user_{list_name.replace(' ', '_').lower()}"
+                if clear_form and user_key in st.session_state:
+                    # Remove the key to force default value
+                    del st.session_state[user_key]
+                    
                 selected_user = st.selectbox(
                     f"User for {field_label}",
                     user_options,
-                    key=f"user_{list_name.replace(' ', '_').lower()}",
-                    label_visibility="collapsed",
-                    index=0 if clear_form else None
+                    key=user_key,
+                    label_visibility="collapsed"
                 )
             
             with col2:
-                default_value = 0.0 if clear_form else 0.0
+                # Create unique key for clearing behavior
+                time_key = f"time_{list_name.replace(' ', '_').lower()}"
+                if clear_form and time_key in st.session_state:
+                    # Remove the key to force default value
+                    del st.session_state[time_key]
+                    
                 time_value = st.number_input(
                     f"Time for {field_label}",
                     min_value=0.0,
                     step=0.1,
                     format="%.1f",
-                    key=f"time_{list_name.replace(' ', '_').lower()}",
-                    label_visibility="collapsed",
-                    value=default_value
+                    key=time_key,
+                    label_visibility="collapsed"
                 )
             
             # Handle user selection and calculate totals
