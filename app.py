@@ -456,9 +456,9 @@ def main():
             st.subheader("Time Tracking Fields")
             st.markdown("*Assign different users to different stages. Leave time as 0 to skip a stage.*")
             
-            # Define user groups for different types of work
-            editorial_users = ["None", "Rebecca Phillips-Bartlett", "Charis Mather", "Noah Leatherland", "Bethany Latham"]
-            design_users = ["None", "Drue Rintoul", "Amy Li", "Amelia Harris", "Ker Ker Lee", "Jasmine Pointer", "Rob Delph"]
+            # Define user groups for different types of work (alphabetically ordered)
+            editorial_users = ["None", "Bethany Latham", "Charis Mather", "Noah Leatherland", "Rebecca Phillips-Bartlett"]
+            design_users = ["None", "Amelia Harris", "Amy Li", "Drue Rintoul", "Jasmine Pointer", "Ker Ker Lee", "Rob Delph"]
             
             # Create a dictionary to store time entries
             time_entries = {}
