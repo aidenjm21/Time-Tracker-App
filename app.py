@@ -535,7 +535,10 @@ def main():
                 
                 # Get data from database for book completion
                 df_from_db = pd.read_sql(
-                    'SELECT card_name as "Card name", user_name as "User", list_name as "List", time_spent_seconds as "Time spent (s)", date_started as "Date started (f)", card_estimate_seconds as "Card estimate(s)", board_name as "Board", created_at FROM trello_time_tracking ORDER BY created_at DESC', 
+                    '''SELECT card_name as "Card name", user_name as "User", list_name as "List", 
+                       time_spent_seconds as "Time spent (s)", date_started as "Date started (f)", 
+                       card_estimate_seconds as "Card estimate(s)", board_name as "Board", created_at 
+                       FROM trello_time_tracking ORDER BY created_at DESC''', 
                     engine
                 )
                 
@@ -549,9 +552,10 @@ def main():
                     )
                     
                     # Filter books based on search
-                    filtered_df = df_from_db
+                    filtered_df = df_from_db.copy()
                     if search_query:
-                        filtered_df = df_from_db[df_from_db['Card name'].str.contains(search_query, case=False, na=False)]
+                        mask = filtered_df['Card name'].str.contains(search_query, case=False, na=False)
+                        filtered_df = filtered_df[mask]
                     
                     # Get unique books
                     unique_books = filtered_df['Card name'].unique()
@@ -561,15 +565,16 @@ def main():
                         
                         # Display each book with enhanced visualization
                         for book_title in unique_books:
-                            book_data = filtered_df[filtered_df['Card name'] == book_title]
+                            book_mask = filtered_df['Card name'] == book_title
+                            book_data = filtered_df[book_mask].copy()
                             
                             # Calculate overall progress
                             total_time_spent = book_data['Time spent (s)'].sum()
                             estimated_time = 0
                             if 'Card estimate(s)' in book_data.columns and len(book_data) > 0:
-                                est_val = book_data['Card estimate(s)'].iloc[0]
-                                if not pd.isna(est_val):
-                                    estimated_time = est_val
+                                first_estimate = book_data['Card estimate(s)'].iloc[0]
+                                if not pd.isna(first_estimate):
+                                    estimated_time = first_estimate
                             
                             # Create expandable section for each book
                             with st.expander(f"📖 {book_title}", expanded=False):
@@ -592,12 +597,15 @@ def main():
                                 # Group by stage/list and show individual tasks
                                 stages = book_data.groupby('List')
                                 
+                                stage_counter = 0
                                 for stage_name, stage_data in stages:
                                     st.subheader(f"🎯 {stage_name}")
                                     
                                     # Show all tasks for this stage
+                                    task_counter = 0
                                     for idx, task in stage_data.iterrows():
-                                        task_key = f"{book_title}_{stage_name}_{task['User']}"
+                                        task_key = f"{book_title}_{stage_name}_{task['User']}_{stage_counter}_{task_counter}"
+                                        task_counter += 1
                                         
                                         # Task details container
                                         task_container = st.container()
@@ -680,6 +688,8 @@ def main():
                                     st.write(f"⏰ {len(running_timers)} timer(s) running")
                                     if st.button("🔄 Refresh Timers", key=f"refresh_{book_title}"):
                                         st.rerun()
+                                
+                                stage_counter += 1
                     else:
                         if search_query:
                             st.warning(f"No books found matching '{search_query}'")
