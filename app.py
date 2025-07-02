@@ -778,26 +778,29 @@ def main():
                         key="db_record_limit"
                     )
                 
-                # Build query based on filters
-                query = "SELECT * FROM trello_time_tracking WHERE 1=1"
+                # Build query based on filters using SQLAlchemy's text() with parameters
+                base_query = "SELECT * FROM trello_time_tracking WHERE 1=1"
+                params = {}
                 
                 if card_filter:
-                    # Use ILIKE for case-insensitive search, escape single quotes
-                    escaped_filter = card_filter.replace("'", "''")
-                    query += f" AND card_name ILIKE '%{escaped_filter}%'"
+                    base_query += " AND card_name ILIKE %(card_filter)s"
+                    params['card_filter'] = f"%{card_filter}%"
                 
                 if user_filter != "All":
-                    # Escape single quotes for user filter
-                    escaped_user = user_filter.replace("'", "''")
-                    query += f" AND user_name = '{escaped_user}'"
+                    base_query += " AND user_name = %(user_filter)s"
+                    params['user_filter'] = user_filter
                 
-                query += " ORDER BY created_at DESC"
+                base_query += " ORDER BY created_at DESC"
                 
                 if record_limit != "All":
-                    query += f" LIMIT {record_limit}"
+                    base_query += f" LIMIT {record_limit}"
                 
-                # Load and display data
-                df_db = pd.read_sql(query, engine)
+                # Load and display data using SQLAlchemy connection
+                with engine.connect() as conn:
+                    result = conn.execute(text(base_query), params)
+                    columns = result.keys()
+                    rows = result.fetchall()
+                    df_db = pd.DataFrame(rows, columns=columns)
                 
                 if not df_db.empty:
                     st.subheader("Database Records")
