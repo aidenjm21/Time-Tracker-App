@@ -369,6 +369,27 @@ def process_user_task_breakdown(df):
 
 
 def main():
+    # Add custom CSS to reduce padding and margins
+    st.markdown("""
+    <style>
+    .main .block-container {
+        padding-top: 1rem;
+        padding-bottom: 1rem;
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+    .stExpander > div:first-child {
+        padding: 0.5rem 0;
+    }
+    .element-container {
+        margin-bottom: 0.5rem;
+    }
+    div[data-testid="column"] {
+        padding: 0 0.5rem;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+    
     st.title("Book Production Time Tracking")
     st.markdown("Track time spent on different stages of book production with detailed stage-specific analysis.")
     
@@ -379,11 +400,11 @@ def main():
         return
     
     # Create tabs for different views
-    tab1, tab2, tab3 = st.tabs(["📝 Data Entry", "📊 Book Completion", "🔍 Filter User Tasks"])
+    tab1, tab2, tab3 = st.tabs(["Data Entry", "Book Completion", "Filter User Tasks"])
     
     with tab1:
         # Manual Data Entry Form
-        st.header("📝 Manual Data Entry")
+        st.header("Manual Data Entry")
         st.markdown("Add individual time tracking entries for detailed stage-specific analysis.")
         
         # General fields
@@ -473,7 +494,7 @@ def main():
         st.markdown("---")
         
         # Submit button outside of form
-        if st.button("➕ Add Entry", type="primary", key="manual_submit"):
+        if st.button("Add Entry", type="primary", key="manual_submit"):
             if not card_name:
                 st.error("Please fill in Card Name field")
             elif not time_entries:
@@ -519,7 +540,7 @@ def main():
                     st.error(f"Error adding manual entry: {str(e)}")
     
     with tab2:
-        st.header("📊 Book Completion Progress")
+        st.header("Book Completion Progress")
         st.markdown("Visual progress tracking for all books with individual task timers.")
         
         # Initialize session state for timers
@@ -549,7 +570,7 @@ def main():
                 if not df_from_db.empty:
                     # Add search bar for book titles
                     search_query = st.text_input(
-                        "🔍 Search books by title:",
+                        "Search books by title:",
                         placeholder="Enter book title to filter results...",
                         help="Search for specific books by typing part of the title",
                         key="completion_search"
@@ -602,7 +623,7 @@ def main():
                                 estimated_time = sum(default_stage_estimates.get(stage, 3600) for stage in unique_stages)
                             
                             # Create expandable section for each book
-                            with st.expander(f"📖 {book_title}", expanded=False):
+                            with st.expander(f"{book_title}", expanded=False):
                                 # Overall progress bar
                                 col1, col2 = st.columns([3, 1])
                                 
@@ -634,7 +655,7 @@ def main():
                                 for stage_name in stage_order:
                                     if stage_name in stages_grouped.groups:
                                         stage_data = stages_grouped.get_group(stage_name)
-                                        st.subheader(f"🎯 {stage_name}")
+                                        st.subheader(f"{stage_name}")
                                         
                                         # Aggregate time by user for this stage
                                         user_aggregated = stage_data.groupby('User')['Time spent (s)'].sum().reset_index()
@@ -670,22 +691,25 @@ def main():
                                                 st.progress(min(progress_percentage, 1.0))
                                                 
                                                 if progress_percentage > 1.0:
-                                                    st.write(f"⚠️ {(progress_percentage - 1) * 100:.1f}% over estimate")
+                                                    st.write(f"WARNING: {(progress_percentage - 1) * 100:.1f}% over estimate")
                                                 else:
-                                                    st.write(f"✅ {progress_percentage * 100:.1f}% complete")
+                                                    st.write(f"COMPLETE: {progress_percentage * 100:.1f}%")
                                             
                                             with col2:
-                                                # Timer display
+                                                # Session timer display
                                                 if task_key in st.session_state.timers and st.session_state.timers[task_key]:
-                                                    # Timer is running
+                                                    # Timer is running - show session time
                                                     if task_key in st.session_state.timer_start_times:
                                                         elapsed = datetime.now() - st.session_state.timer_start_times[task_key]
                                                         elapsed_seconds = int(elapsed.total_seconds())
-                                                        st.write(f"⏱️ {format_seconds_to_time(elapsed_seconds)}")
+                                                        st.write("**Session Time:**")
+                                                        st.write(f"{format_seconds_to_time(elapsed_seconds)}")
                                                     else:
-                                                        st.write("⏱️ 00:00:00")
+                                                        st.write("**Session Time:**")
+                                                        st.write("00:00:00")
                                                 else:
-                                                    st.write("⏱️ Stopped")
+                                                    st.write("**Session Time:**")
+                                                    st.write("Stopped")
                                             
                                             with col3:
                                                 # Start/Stop timer button
@@ -693,7 +717,7 @@ def main():
                                                     st.session_state.timers[task_key] = False
                                                 
                                                 if st.session_state.timers[task_key]:
-                                                    if st.button("⏹️ Stop", key=f"stop_{task_key}"):
+                                                    if st.button("Stop", key=f"stop_{task_key}"):
                                                         # Stop timer and add time to database
                                                         if task_key in st.session_state.timer_start_times:
                                                             elapsed = datetime.now() - st.session_state.timer_start_times[task_key]
@@ -728,7 +752,7 @@ def main():
                                                             except Exception as e:
                                                                 st.error(f"Error saving time: {str(e)}")
                                                 else:
-                                                    if st.button("▶️ Start", key=f"start_{task_key}"):
+                                                    if st.button("Start", key=f"start_{task_key}"):
                                                         st.session_state.timers[task_key] = True
                                                         st.session_state.timer_start_times[task_key] = datetime.now()
                                                         st.rerun()
@@ -736,17 +760,17 @@ def main():
                                             with col4:
                                                 # Status indicator
                                                 if task_key in st.session_state.timers and st.session_state.timers[task_key]:
-                                                    st.write("🔴 Recording")
+                                                    st.write("RECORDING")
                                                 else:
-                                                    st.write("⏸️ Ready")
+                                                    st.write("READY")
                                         
                                         st.markdown("---")
                                 
                                 # Show refresh button if there are running timers
                                 running_timers = [k for k, v in st.session_state.timers.items() if v and book_title in k]
                                 if running_timers:
-                                    st.write(f"⏰ {len(running_timers)} timer(s) running")
-                                    if st.button("🔄 Refresh Timers", key=f"refresh_{book_title}"):
+                                    st.write(f"{len(running_timers)} timer(s) running")
+                                    if st.button("Refresh Timers", key=f"refresh_{book_title}"):
                                         st.rerun()
                                 
                                 stage_counter += 1
@@ -764,7 +788,7 @@ def main():
             st.error(f"Error accessing database: {str(e)}")
     
     with tab3:
-        st.header("🔍 Filter User Tasks")
+        st.header("Filter User Tasks")
         st.markdown("Filter tasks by user and date range from all uploaded data.")
         
         # Get users from database
@@ -798,7 +822,7 @@ def main():
             )
         
         # Update button
-        update_button = st.button("🔄 Update Table", type="primary")
+        update_button = st.button("Update Table", type="primary")
         
         # Validate date range
         if start_date and end_date and start_date > end_date:
@@ -849,7 +873,7 @@ def main():
                 csv_buffer = io.StringIO()
                 user_tasks.to_csv(csv_buffer, index=False)
                 st.download_button(
-                    label=f"📥 Download {selected_user}'s Tasks",
+                    label=f"Download {selected_user}'s Tasks",
                     data=csv_buffer.getvalue(),
                     file_name=f"{selected_user}_tasks.csv",
                     mime="text/csv"
