@@ -606,6 +606,11 @@ def main():
                         key="completion_search"
                     )
                     
+                    # Debug: Check available columns
+                    st.write("Available columns in database:", list(df_from_db.columns))
+                    if not df_from_db.empty:
+                        st.write("Sample data:", df_from_db.head(1).to_dict())
+                    
                     book_completion = process_book_completion(df_from_db, search_filter=search_query if search_query else None)
                     
                     if not book_completion.empty:
