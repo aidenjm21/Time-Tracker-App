@@ -107,7 +107,7 @@ Changelog:
 - July 01, 2025. Added PostgreSQL database integration with duplicate prevention
 - July 01, 2025. Added user filtering interface with date range selection
 - July 01, 2025. Implemented tabbed interface for CSV upload and user task filtering
-- July 02, 2025. Added Visual Progress column with HTML progress bars, current stage tracking, and search functionality for book titles
+- July 02, 2025. Added separate "Book Completion" tab with visual progress bars, current stage tracking, and search functionality
 ```
 
 ## User Preferences

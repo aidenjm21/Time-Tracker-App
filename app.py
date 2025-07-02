@@ -168,21 +168,68 @@ def calculate_completion_status(time_spent_seconds, estimated_seconds):
         over_percentage = int((completion_ratio - 1.0) * 100)
         return f"{over_percentage}% over allocation"
 
+def process_book_summary(df):
+    """Generate Book Summary Table"""
+    try:
+        # Group by book title (Card name)
+        book_groups = df.groupby('Card name')
+        
+        book_summary_data = []
+        
+        for book_title, group in book_groups:
+            # Calculate total time spent
+            total_time_spent = group['Time spent (s)'].sum()
+            
+            # Find main user (most frequent contributor by time spent)
+            user_time = group.groupby('User')['Time spent (s)'].sum()
+            main_user = user_time.idxmax() if not user_time.empty else "Unknown"
+            
+            # Get estimated time (assuming it's the same for all rows of the same book)
+            estimated_time = group['Card estimate(s)'].iloc[0] if 'Card estimate(s)' in group.columns else 0
+            if pd.isna(estimated_time):
+                estimated_time = 0
+            
+            # Calculate completion status
+            completion = calculate_completion_status(total_time_spent, estimated_time)
+            
+            book_summary_data.append({
+                'Book Title': book_title,
+                'Main User': main_user,
+                'Time Spent': format_seconds_to_time(total_time_spent),
+                'Estimated Time': format_seconds_to_time(estimated_time),
+                'Completion': completion
+            })
+        
+        return pd.DataFrame(book_summary_data)
+    
+    except Exception as e:
+        st.error(f"Error processing book summary: {str(e)}")
+        return pd.DataFrame()
+
 def get_most_recent_activity(df, card_name):
     """Get the most recent list/stage worked on for a specific card"""
-    card_data = df[df['Card name'] == card_name]
-    
-    # If Date started (f) exists, use it to find most recent
-    if 'Date started (f)' in df.columns and not card_data['Date started (f)'].isna().all():
-        # Convert dates and find the most recent entry
-        card_data_with_dates = card_data.dropna(subset=['Date started (f)'])
-        if not card_data_with_dates.empty:
-            card_data_with_dates['parsed_date'] = pd.to_datetime(card_data_with_dates['Date started (f)'], format='%m/%d/%Y', errors='coerce')
-            most_recent = card_data_with_dates.loc[card_data_with_dates['parsed_date'].idxmax()]
-            return most_recent['List']
-    
-    # Fallback: return the last entry (by order in CSV)
-    return card_data.iloc[-1]['List']
+    try:
+        card_data = df[df['Card name'] == card_name]
+        
+        if card_data.empty:
+            return "Unknown"
+        
+        # If Date started (f) exists, use it to find most recent
+        if 'Date started (f)' in df.columns and not card_data['Date started (f)'].isna().all():
+            # Convert dates and find the most recent entry
+            card_data_with_dates = card_data.dropna(subset=['Date started (f)'])
+            if not card_data_with_dates.empty:
+                card_data_with_dates = card_data_with_dates.copy()
+                card_data_with_dates['parsed_date'] = pd.to_datetime(card_data_with_dates['Date started (f)'], format='%m/%d/%Y', errors='coerce')
+                card_data_with_dates = card_data_with_dates.dropna(subset=['parsed_date'])
+                if not card_data_with_dates.empty:
+                    most_recent = card_data_with_dates.loc[card_data_with_dates['parsed_date'].idxmax()]
+                    return most_recent['List']
+        
+        # Fallback: return the last entry (by order in CSV)
+        return card_data.iloc[-1]['List']
+    except Exception as e:
+        return "Unknown"
 
 def create_progress_bar_html(completion_percentage):
     """Create HTML progress bar for completion status"""
@@ -208,12 +255,9 @@ def create_progress_bar_html(completion_percentage):
         </div>
         """
 
-def process_book_summary(df, search_filter=None):
-    """Generate Book Summary Table with optional search filter"""
+def process_book_completion(df, search_filter=None):
+    """Generate Book Completion Table with visual progress"""
     try:
-        # Keep original df for getting most recent activity
-        original_df = df.copy()
-        
         # Apply search filter if provided
         if search_filter:
             df = df[df['Card name'].str.contains(search_filter, case=False, na=False)]
@@ -224,18 +268,11 @@ def process_book_summary(df, search_filter=None):
         # Group by book title (Card name)
         book_groups = df.groupby('Card name')
         
-        book_summary_data = []
+        book_completion_data = []
         
         for book_title, group in book_groups:
             # Calculate total time spent
             total_time_spent = group['Time spent (s)'].sum()
-            
-            # Find main user (most frequent contributor by time spent)
-            user_time = group.groupby('User')['Time spent (s)'].sum()
-            if len(user_time) > 0:
-                main_user = user_time.idxmax()
-            else:
-                main_user = "Unknown"
             
             # Get estimated time (assuming it's the same for all rows of the same book)
             estimated_time = 0
@@ -244,10 +281,10 @@ def process_book_summary(df, search_filter=None):
                 if not pd.isna(est_val):
                     estimated_time = est_val
             
-            # Get most recent activity from original dataframe
-            most_recent_list = get_most_recent_activity(original_df, book_title)
+            # Get most recent activity
+            most_recent_list = get_most_recent_activity(df, book_title)
             
-            # Calculate completion status and create progress visual
+            # Calculate completion status
             completion = calculate_completion_status(total_time_spent, estimated_time)
             
             # Create visual progress element
@@ -265,21 +302,15 @@ def process_book_summary(df, search_filter=None):
             </div>
             """
             
-            book_summary_data.append({
+            book_completion_data.append({
                 'Book Title': book_title,
                 'Visual Progress': visual_progress,
-                'Main User': main_user,
-                'Time Spent': format_seconds_to_time(total_time_spent),
-                'Estimated Time': format_seconds_to_time(estimated_time),
-                'Completion': completion
             })
         
-        return pd.DataFrame(book_summary_data)
+        return pd.DataFrame(book_completion_data)
     
     except Exception as e:
-        st.error(f"Error processing book summary: {str(e)}")
-        import traceback
-        st.error(f"Full error details: {traceback.format_exc()}")
+        st.error(f"Error processing book completion: {str(e)}")
         return pd.DataFrame()
 
 def convert_date_format(date_str):
@@ -392,7 +423,7 @@ def main():
         return
     
     # Create tabs for different views
-    tab1, tab2 = st.tabs(["📁 Upload & Analyse CSV", "🔍 Filter User Tasks"])
+    tab1, tab2, tab3 = st.tabs(["📁 Upload & Analyse CSV", "📊 Book Completion", "🔍 Filter User Tasks"])
     
     with tab1:
         # File upload
@@ -435,67 +466,18 @@ def main():
                 
                 # Process and display Book Summary Table
                 st.header("📚 Book Summary Table")
-                
-                # Add search bar for book titles
-                search_query = st.text_input(
-                    "🔍 Search books by title:",
-                    placeholder="Enter book title to filter results...",
-                    help="Search for specific books by typing part of the title"
-                )
-                
-                # Debug: Show data info
-                st.write(f"Processing {len(df)} rows of data")
-                st.write(f"Columns: {list(df.columns)}")
-                
-                book_summary = process_book_summary(df, search_filter=search_query if search_query else None)
+                book_summary = process_book_summary(df)
                 
                 if not book_summary.empty:
-                    st.write(f"Found {len(book_summary)} books to display")
-                    # Display column headers
-                    col1, col2, col3, col4, col5 = st.columns([3, 4, 2, 2, 3])
-                    with col1:
-                        st.write("**Book Title**")
-                    with col2:
-                        st.write("**Visual Progress**")
-                    with col3:
-                        st.write("**Main User**")
-                    with col4:
-                        st.write("**Time Spent**")
-                    with col5:
-                        st.write("**Completion**")
-                    
-                    st.divider()
-                    
-                    # Display the table with HTML rendering for the Visual Progress column
-                    for idx, row in book_summary.iterrows():
-                        with st.container():
-                            col1, col2, col3, col4, col5 = st.columns([3, 4, 2, 2, 3])
-                            
-                            with col1:
-                                st.write(row['Book Title'])
-                            
-                            with col2:
-                                # Render the HTML visual progress
-                                st.markdown(row['Visual Progress'], unsafe_allow_html=True)
-                            
-                            with col3:
-                                st.write(row['Main User'])
-                            
-                            with col4:
-                                st.write(row['Time Spent'])
-                            
-                            with col5:
-                                st.write(row['Completion'])
-                            
-                            st.divider()
-                    
-                    # Also provide a downloadable version without HTML
-                    book_summary_download = book_summary.copy()
-                    book_summary_download = book_summary_download.drop('Visual Progress', axis=1)
+                    st.dataframe(
+                        book_summary,
+                        use_container_width=True,
+                        hide_index=True
+                    )
                     
                     # Add download button for book summary
                     csv_buffer = io.StringIO()
-                    book_summary_download.to_csv(csv_buffer, index=False)
+                    book_summary.to_csv(csv_buffer, index=False)
                     st.download_button(
                         label="📥 Download Book Summary as CSV",
                         data=csv_buffer.getvalue(),
@@ -573,6 +555,56 @@ def main():
                 """)
     
     with tab2:
+        st.header("📊 Book Completion Progress")
+        st.markdown("Visual progress tracking for all books with search functionality.")
+        
+        # Check if we have data from database
+        try:
+            with engine.connect() as conn:
+                result = conn.execute(text("SELECT COUNT(*) FROM trello_time_tracking"))
+                total_records = result.scalar()
+                
+            if total_records and total_records > 0:
+                st.info(f"Showing completion progress for books from {total_records} database records.")
+                
+                # Get data from database for book completion
+                df_from_db = pd.read_sql(
+                    "SELECT card_name as 'Card name', user_name as 'User', list_name as 'List', time_spent_seconds as 'Time spent (s)', date_started as 'Date started (f)', card_estimate_seconds as 'Card estimate(s)' FROM trello_time_tracking", 
+                    engine
+                )
+                
+                if not df_from_db.empty:
+                    # Add search bar for book titles
+                    search_query = st.text_input(
+                        "🔍 Search books by title:",
+                        placeholder="Enter book title to filter results...",
+                        help="Search for specific books by typing part of the title",
+                        key="completion_search"
+                    )
+                    
+                    book_completion = process_book_completion(df_from_db, search_filter=search_query if search_query else None)
+                    
+                    if not book_completion.empty:
+                        st.write(f"Found {len(book_completion)} books to display")
+                        
+                        # Display the visual progress for each book
+                        for idx, row in book_completion.iterrows():
+                            st.markdown(row['Visual Progress'], unsafe_allow_html=True)
+                            st.markdown("---")  # Separator between books
+                    else:
+                        if search_query:
+                            st.warning(f"No books found matching '{search_query}'")
+                        else:
+                            st.warning("No book completion data available")
+                else:
+                    st.warning("No data available in database")
+            else:
+                st.info("No data available. Please upload a CSV file first in the 'Upload & Analyse CSV' tab.")
+                
+        except Exception as e:
+            st.error(f"Error accessing database: {str(e)}")
+    
+    with tab3:
         st.header("🔍 Filter User Tasks")
         st.markdown("Filter tasks by user and date range from all uploaded data.")
         
