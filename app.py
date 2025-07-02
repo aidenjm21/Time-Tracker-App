@@ -535,18 +535,73 @@ def main():
         st.write(f"**Total Time Estimation: {total_estimation:.1f} hours**")
         st.markdown("---")
         
+        # Manual Time Recording Section
+        st.subheader("Manual Time Recording")
+        st.markdown("*Record actual time spent on work with specific dates. This adds completed work time to the database.*")
+        
+        # Option to record actual time spent
+        record_actual_time = st.checkbox("Record actual time spent on work")
+        actual_time_entries = {}
+        
+        if record_actual_time:
+            # Date and time selection
+            col1, col2 = st.columns(2)
+            with col1:
+                work_date = st.date_input("Work Date", value=datetime.now().date())
+            with col2:
+                work_time = st.time_input("Work Start Time", value=datetime.now().time())
+            
+            # Combine date and time
+            work_datetime = datetime.combine(work_date, work_time)
+            
+            st.markdown("**Record Time Spent:**")
+            for field_label, list_name, user_options in time_fields:
+                st.markdown(f"**{field_label}**")
+                col1, col2, col3 = st.columns([2, 1, 1])
+                
+                with col1:
+                    actual_user = st.selectbox(
+                        f"User for {field_label} actual time",
+                        user_options,
+                        key=f"actual_user_{list_name.replace(' ', '_').lower()}",
+                        label_visibility="collapsed"
+                    )
+                
+                with col2:
+                    actual_time_value = st.number_input(
+                        f"Actual time for {field_label}",
+                        min_value=0.0,
+                        step=0.1,
+                        format="%.1f",
+                        key=f"actual_time_{list_name.replace(' ', '_').lower()}",
+                        label_visibility="collapsed",
+                        help="Hours actually spent"
+                    )
+                
+                with col3:
+                    if actual_user != "None" and actual_time_value > 0:
+                        st.write(f"✓ {actual_time_value}h")
+                        actual_time_entries[list_name] = {
+                            'user': actual_user,
+                            'time_hours': actual_time_value,
+                            'work_datetime': work_datetime
+                        }
+        
+        st.markdown("---")
+        
         # Submit button outside of form
         if st.button("Add Entry", type="primary", key="manual_submit"):
             if not card_name:
                 st.error("Please fill in Card Name field")
-            elif not time_entries:
-                st.error("Please add at least one time entry with a user assigned")
+            elif not time_entries and not actual_time_entries:
+                st.error("Please add at least one time entry (estimate or actual time)")
             else:
                 try:
                     entries_added = 0
                     current_time = datetime.now()
                     
                     with engine.connect() as conn:
+                        # Add estimate entries (task assignments with 0 time spent)
                         for list_name, entry_data in time_entries.items():
                             # Create task entry with 0 time spent - users will use timer to track actual time
                             # The time_hours value from the form is just for estimation display, not actual time spent
@@ -571,12 +626,46 @@ def main():
                             })
                             entries_added += 1
                         
+                        # Add actual time entries (completed work with specific dates)
+                        for list_name, actual_data in actual_time_entries.items():
+                            # Convert hours to seconds for actual time spent
+                            actual_seconds = int(actual_data['time_hours'] * 3600)
+                            
+                            # Insert into database with actual time spent and session start time
+                            conn.execute(text('''
+                                INSERT INTO trello_time_tracking 
+                                (card_name, user_name, list_name, time_spent_seconds, card_estimate_seconds, board_name, created_at, session_start_time)
+                                VALUES (:card_name, :user_name, :list_name, :time_spent_seconds, :card_estimate_seconds, :board_name, :created_at, :session_start_time)
+                            '''), {
+                                'card_name': card_name,
+                                'user_name': actual_data['user'],
+                                'list_name': list_name,
+                                'time_spent_seconds': actual_seconds,  # Record actual time spent
+                                'card_estimate_seconds': 0,  # No estimate for actual time entries
+                                'board_name': board_name if board_name else 'Manual Entry',
+                                'created_at': current_time,
+                                'session_start_time': actual_data['work_datetime']  # Record when work was done
+                            })
+                            entries_added += 1
+                        
                         conn.commit()
                     
                     if entries_added > 0:
-                        # Keep user on the Data Entry tab
-                        st.session_state.active_tab = 0  # Data Entry tab
-                        st.success(f"Successfully created {entries_added} task assignments for '{card_name}'. All tasks start with 0:00:00 time - use Book Completion tab to track actual work.")
+                        # Keep user on the Add Book tab
+                        st.session_state.active_tab = 1  # Add Book tab
+                        
+                        estimate_count = len(time_entries)
+                        actual_count = len(actual_time_entries)
+                        
+                        success_msg = f"Successfully added {entries_added} entries for '{card_name}'"
+                        if estimate_count > 0 and actual_count > 0:
+                            success_msg += f" ({estimate_count} task assignments, {actual_count} completed work sessions)"
+                        elif estimate_count > 0:
+                            success_msg += f" ({estimate_count} task assignments - use Book Progress tab to track actual work)"
+                        elif actual_count > 0:
+                            success_msg += f" ({actual_count} completed work sessions with recorded dates/times)"
+                        
+                        st.success(success_msg)
                         st.rerun()
                     else:
                         st.warning("No tasks created - please assign users to stages (time estimates are optional)")

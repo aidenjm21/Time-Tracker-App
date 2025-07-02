@@ -124,6 +124,7 @@ Changelog:
 - July 02, 2025. Added session tracking: records date and time when timer sessions start, displays in User Data tab as "Session Started" column with DD/MM/YYYY HH:MM format
 - July 02, 2025. Fixed alphabetical sorting: books remain in alphabetical order when timer sessions end, preventing list reordering and auto-collapse
 - July 02, 2025. Added "Time Allocation" column to User Data table showing estimated time for each task alongside actual time spent
+- July 02, 2025. Enhanced manual entry form with dual functionality: task assignment (estimates) and manual time recording (actual completed work with specific dates/times)
 ```
 
 ## User Preferences
