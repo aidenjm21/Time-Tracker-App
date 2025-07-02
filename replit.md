@@ -127,6 +127,7 @@ Changelog:
 - July 02, 2025. Enhanced manual entry form with dual functionality: task assignment (estimates) and manual time recording (actual completed work with specific dates/times)
 - July 02, 2025. Fixed Book Progress display: updated stage names to match actual form fields (1st Edit, 2nd Edit, Design R&D, In Design) and corrected default estimates
 - July 02, 2025. Implemented UTC+1 timezone for all date/time operations including timers, manual entries, and session tracking
+- July 02, 2025. Added sticky circular scroll-to-top button in bottom left corner with smooth scrolling animation and hover effects
 ```
 
 ## User Preferences
