@@ -446,97 +446,123 @@ def main():
         st.markdown("Add individual time tracking entries for detailed stage-specific analysis.")
         
         with st.form("manual_entry_form"):
+            # General fields
             col1, col2 = st.columns(2)
-            
             with col1:
                 card_name = st.text_input("Card Name", placeholder="Enter book title")
+            with col2:
                 board_name = st.text_input("Board", placeholder="Enter board name")
                 
-                # Get existing users for dropdown
-                existing_users = get_users_from_database(engine)
-                if not existing_users:
-                    existing_users = ["Add new user..."]
-                else:
-                    existing_users.append("Add new user...")
+            # Get existing users for dropdowns
+            existing_users = get_users_from_database(engine)
+            if not existing_users:
+                user_options = ["None", "Add new user..."]
+            else:
+                user_options = ["None"] + existing_users + ["Add new user..."]
+            
+            st.subheader("Time Tracking Fields")
+            st.markdown("*Assign different users to different stages. Leave time as 0 to skip a stage.*")
+            
+            # Create a dictionary to store time entries
+            time_entries = {}
+            
+            # Time tracking fields with individual user dropdowns
+            time_fields = [
+                ("Editorial R&D Time", "Editorial R&D"),
+                ("Editorial Writing", "Editorial Writing"),
+                ("1st Proof", "1st Proof"),
+                ("2nd Proof", "2nd Proof"),
+                ("3rd Proof", "3rd Proof"),
+                ("4th Proof", "4th Proof"),
+                ("5th Proof", "5th Proof"),
+                ("Editorial Sign Off", "Editorial Sign Off"),
+                ("Cover Design", "Cover Design"),
+                ("Design Time", "Design Time"),
+                ("Design Sign Off", "Design Sign Off")
+            ]
+            
+            for field_label, list_name in time_fields:
+                st.markdown(f"**{field_label} (hours)**")
+                col1, col2 = st.columns([2, 1])
                 
-                selected_user = st.selectbox("User", existing_users)
+                with col1:
+                    selected_user = st.selectbox(
+                        f"User for {field_label}",
+                        user_options,
+                        key=f"user_{list_name.replace(' ', '_').lower()}",
+                        label_visibility="collapsed"
+                    )
                 
-                # If user selected "Add new user...", show text input
+                with col2:
+                    time_value = st.number_input(
+                        f"Time for {field_label}",
+                        min_value=0.0,
+                        step=0.1,
+                        format="%.1f",
+                        key=f"time_{list_name.replace(' ', '_').lower()}",
+                        label_visibility="collapsed"
+                    )
+                
+                # Handle "Add new user..." option
                 if selected_user == "Add new user...":
-                    new_user = st.text_input("New User Name", placeholder="Enter new user name")
-                    final_user = new_user if new_user else ""
+                    new_user = st.text_input(
+                        f"New user name for {field_label}",
+                        key=f"new_user_{list_name.replace(' ', '_').lower()}",
+                        placeholder="Enter new user name"
+                    )
+                    final_user = new_user if new_user else None
+                elif selected_user == "None":
+                    final_user = None
                 else:
                     final_user = selected_user
-            
-            with col2:
-                st.subheader("Time Tracking Fields (in hours)")
-                editorial_rd_time = st.number_input("Editorial R&D Time", min_value=0.0, step=0.1, format="%.1f")
-                editorial_writing = st.number_input("Editorial Writing", min_value=0.0, step=0.1, format="%.1f")
-                proof_1st = st.number_input("1st Proof", min_value=0.0, step=0.1, format="%.1f")
-                proof_2nd = st.number_input("2nd Proof", min_value=0.0, step=0.1, format="%.1f")
-                proof_3rd = st.number_input("3rd Proof", min_value=0.0, step=0.1, format="%.1f")
-                proof_4th = st.number_input("4th Proof", min_value=0.0, step=0.1, format="%.1f")
-                proof_5th = st.number_input("5th Proof", min_value=0.0, step=0.1, format="%.1f")
-                editorial_sign_off = st.number_input("Editorial Sign Off", min_value=0.0, step=0.1, format="%.1f")
-                cover_design = st.number_input("Cover Design", min_value=0.0, step=0.1, format="%.1f")
-                design_time = st.number_input("Design Time", min_value=0.0, step=0.1, format="%.1f")
-                design_sign_off = st.number_input("Design Sign Off", min_value=0.0, step=0.1, format="%.1f")
+                
+                # Store the entry if both user and time are provided
+                if final_user and time_value > 0:
+                    time_entries[list_name] = {
+                        'user': final_user,
+                        'time_hours': time_value
+                    }
             
             # Submit button
             submitted = st.form_submit_button("➕ Add Entry", type="primary")
             
             if submitted:
-                if not card_name or not final_user:
-                    st.error("Please fill in Card Name and User fields")
+                if not card_name:
+                    st.error("Please fill in Card Name field")
+                elif not time_entries:
+                    st.error("Please add at least one time entry with a user assigned")
                 else:
                     try:
-                        # Create individual entries for each non-zero time field
                         entries_added = 0
                         current_time = datetime.now()
                         
-                        # List of all time fields with their corresponding list names
-                        time_fields = [
-                            (editorial_rd_time, "Editorial R&D"),
-                            (editorial_writing, "Editorial Writing"),
-                            (proof_1st, "1st Proof"),
-                            (proof_2nd, "2nd Proof"),
-                            (proof_3rd, "3rd Proof"),
-                            (proof_4th, "4th Proof"),
-                            (proof_5th, "5th Proof"),
-                            (editorial_sign_off, "Editorial Sign Off"),
-                            (cover_design, "Cover Design"),
-                            (design_time, "Design Time"),
-                            (design_sign_off, "Design Sign Off")
-                        ]
-                        
                         with engine.connect() as conn:
-                            for time_value, list_name in time_fields:
-                                if time_value > 0:  # Only add entries with actual time
-                                    # Convert hours to seconds
-                                    time_seconds = int(time_value * 3600)
-                                    
-                                    # Insert into database
-                                    conn.execute(text('''
-                                        INSERT INTO trello_time_tracking 
-                                        (card_name, user_name, list_name, time_spent_seconds, board_name, created_at)
-                                        VALUES (:card_name, :user_name, :list_name, :time_spent_seconds, :board_name, :created_at)
-                                    '''), {
-                                        'card_name': card_name,
-                                        'user_name': final_user,
-                                        'list_name': list_name,
-                                        'time_spent_seconds': time_seconds,
-                                        'board_name': board_name if board_name else 'Manual Entry',
-                                        'created_at': current_time
-                                    })
-                                    entries_added += 1
+                            for list_name, entry_data in time_entries.items():
+                                # Convert hours to seconds
+                                time_seconds = int(entry_data['time_hours'] * 3600)
+                                
+                                # Insert into database
+                                conn.execute(text('''
+                                    INSERT INTO trello_time_tracking 
+                                    (card_name, user_name, list_name, time_spent_seconds, board_name, created_at)
+                                    VALUES (:card_name, :user_name, :list_name, :time_spent_seconds, :board_name, :created_at)
+                                '''), {
+                                    'card_name': card_name,
+                                    'user_name': entry_data['user'],
+                                    'list_name': list_name,
+                                    'time_spent_seconds': time_seconds,
+                                    'board_name': board_name if board_name else 'Manual Entry',
+                                    'created_at': current_time
+                                })
+                                entries_added += 1
                             
                             conn.commit()
                         
                         if entries_added > 0:
-                            st.success(f"Successfully added {entries_added} entries for '{card_name}'")
+                            st.success(f"Successfully added {entries_added} entries for '{card_name}' with different users for each stage")
                             st.rerun()
                         else:
-                            st.warning("No entries added - please enter time values greater than 0")
+                            st.warning("No entries added - please enter time values greater than 0 with users assigned")
                             
                     except Exception as e:
                         st.error(f"Error adding manual entry: {str(e)}")
