@@ -569,7 +569,7 @@ def main():
                 
                 # Get data from database for book completion
                 df_from_db = pd.read_sql(
-                    "SELECT card_name as 'Card name', user_name as 'User', list_name as 'List', time_spent_seconds as 'Time spent (s)', date_started as 'Date started (f)', card_estimate_seconds as 'Card estimate(s)' FROM trello_time_tracking", 
+                    'SELECT card_name as "Card name", user_name as "User", list_name as "List", time_spent_seconds as "Time spent (s)", date_started as "Date started (f)", card_estimate_seconds as "Card estimate(s)" FROM trello_time_tracking', 
                     engine
                 )
                 
