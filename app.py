@@ -752,31 +752,54 @@ def main():
                                                 with timer_col:
                                                     # Show timer only when running
                                                     if st.session_state.timers[task_key] and task_key in st.session_state.timer_start_times:
-                                                        elapsed = datetime.now() - st.session_state.timer_start_times[task_key]
-                                                        elapsed_seconds = int(elapsed.total_seconds())
-                                                        st.write(f"{format_seconds_to_time(elapsed_seconds)}")
+                                                        start_time = st.session_state.timer_start_times[task_key]
+                                                        timer_id = f"timer_{task_key.replace(' ', '_').replace('/', '_').replace(':', '_')}"
+                                                        start_timestamp = int(start_time.timestamp() * 1000)
+                                                        
+                                                        # Use HTML with embedded JavaScript for real-time timer
+                                                        st.markdown(f"""
+                                                        <div id="{timer_id}" style="font-size: 16px; font-weight: bold;">00:00:00</div>
+                                                        <script>
+                                                        (function() {{
+                                                            const startTime = {start_timestamp};
+                                                            const timerElement = document.getElementById('{timer_id}');
+                                                            
+                                                            function updateTimer() {{
+                                                                const now = Date.now();
+                                                                const elapsed = Math.floor((now - startTime) / 1000);
+                                                                
+                                                                const hours = Math.floor(elapsed / 3600).toString().padStart(2, '0');
+                                                                const minutes = Math.floor((elapsed % 3600) / 60).toString().padStart(2, '0');
+                                                                const seconds = (elapsed % 60).toString().padStart(2, '0');
+                                                                
+                                                                if (timerElement) {{
+                                                                    timerElement.textContent = hours + ':' + minutes + ':' + seconds;
+                                                                }}
+                                                            }}
+                                                            
+                                                            // Update immediately
+                                                            updateTimer();
+                                                            
+                                                            // Update every second
+                                                            const interval = setInterval(updateTimer, 1000);
+                                                            
+                                                            // Clean up when page reloads
+                                                            window.addEventListener('beforeunload', function() {{
+                                                                clearInterval(interval);
+                                                            }});
+                                                        }})();
+                                                        </script>
+                                                        """, unsafe_allow_html=True)
                                                     else:
                                                         st.write("")
                                         
                                         st.markdown("---")
                                 
-                                # Auto-refresh for running timers in this book
+                                # Show manual refresh button when timers are running
                                 running_timers = [k for k, v in st.session_state.timers.items() if v and book_title in k]
                                 if running_timers:
                                     st.write(f"{len(running_timers)} timer(s) running")
-                                    if st.button("Refresh Timers", key=f"refresh_{book_title}"):
-                                        st.rerun()
-                                    
-                                    # Auto-refresh every 5 seconds when timers are running
-                                    import time
-                                    
-                                    # Use a simple rerun to update timers
-                                    if 'last_refresh' not in st.session_state:
-                                        st.session_state.last_refresh = time.time()
-                                    
-                                    current_time = time.time()
-                                    if current_time - st.session_state.last_refresh > 1:  # Refresh every 1 second
-                                        st.session_state.last_refresh = current_time
+                                    if st.button("🔄 Refresh Timers", key=f"refresh_{book_title}"):
                                         st.rerun()
                                 
                                 stage_counter += 1
