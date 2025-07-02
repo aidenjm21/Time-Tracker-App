@@ -778,29 +778,25 @@ def main():
                         key="db_record_limit"
                     )
                 
-                # Build query based on filters using SQLAlchemy's text() with parameters
+                # Build query based on filters
                 base_query = "SELECT * FROM trello_time_tracking WHERE 1=1"
-                params = {}
                 
                 if card_filter:
-                    base_query += " AND card_name ILIKE %(card_filter)s"
-                    params['card_filter'] = f"%{card_filter}%"
+                    # Escape single quotes and build the query safely
+                    safe_filter = card_filter.replace("'", "''")
+                    base_query += f" AND card_name ILIKE '%{safe_filter}%'"
                 
                 if user_filter != "All":
-                    base_query += " AND user_name = %(user_filter)s"
-                    params['user_filter'] = user_filter
+                    safe_user = user_filter.replace("'", "''")
+                    base_query += f" AND user_name = '{safe_user}'"
                 
                 base_query += " ORDER BY created_at DESC"
                 
                 if record_limit != "All":
                     base_query += f" LIMIT {record_limit}"
                 
-                # Load and display data using SQLAlchemy connection
-                with engine.connect() as conn:
-                    result = conn.execute(text(base_query), params)
-                    columns = result.keys()
-                    rows = result.fetchall()
-                    df_db = pd.DataFrame(rows, columns=columns)
+                # Load data directly with pandas
+                df_db = pd.read_sql_query(base_query, engine)
                 
                 if not df_db.empty:
                     st.subheader("Database Records")
