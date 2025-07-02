@@ -410,7 +410,7 @@ def main():
         st.session_state.active_tab = 0
     
     # Create tabs for different views
-    tab_names = ["Book Production", "Archive", "Add Book", "Task Data"]
+    tab_names = ["Data Entry", "Book Completion", "Filter User Tasks", "Archive"]
     selected_tab = st.selectbox("Select Tab:", tab_names, index=st.session_state.active_tab, key="tab_selector")
     
     # Update active tab when changed
@@ -418,302 +418,9 @@ def main():
         st.session_state.active_tab = tab_names.index(selected_tab)
     
     # Create individual tab sections based on selection
-    if selected_tab == "Book Production":
-        st.header("Book Production Progress")
-        st.markdown("Visual progress tracking for all books with individual task timers.")
-        
-        # Initialize session state for timers
-        if 'timers' not in st.session_state:
-            st.session_state.timers = {}
-        if 'timer_start_times' not in st.session_state:
-            st.session_state.timer_start_times = {}
-        
-        # Check if we have data from database
-        try:
-            with engine.connect() as conn:
-                result = conn.execute(text("SELECT COUNT(*) FROM trello_time_tracking WHERE archived = FALSE"))
-                total_records = result.scalar()
-                
-            if total_records and total_records > 0:
-                st.info(f"Showing production progress for books from {total_records} database records.")
-                
-                # Get data from database for book completion (exclude archived)
-                df_from_db = pd.read_sql(
-                    '''SELECT card_name as "Card name", user_name as "User", list_name as "List", 
-                       time_spent_seconds as "Time spent (s)", date_started as "Date started (f)", 
-                       card_estimate_seconds as "Card estimate(s)", board_name as "Board", created_at 
-                       FROM trello_time_tracking WHERE archived = FALSE ORDER BY created_at DESC''', 
-                    engine
-                )
-                
-                if not df_from_db.empty:
-                    # Add search bar for book titles
-                    search_query = st.text_input(
-                        "Search books by title:",
-                        placeholder="Enter book title to filter results...",
-                        help="Search for specific books by typing part of the title",
-                        key="production_search"
-                    )
-                    
-                    # Filter books based on search
-                    filtered_df = df_from_db.copy()
-                    if search_query:
-                        mask = filtered_df['Card name'].str.contains(search_query, case=False, na=False)
-                        filtered_df = filtered_df[mask]
-                    
-                    # Get unique books
-                    unique_books = filtered_df['Card name'].unique()
-                    
-                    if len(unique_books) > 0:
-                        st.write(f"Found {len(unique_books)} books to display")
-                        
-                        stage_counter = 1
-                        
-                        # Display each book with enhanced visualization
-                        for book_title in unique_books:
-                            book_mask = filtered_df['Card name'] == book_title
-                            book_data = filtered_df[book_mask].copy()
-                            
-                            # Calculate overall progress using stage-based estimates
-                            total_time_spent = book_data['Time spent (s)'].sum()
-                            
-                            # Calculate total estimated time from the database entries
-                            estimated_time = 0
-                            if 'Card estimate(s)' in book_data.columns:
-                                book_estimates = book_data['Card estimate(s)'].fillna(0).sum()
-                                if book_estimates > 0:
-                                    estimated_time = book_estimates
-                            
-                            # If no estimates in database, use reasonable defaults per stage
-                            if estimated_time == 0:
-                                default_stage_estimates = {
-                                    'Editorial R&D': 2 * 3600,      
-                                    'Editorial Writing': 8 * 3600,   
-                                    '1st Edit': 2 * 3600,          
-                                    '2nd Edit': 1.5 * 3600,        
-                                    'Design R&D': 1 * 3600,          
-                                    'In Design': 6 * 3600,          
-                                    '1st Proof': 1 * 3600,          
-                                    '2nd Proof': 1 * 3600,         
-                                    'Editorial Sign Off': 0.5 * 3600, 
-                                    'Design Sign Off': 0.5 * 3600   
-                                }
-                                unique_stages = book_data['List'].unique()
-                                estimated_time = sum(default_stage_estimates.get(stage, 3600) for stage in unique_stages)
-                            
-                            # Calculate completion percentage and progress text
-                            if estimated_time > 0:
-                                completion_percentage = (total_time_spent / estimated_time) * 100
-                                progress_text = f"{format_seconds_to_time(total_time_spent)}/{format_seconds_to_time(estimated_time)} ({completion_percentage:.1f}%)"
-                            else:
-                                completion_percentage = 0
-                                progress_text = f"Total: {format_seconds_to_time(total_time_spent)} (No estimate)"
-                            
-                            with st.expander(book_title, expanded=False):
-                                # Show progress bar and completion info at the top
-                                progress_bar_html = f"""
-                                <div style="width: 50%; background-color: #f0f0f0; border-radius: 5px; height: 10px; margin: 8px 0;">
-                                    <div style="width: {min(completion_percentage, 100):.1f}%; background-color: #007bff; height: 100%; border-radius: 5px;"></div>
-                                </div>
-                                """
-                                st.markdown(progress_bar_html, unsafe_allow_html=True)
-                                st.markdown(f'<div style="font-size: 14px; color: #666; margin-bottom: 10px;">{progress_text}</div>', unsafe_allow_html=True)
-                                
-                                st.markdown("---")
-                                
-                                # Define the order of stages to match the data entry form
-                                stage_order = [
-                                    "Editorial R&D", "Editorial Writing", "1st Edit", "2nd Edit", 
-                                    "Design R&D", "In Design", "1st Proof", "2nd Proof",
-                                    "Editorial Sign Off", "Design Sign Off"
-                                ]
-                                
-                                # Group tasks by stage and user
-                                stage_groups = book_data.groupby(['List', 'User'])['Time spent (s)'].sum().reset_index()
-                                
-                                # Process each stage in the defined order
-                                for stage in stage_order:
-                                    stage_tasks = stage_groups[stage_groups['List'] == stage]
-                                    
-                                    if not stage_tasks.empty:
-                                        st.write(f"**{stage}:**")
-                                        
-                                        for _, task_row in stage_tasks.iterrows():
-                                            user_name = task_row['User']
-                                            actual_time = task_row['Time spent (s)']
-                                            
-                                            # Get estimated time for this specific user/stage combination
-                                            task_estimate = 0
-                                            matching_rows = book_data[(book_data['List'] == stage) & (book_data['User'] == user_name)]
-                                            if not matching_rows.empty and 'Card estimate(s)' in matching_rows.columns:
-                                                task_estimate = matching_rows['Card estimate(s)'].fillna(0).iloc[0]
-                                            
-                                            col1, col2, col3 = st.columns([3, 2, 2])
-                                            
-                                            with col1:
-                                                st.write(f"*{user_name}*")
-                                            
-                                            with col2:
-                                                # Timer functionality
-                                                task_key = f"{book_title}_{stage}_{user_name}_{stage_counter}"
-                                                
-                                                # Initialize timer state for this task
-                                                if task_key not in st.session_state.timers:
-                                                    st.session_state.timers[task_key] = False
-                                                if task_key not in st.session_state.timer_start_times:
-                                                    st.session_state.timer_start_times[task_key] = None
-                                                
-                                                # Display current time spent
-                                                current_time_display = format_seconds_to_time(actual_time)
-                                                
-                                                # Timer controls
-                                                timer_col1, timer_col2 = st.columns(2)
-                                                
-                                                with timer_col1:
-                                                    if not st.session_state.timers[task_key]:
-                                                        if st.button(f"Start", key=f"start_{task_key}"):
-                                                            st.session_state.timers[task_key] = True
-                                                            st.session_state.timer_start_times[task_key] = datetime.now()
-                                                            st.rerun()
-                                                    else:
-                                                        if st.button(f"Stop", key=f"stop_{task_key}"):
-                                                            if st.session_state.timer_start_times[task_key]:
-                                                                elapsed = datetime.now() - st.session_state.timer_start_times[task_key]
-                                                                elapsed_seconds = int(elapsed.total_seconds())
-                                                                
-                                                                # Add elapsed time to database
-                                                                try:
-                                                                    current_date = datetime.now().date()
-                                                                    with engine.connect() as conn:
-                                                                        conn.execute(text('''
-                                                                            INSERT INTO trello_time_tracking 
-                                                                            (card_name, user_name, list_name, time_spent_seconds, date_started, card_estimate_seconds, board_name, created_at)
-                                                                            VALUES (:card_name, :user_name, :list_name, :time_spent_seconds, :date_started, :card_estimate_seconds, :board_name, :created_at)
-                                                                        '''), {
-                                                                            'card_name': book_title,
-                                                                            'user_name': user_name,
-                                                                            'list_name': stage,
-                                                                            'time_spent_seconds': elapsed_seconds,
-                                                                            'date_started': current_date,
-                                                                            'card_estimate_seconds': task_estimate,
-                                                                            'board_name': 'Timer Session',
-                                                                            'created_at': datetime.now()
-                                                                        })
-                                                                        conn.commit()
-                                                                    
-                                                                    st.success(f"Added {format_seconds_to_time(elapsed_seconds)} to {stage}")
-                                                                except Exception as e:
-                                                                    st.error(f"Error saving time: {str(e)}")
-                                                            
-                                                            st.session_state.timers[task_key] = False
-                                                            st.session_state.timer_start_times[task_key] = None
-                                                            st.rerun()
-                                                
-                                                with timer_col2:
-                                                    # Show timer status
-                                                    if st.session_state.timers[task_key]:
-                                                        st.write("Recording")
-                                                    else:
-                                                        st.write(current_time_display)
-                                            
-                                            with col3:
-                                                # Manual time entry
-                                                time_input = st.text_input(
-                                                    f"Add time",
-                                                    placeholder="hh:mm:ss",
-                                                    key=f"manual_time_{task_key}",
-                                                    label_visibility="collapsed"
-                                                )
-                                                
-                                                if time_input and time_input != "":
-                                                    if st.button("Add", key=f"add_time_{task_key}"):
-                                                        try:
-                                                            # Parse time input (hh:mm:ss format)
-                                                            time_parts = time_input.split(':')
-                                                            if len(time_parts) == 3:
-                                                                hours = int(time_parts[0])
-                                                                minutes = int(time_parts[1])
-                                                                seconds = int(time_parts[2])
-                                                                total_seconds = hours * 3600 + minutes * 60 + seconds
-                                                                
-                                                                if total_seconds > 0:
-                                                                    # Add time to database
-                                                                    current_date = datetime.now().date()
-                                                                    try:
-                                                                        with engine.connect() as conn:
-                                                                            conn.execute(text('''
-                                                                                INSERT INTO trello_time_tracking 
-                                                                                (card_name, user_name, list_name, time_spent_seconds, date_started, card_estimate_seconds, board_name, created_at)
-                                                                                VALUES (:card_name, :user_name, :list_name, :time_spent_seconds, :date_started, :card_estimate_seconds, :board_name, :created_at)
-                                                                            '''), {
-                                                                                'card_name': book_title,
-                                                                                'user_name': user_name,
-                                                                                'list_name': stage,
-                                                                                'time_spent_seconds': total_seconds,
-                                                                                'date_started': current_date,
-                                                                                'card_estimate_seconds': task_estimate,
-                                                                                'board_name': 'Manual Entry',
-                                                                                'created_at': datetime.now()
-                                                                            })
-                                                                            conn.commit()
-                                                                        
-                                                                        st.success(f"Added {time_input} to {stage}")
-                                                                        st.rerun()
-                                                                                                                                        
-                                                                    except Exception as e:
-                                                                        st.error(f"Error saving time: {str(e)}")
-                                                                else:
-                                                                    st.error("Time must be greater than 00:00:00")
-                                                            else:
-                                                                st.error("Please use format hh:mm:ss (e.g., 01:30:00)")
-                                                        except ValueError:
-                                                            st.error("Please enter valid numbers in hh:mm:ss format")
-                                        
-                                        st.markdown("---")
-                                
-                                # Show manual refresh button when timers are running
-                                running_timers = [k for k, v in st.session_state.timers.items() if v and book_title in k]
-                                if running_timers:
-                                    st.write(f"{len(running_timers)} timer(s) running")
-                                    if st.button("Refresh Timers", key=f"refresh_{book_title}"):
-                                        st.rerun()
-                                
-                                # Archive button at the bottom of each book
-                                st.markdown("---")
-                                if st.button(f"Archive '{book_title}'", key=f"archive_{book_title}", help="Move this book to archive"):
-                                    try:
-                                        with engine.connect() as conn:
-                                            conn.execute(text('''
-                                                UPDATE trello_time_tracking 
-                                                SET archived = TRUE 
-                                                WHERE card_name = :card_name
-                                            '''), {'card_name': book_title})
-                                            conn.commit()
-                                        
-                                        # Keep user on the current tab
-                                        st.session_state.active_tab = 0  # Book Production tab
-                                        st.success(f"'{book_title}' has been archived successfully!")
-                                        st.rerun()
-                                    except Exception as e:
-                                        st.error(f"Error archiving book: {str(e)}")
-                                
-                                stage_counter += 1
-                    else:
-                        if search_query:
-                            st.warning(f"No books found matching '{search_query}'")
-                        else:
-                            st.warning("No book production data available")
-                else:
-                    st.warning("No data available in database")
-            else:
-                st.info("No data available. Please add entries in the 'Add Book' tab.")
-                
-        except Exception as e:
-            st.error(f"Error accessing database: {str(e)}")
-    
-    elif selected_tab == "Add Book":
+    if selected_tab == "Data Entry":
         # Manual Data Entry Form
-        st.header("Add Book")
+        st.header("Manual Data Entry")
         st.markdown("Add individual time tracking entries for detailed stage-specific analysis.")
         
         # General fields
@@ -724,7 +431,7 @@ def main():
             board_name = st.text_input("Board", placeholder="Enter board name", key="manual_board_name")
             
         st.subheader("Task Assignment & Estimates")
-        st.markdown("*Assign users to stages and set time estimates. All tasks start with 0 actual time - use the Book Production tab to track actual work time.*")
+        st.markdown("*Assign users to stages and set time estimates. All tasks start with 0 actual time - use the Book Completion tab to track actual work time.*")
         
         # Define user groups for different types of work (alphabetically ordered)
         editorial_users = ["None", "Bethany Latham", "Charis Mather", "Noah Leatherland", "Rebecca Phillips-Bartlett"]
@@ -849,35 +556,41 @@ def main():
                 except Exception as e:
                     st.error(f"Error adding manual entry: {str(e)}")
     
-    elif selected_tab == "Archive":
-        st.header("Archive")
-        st.markdown("Manage archived books - view, unarchive, or delete archived entries.")
+    elif selected_tab == "Book Completion":
+        st.header("Book Completion Progress")
+        st.markdown("Visual progress tracking for all books with individual task timers.")
         
-        # Check if we have archived data from database
+        # Initialize session state for timers
+        if 'timers' not in st.session_state:
+            st.session_state.timers = {}
+        if 'timer_start_times' not in st.session_state:
+            st.session_state.timer_start_times = {}
+        
+        # Check if we have data from database
         try:
             with engine.connect() as conn:
-                result = conn.execute(text("SELECT COUNT(*) FROM trello_time_tracking WHERE archived = TRUE"))
+                result = conn.execute(text("SELECT COUNT(*) FROM trello_time_tracking"))
                 total_records = result.scalar()
                 
             if total_records and total_records > 0:
-                st.info(f"Found {total_records} archived entries.")
+                st.info(f"Showing completion progress for books from {total_records} database records.")
                 
-                # Get archived data from database
+                # Get data from database for book completion (exclude archived)
                 df_from_db = pd.read_sql(
                     '''SELECT card_name as "Card name", user_name as "User", list_name as "List", 
                        time_spent_seconds as "Time spent (s)", date_started as "Date started (f)", 
                        card_estimate_seconds as "Card estimate(s)", board_name as "Board", created_at 
-                       FROM trello_time_tracking WHERE archived = TRUE ORDER BY created_at DESC''', 
+                       FROM trello_time_tracking WHERE archived = FALSE ORDER BY created_at DESC''', 
                     engine
                 )
                 
                 if not df_from_db.empty:
-                    # Add search bar for archived book titles
+                    # Add search bar for book titles
                     search_query = st.text_input(
-                        "Search archived books by title:",
+                        "Search books by title:",
                         placeholder="Enter book title to filter results...",
-                        help="Search for specific archived books by typing part of the title",
-                        key="archive_search"
+                        help="Search for specific books by typing part of the title",
+                        key="completion_search"
                     )
                     
                     # Filter books based on search
@@ -890,88 +603,155 @@ def main():
                     unique_books = filtered_df['Card name'].unique()
                     
                     if len(unique_books) > 0:
-                        st.write(f"Found {len(unique_books)} archived books")
+                        st.write(f"Found {len(unique_books)} books to display")
                         
-                        # Display each archived book with simple controls
+                        # Display each book with enhanced visualization
                         for book_title in unique_books:
                             book_mask = filtered_df['Card name'] == book_title
                             book_data = filtered_df[book_mask].copy()
                             
-                            # Calculate total time spent and entries count
+                            # Calculate overall progress using stage-based estimates
                             total_time_spent = book_data['Time spent (s)'].sum()
-                            entries_count = len(book_data)
+                            
+                            # Calculate total estimated time from the database entries
+                            # Sum up all estimates stored in the database for this book
+                            estimated_time = 0
+                            if 'Card estimate(s)' in book_data.columns:
+                                book_estimates = book_data['Card estimate(s)'].fillna(0).sum()
+                                if book_estimates > 0:
+                                    estimated_time = book_estimates
+                            
+                            # If no estimates in database, use reasonable defaults per stage
+                            if estimated_time == 0:
+                                default_stage_estimates = {
+                                    'Editorial R&D': 2 * 3600,      # 2 hours default
+                                    'Editorial Writing': 8 * 3600,   # 8 hours default 
+                                    '1st Proof': 2 * 3600,          # 2 hours default
+                                    '2nd Proof': 1.5 * 3600,        # 1.5 hours default
+                                    '3rd Proof': 1 * 3600,          # 1 hour default
+                                    '4th Proof': 1 * 3600,          # 1 hour default
+                                    '5th Proof': 1 * 3600,          # 1 hour default
+                                    'Editorial Sign Off': 0.5 * 3600, # 30 minutes default
+                                    'Cover Design': 4 * 3600,       # 4 hours default
+                                    'Design Time': 6 * 3600,        # 6 hours default
+                                    'Design Sign Off': 0.5 * 3600   # 30 minutes default
+                                }
+                                unique_stages = book_data['List'].unique()
+                                estimated_time = sum(default_stage_estimates.get(stage, 3600) for stage in unique_stages)
+                            
+                            # Calculate completion percentage for display
+                            if estimated_time > 0:
+                                completion_percentage = (total_time_spent / estimated_time) * 100
+                                progress_text = f"{format_seconds_to_time(total_time_spent)}/{format_seconds_to_time(estimated_time)} ({completion_percentage:.1f}%)"
+                            else:
+                                completion_percentage = 0
+                                progress_text = f"Total: {format_seconds_to_time(total_time_spent)} (No estimate)"
                             
                             with st.expander(book_title, expanded=False):
-                                st.write(f"**Total Time:** {format_seconds_to_time(total_time_spent)}")
-                                st.write(f"**Entries:** {entries_count}")
+                                # Show progress bar and completion info at the top
+                                progress_bar_html = f"""
+                                <div style="width: 50%; background-color: #f0f0f0; border-radius: 5px; height: 10px; margin: 8px 0;">
+                                    <div style="width: {min(completion_percentage, 100):.1f}%; background-color: #007bff; height: 100%; border-radius: 5px;"></div>
+                                </div>
+                                """
+                                st.markdown(progress_bar_html, unsafe_allow_html=True)
+                                st.markdown(f'<div style="font-size: 14px; color: #666; margin-bottom: 10px;">{progress_text}</div>', unsafe_allow_html=True)
                                 
-                                # Archive management buttons
-                                col1, col2 = st.columns(2)
+                                st.markdown("---")
                                 
-                                with col1:
-                                    if st.button(f"Unarchive", key=f"unarchive_{book_title}", help="Move this book back to active"):
-                                        try:
-                                            with engine.connect() as conn:
-                                                conn.execute(text('''
-                                                    UPDATE trello_time_tracking 
-                                                    SET archived = FALSE 
-                                                    WHERE card_name = :card_name
-                                                '''), {'card_name': book_title})
-                                                conn.commit()
+                                # Define the order of stages to match the data entry form
+                                stage_order = [
+                                    'Editorial R&D', 'Editorial Writing', '1st Proof', '2nd Proof', 
+                                    '3rd Proof', '4th Proof', '5th Proof', 'Editorial Sign Off',
+                                    'Cover Design', 'Design Time', 'Design Sign Off'
+                                ]
+                                
+                                # Group by stage/list and aggregate by user
+                                stages_grouped = book_data.groupby('List')
+                                
+                                # Display stages in the defined order
+                                stage_counter = 0
+                                for stage_name in stage_order:
+                                    if stage_name in stages_grouped.groups:
+                                        stage_data = stages_grouped.get_group(stage_name)
+                                        st.subheader(f"{stage_name}")
+                                        
+                                        # Aggregate time by user for this stage
+                                        user_aggregated = stage_data.groupby('User')['Time spent (s)'].sum().reset_index()
+                                        
+                                        # Show one task per user for this stage
+                                        for idx, user_task in user_aggregated.iterrows():
+                                            user_name = user_task['User']
+                                            actual_time = user_task['Time spent (s)']
+                                            task_key = f"{book_title}_{stage_name}_{user_name}"
                                             
-                                            # Keep user on Archive tab
-                                            st.session_state.active_tab = 1  # Archive tab
-                                            st.success(f"'{book_title}' has been unarchived successfully!")
-                                            st.rerun()
-                                        except Exception as e:
-                                            st.error(f"Error unarchiving book: {str(e)}")
-                                
-                                with col2:
-                                    if st.button(f"Delete", key=f"delete_{book_title}", help="Permanently delete this book (double-click to confirm)"):
-                                        if f"confirm_delete_{book_title}" not in st.session_state:
-                                            st.session_state[f"confirm_delete_{book_title}"] = True
-                                            st.warning("Click Delete again to confirm permanent deletion!")
-                                        else:
-                                            try:
-                                                with engine.connect() as conn:
-                                                    conn.execute(text('''
-                                                        DELETE FROM trello_time_tracking 
-                                                        WHERE card_name = :card_name
-                                                    '''), {'card_name': book_title})
-                                                    conn.commit()
+                                            # Get estimated time from the database for this specific user/stage combination
+                                            user_stage_data = stage_data[stage_data['User'] == user_name]
+                                            estimated_time = 3600  # Default 1 hour
+                                            
+                                            if not user_stage_data.empty and 'Card estimate(s)' in user_stage_data.columns:
+                                                estimate_val = user_stage_data['Card estimate(s)'].iloc[0]
+                                                if not pd.isna(estimate_val) and estimate_val > 0:
+                                                    estimated_time = estimate_val
+                                        
+                                        # Task details container
+                                        task_container = st.container()
+                                        
+                                        with task_container:
+                                            # Create columns for task info and timer with better spacing
+                                            col1, col2, col3 = st.columns([4, 1, 3])
+                                            
+                                            with col1:
+                                                st.write(f"**User:** {user_name}")
+                                                st.write(f"**Progress:** {format_seconds_to_time(actual_time)}/{format_seconds_to_time(estimated_time)}")
                                                 
-                                                # Keep user on Archive tab
-                                                st.session_state.active_tab = 1  # Archive tab
-                                                del st.session_state[f"confirm_delete_{book_title}"]
-                                                st.success(f"'{book_title}' has been permanently deleted!")
-                                                st.rerun()
-                                            except Exception as e:
-                                                st.error(f"Error deleting book: {str(e)}")
-                                                del st.session_state[f"confirm_delete_{book_title}"]
-                    else:
-                        if search_query:
-                            st.warning(f"No archived books found matching '{search_query}'")
-                        else:
-                            st.warning("No archived books available")
-                else:
-                    st.warning("No archived data in database")
-            else:
-                st.info("No archived books available.")
-                
-        except Exception as e:
-            st.error(f"Error accessing database: {str(e)}")
-    
-    elif selected_tab == "Task Data":
-        st.header("Task Data")
-        st.markdown("Filter and view user task data with date range selection.")
-        
-        # Check if we have data from database  
-        try:
-            with engine.connect() as conn:
-                result = conn.execute(text("SELECT COUNT(*) FROM trello_time_tracking WHERE archived = FALSE"))
-                total_records = result.scalar()
-                
-            if total_records and total_records > 0:
+                                                # Progress bar
+                                                progress_percentage = (actual_time / estimated_time) if estimated_time > 0 else 0
+                                                st.progress(min(progress_percentage, 1.0))
+                                                
+                                                if progress_percentage > 1.0:
+                                                    st.write(f"{(progress_percentage - 1) * 100:.1f}% over estimate")
+                                                else:
+                                                    st.write(f"COMPLETE: {progress_percentage * 100:.1f}%")
+                                            
+                                            with col2:
+                                                # Empty space - timer moved to button column
+                                                st.write("")
+                                            
+                                            with col3:
+                                                # Start/Stop timer button with timer display
+                                                if task_key not in st.session_state.timers:
+                                                    st.session_state.timers[task_key] = False
+                                                
+                                                # Create columns for button and timer with better spacing
+                                                btn_col, timer_col = st.columns([1, 2])
+                                                
+                                                with btn_col:
+                                                    if st.session_state.timers[task_key]:
+                                                        if st.button("Stop", key=f"stop_{task_key}"):
+                                                            # Stop timer and add time to database
+                                                            if task_key in st.session_state.timer_start_times:
+                                                                elapsed = datetime.now() - st.session_state.timer_start_times[task_key]
+                                                                elapsed_seconds = int(elapsed.total_seconds())
+                                                                
+                                                                # Add elapsed time to database
+                                                                try:
+                                                                    # Get board name from original data
+                                                                    user_original_data = stage_data[stage_data['User'] == user_name].iloc[0]
+                                                                    board_name = user_original_data['Board']
+                                                                    
+                                                                    with engine.connect() as conn:
+                                                                        conn.execute(text('''
+                                                                            INSERT INTO trello_time_tracking 
+                                                                            (card_name, user_name, list_name, time_spent_seconds, board_name, created_at)
+                                                                            VALUES (:card_name, :user_name, :list_name, :time_spent_seconds, :board_name, :created_at)
+                                                                        '''), {
+                                                                            'card_name': book_title,
+                                                                            'user_name': user_name,
+                                                                            'list_name': stage_name,
+                                                                            'time_spent_seconds': elapsed_seconds,
+                                                                            'board_name': board_name,
+                                                                            'created_at': datetime.now()
                                                                         })
                                                                         conn.commit()
                                                                     
