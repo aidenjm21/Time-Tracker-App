@@ -122,6 +122,8 @@ Changelog:
 - July 02, 2025. Removed emojis from archive functionality and added delete button with double-click confirmation
 - July 02, 2025. Reorganized and renamed tabs: Book Progress (formerly Book Completion), Add Book (formerly Data Entry), Archive, User Data (formerly Filter User Tasks)
 - July 02, 2025. Added session tracking: records date and time when timer sessions start, displays in User Data tab as "Session Started" column with DD/MM/YYYY HH:MM format
+- July 02, 2025. Fixed alphabetical sorting: books remain in alphabetical order when timer sessions end, preventing list reordering and auto-collapse
+- July 02, 2025. Added "Time Allocation" column to User Data table showing estimated time for each task alongside actual time spent
 ```
 
 ## User Preferences

@@ -67,7 +67,8 @@ def get_user_tasks_from_database(_engine, user_name, start_date=None, end_date=N
     """Get user tasks from database with optional date filtering"""
     try:
         query = '''
-            SELECT card_name, list_name, session_start_time, SUM(time_spent_seconds) as total_time
+            SELECT card_name, list_name, session_start_time, SUM(time_spent_seconds) as total_time, 
+                   MAX(card_estimate_seconds) as estimated_seconds
             FROM trello_time_tracking 
             WHERE user_name = :user_name AND time_spent_seconds > 0
         '''
@@ -88,6 +89,9 @@ def get_user_tasks_from_database(_engine, user_name, start_date=None, end_date=N
             data = []
             for row in result:
                 session_start = row[2]
+                total_time = row[3]
+                estimated_time = row[4] if row[4] else 0
+                
                 if session_start:
                     # Format as DD/MM/YYYY HH:MM
                     date_time_str = session_start.strftime('%d/%m/%Y %H:%M')
@@ -98,7 +102,8 @@ def get_user_tasks_from_database(_engine, user_name, start_date=None, end_date=N
                     'Book Title': row[0],
                     'List': row[1],
                     'Session Started': date_time_str,
-                    'Time Spent': format_seconds_to_time(row[3])
+                    'Time Allocation': format_seconds_to_time(estimated_time) if estimated_time > 0 else 'Not Set',
+                    'Time Spent': format_seconds_to_time(total_time)
                 })
             return pd.DataFrame(data)
     except Exception as e:
@@ -607,8 +612,8 @@ def main():
                         mask = filtered_df['Card name'].str.contains(search_query, case=False, na=False)
                         filtered_df = filtered_df[mask]
                     
-                    # Get unique books
-                    unique_books = filtered_df['Card name'].unique()
+                    # Get unique books and sort alphabetically
+                    unique_books = sorted(filtered_df['Card name'].unique())
                     
                     if len(unique_books) > 0:
                         st.write(f"Found {len(unique_books)} books to display")
