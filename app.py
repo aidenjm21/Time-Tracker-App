@@ -696,89 +696,67 @@ def main():
                                                     st.write(f"COMPLETE: {progress_percentage * 100:.1f}%")
                                             
                                             with col2:
-                                                # Session timer display
-                                                if task_key in st.session_state.timers and st.session_state.timers[task_key]:
-                                                    # Timer is running - show session time
-                                                    if task_key in st.session_state.timer_start_times:
-                                                        start_time = st.session_state.timer_start_times[task_key]
-                                                        start_timestamp = int(start_time.timestamp() * 1000)  # Convert to milliseconds
-                                                        
-                                                        st.write("**Session Time:**")
-                                                        # Create a div with JavaScript timer that updates every second
-                                                        st.markdown(f"""
-                                                        <div id="timer_{task_key.replace(' ', '_').replace('/', '_')}">00:00:00</div>
-                                                        <script>
-                                                        function updateTimer() {{
-                                                            const startTime = {start_timestamp};
-                                                            const now = Date.now();
-                                                            const elapsed = Math.floor((now - startTime) / 1000);
-                                                            
-                                                            const hours = Math.floor(elapsed / 3600).toString().padStart(2, '0');
-                                                            const minutes = Math.floor((elapsed % 3600) / 60).toString().padStart(2, '0');
-                                                            const seconds = (elapsed % 60).toString().padStart(2, '0');
-                                                            
-                                                            const timerElement = document.getElementById('timer_{task_key.replace(' ', '_').replace('/', '_')}');
-                                                            if (timerElement) {{
-                                                                timerElement.textContent = hours + ':' + minutes + ':' + seconds;
-                                                            }}
-                                                        }}
-                                                        
-                                                        updateTimer();
-                                                        setInterval(updateTimer, 1000);
-                                                        </script>
-                                                        """, unsafe_allow_html=True)
-                                                    else:
-                                                        st.write("**Session Time:**")
-                                                        st.write("00:00:00")
-                                                else:
-                                                    st.write("**Session Time:**")
-                                                    st.write("Stopped")
+                                                # Empty space - timer moved to button column
+                                                st.write("")
                                             
                                             with col3:
-                                                # Start/Stop timer button
+                                                # Start/Stop timer button with timer display
                                                 if task_key not in st.session_state.timers:
                                                     st.session_state.timers[task_key] = False
                                                 
-                                                if st.session_state.timers[task_key]:
-                                                    if st.button("Stop", key=f"stop_{task_key}"):
-                                                        # Stop timer and add time to database
-                                                        if task_key in st.session_state.timer_start_times:
-                                                            elapsed = datetime.now() - st.session_state.timer_start_times[task_key]
-                                                            elapsed_seconds = int(elapsed.total_seconds())
-                                                            
-                                                            # Add elapsed time to database
-                                                            try:
-                                                                # Get board name from original data
-                                                                user_original_data = stage_data[stage_data['User'] == user_name].iloc[0]
-                                                                board_name = user_original_data['Board']
+                                                # Create columns for button and timer
+                                                btn_col, timer_col = st.columns([1, 1])
+                                                
+                                                with btn_col:
+                                                    if st.session_state.timers[task_key]:
+                                                        if st.button("Stop", key=f"stop_{task_key}"):
+                                                            # Stop timer and add time to database
+                                                            if task_key in st.session_state.timer_start_times:
+                                                                elapsed = datetime.now() - st.session_state.timer_start_times[task_key]
+                                                                elapsed_seconds = int(elapsed.total_seconds())
                                                                 
-                                                                with engine.connect() as conn:
-                                                                    conn.execute(text('''
-                                                                        INSERT INTO trello_time_tracking 
-                                                                        (card_name, user_name, list_name, time_spent_seconds, board_name, created_at)
-                                                                        VALUES (:card_name, :user_name, :list_name, :time_spent_seconds, :board_name, :created_at)
-                                                                    '''), {
-                                                                        'card_name': book_title,
-                                                                        'user_name': user_name,
-                                                                        'list_name': stage_name,
-                                                                        'time_spent_seconds': elapsed_seconds,
-                                                                        'board_name': board_name,
-                                                                        'created_at': datetime.now()
-                                                                    })
-                                                                    conn.commit()
-                                                                
-                                                                st.session_state.timers[task_key] = False
-                                                                del st.session_state.timer_start_times[task_key]
-                                                                st.success(f"Added {format_seconds_to_time(elapsed_seconds)} to {stage_name}")
-                                                                st.rerun()
-                                                                
-                                                            except Exception as e:
-                                                                st.error(f"Error saving time: {str(e)}")
-                                                else:
-                                                    if st.button("Start", key=f"start_{task_key}"):
-                                                        st.session_state.timers[task_key] = True
-                                                        st.session_state.timer_start_times[task_key] = datetime.now()
-                                                        st.rerun()
+                                                                # Add elapsed time to database
+                                                                try:
+                                                                    # Get board name from original data
+                                                                    user_original_data = stage_data[stage_data['User'] == user_name].iloc[0]
+                                                                    board_name = user_original_data['Board']
+                                                                    
+                                                                    with engine.connect() as conn:
+                                                                        conn.execute(text('''
+                                                                            INSERT INTO trello_time_tracking 
+                                                                            (card_name, user_name, list_name, time_spent_seconds, board_name, created_at)
+                                                                            VALUES (:card_name, :user_name, :list_name, :time_spent_seconds, :board_name, :created_at)
+                                                                        '''), {
+                                                                            'card_name': book_title,
+                                                                            'user_name': user_name,
+                                                                            'list_name': stage_name,
+                                                                            'time_spent_seconds': elapsed_seconds,
+                                                                            'board_name': board_name,
+                                                                            'created_at': datetime.now()
+                                                                        })
+                                                                        conn.commit()
+                                                                    
+                                                                    st.session_state.timers[task_key] = False
+                                                                    del st.session_state.timer_start_times[task_key]
+                                                                    st.success(f"Added {format_seconds_to_time(elapsed_seconds)} to {stage_name}")
+                                                                    st.rerun()
+                                                                    
+                                                                except Exception as e:
+                                                                    st.error(f"Error saving time: {str(e)}")
+                                                    else:
+                                                        if st.button("Start", key=f"start_{task_key}"):
+                                                            st.session_state.timers[task_key] = True
+                                                            st.session_state.timer_start_times[task_key] = datetime.now()
+                                                            st.rerun()
+                                                
+                                                with timer_col:
+                                                    # Show timer only when running
+                                                    if st.session_state.timers[task_key] and task_key in st.session_state.timer_start_times:
+                                                        elapsed = datetime.now() - st.session_state.timer_start_times[task_key]
+                                                        elapsed_seconds = int(elapsed.total_seconds())
+                                                        st.write(f"{format_seconds_to_time(elapsed_seconds)}")
+                                                    else:
+                                                        st.write("")
                                             
                                             with col4:
                                                 # Empty space for future features
@@ -786,11 +764,23 @@ def main():
                                         
                                         st.markdown("---")
                                 
-                                # Show refresh button if there are running timers
+                                # Auto-refresh for running timers in this book
                                 running_timers = [k for k, v in st.session_state.timers.items() if v and book_title in k]
                                 if running_timers:
                                     st.write(f"{len(running_timers)} timer(s) running")
                                     if st.button("Refresh Timers", key=f"refresh_{book_title}"):
+                                        st.rerun()
+                                    
+                                    # Auto-refresh every 5 seconds when timers are running
+                                    import time
+                                    
+                                    # Use a simple rerun to update timers
+                                    if 'last_refresh' not in st.session_state:
+                                        st.session_state.last_refresh = time.time()
+                                    
+                                    current_time = time.time()
+                                    if current_time - st.session_state.last_refresh > 5:  # Refresh every 5 seconds
+                                        st.session_state.last_refresh = current_time
                                         st.rerun()
                                 
                                 stage_counter += 1
