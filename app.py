@@ -780,16 +780,16 @@ def main():
                 
                 # Build query based on filters
                 query = "SELECT * FROM trello_time_tracking WHERE 1=1"
-                params = {}
                 
                 if card_filter:
-                    escaped_filter = re.escape(card_filter)
-                    query += " AND card_name ILIKE :card_filter"
-                    params['card_filter'] = f"%{card_filter}%"
+                    # Use ILIKE for case-insensitive search, escape single quotes
+                    escaped_filter = card_filter.replace("'", "''")
+                    query += f" AND card_name ILIKE '%{escaped_filter}%'"
                 
                 if user_filter != "All":
-                    query += " AND user_name = :user_filter"
-                    params['user_filter'] = user_filter
+                    # Escape single quotes for user filter
+                    escaped_user = user_filter.replace("'", "''")
+                    query += f" AND user_name = '{escaped_user}'"
                 
                 query += " ORDER BY created_at DESC"
                 
@@ -797,7 +797,7 @@ def main():
                     query += f" LIMIT {record_limit}"
                 
                 # Load and display data
-                df_db = pd.read_sql(query, engine, params=params)
+                df_db = pd.read_sql(query, engine)
                 
                 if not df_db.empty:
                     st.subheader("Database Records")
