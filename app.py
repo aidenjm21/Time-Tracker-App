@@ -568,13 +568,27 @@ def main():
                             book_mask = filtered_df['Card name'] == book_title
                             book_data = filtered_df[book_mask].copy()
                             
-                            # Calculate overall progress
+                            # Calculate overall progress using stage-based estimates
                             total_time_spent = book_data['Time spent (s)'].sum()
-                            estimated_time = 0
-                            if 'Card estimate(s)' in book_data.columns and len(book_data) > 0:
-                                first_estimate = book_data['Card estimate(s)'].iloc[0]
-                                if not pd.isna(first_estimate):
-                                    estimated_time = first_estimate
+                            
+                            # Calculate total estimated time based on stages present
+                            stage_estimates = {
+                                'Editorial R&D': 2 * 3600,      # 2 hours
+                                'Editorial Writing': 8 * 3600,   # 8 hours  
+                                '1st Proof': 2 * 3600,          # 2 hours
+                                '2nd Proof': 1.5 * 3600,        # 1.5 hours
+                                '3rd Proof': 1 * 3600,          # 1 hour
+                                '4th Proof': 1 * 3600,          # 1 hour
+                                '5th Proof': 1 * 3600,          # 1 hour
+                                'Editorial Sign Off': 0.5 * 3600, # 30 minutes
+                                'Cover Design': 4 * 3600,       # 4 hours
+                                'Design Time': 6 * 3600,        # 6 hours
+                                'Design Sign Off': 0.5 * 3600   # 30 minutes
+                            }
+                            
+                            # Sum up estimates for all stages present in this book
+                            unique_stages = book_data['List'].unique()
+                            estimated_time = sum(stage_estimates.get(stage, 3600) for stage in unique_stages)
                             
                             # Create expandable section for each book
                             with st.expander(f"📖 {book_title}", expanded=False):
@@ -607,8 +621,26 @@ def main():
                                     # Show one task per user for this stage
                                     for idx, user_task in user_aggregated.iterrows():
                                         user_name = user_task['User']
-                                        total_time = user_task['Time spent (s)']
+                                        actual_time = user_task['Time spent (s)']
                                         task_key = f"{book_title}_{stage_name}_{user_name}"
+                                        
+                                        # Get estimated time for this task - we'll use a default estimate based on stage
+                                        # This should ideally come from manual data entry estimates
+                                        stage_estimates = {
+                                            'Editorial R&D': 2 * 3600,      # 2 hours
+                                            'Editorial Writing': 8 * 3600,   # 8 hours  
+                                            '1st Proof': 2 * 3600,          # 2 hours
+                                            '2nd Proof': 1.5 * 3600,        # 1.5 hours
+                                            '3rd Proof': 1 * 3600,          # 1 hour
+                                            '4th Proof': 1 * 3600,          # 1 hour
+                                            '5th Proof': 1 * 3600,          # 1 hour
+                                            'Editorial Sign Off': 0.5 * 3600, # 30 minutes
+                                            'Cover Design': 4 * 3600,       # 4 hours
+                                            'Design Time': 6 * 3600,        # 6 hours
+                                            'Design Sign Off': 0.5 * 3600   # 30 minutes
+                                        }
+                                        
+                                        estimated_time = stage_estimates.get(stage_name, 3600)  # Default 1 hour
                                         
                                         # Task details container
                                         task_container = st.container()
@@ -619,7 +651,16 @@ def main():
                                             
                                             with col1:
                                                 st.write(f"**User:** {user_name}")
-                                                st.write(f"**Total Time:** {format_seconds_to_time(total_time)}")
+                                                st.write(f"**Progress:** {format_seconds_to_time(actual_time)}/{format_seconds_to_time(estimated_time)}")
+                                                
+                                                # Progress bar
+                                                progress_percentage = (actual_time / estimated_time) if estimated_time > 0 else 0
+                                                st.progress(min(progress_percentage, 1.0))
+                                                
+                                                if progress_percentage > 1.0:
+                                                    st.write(f"⚠️ {(progress_percentage - 1) * 100:.1f}% over estimate")
+                                                else:
+                                                    st.write(f"✅ {progress_percentage * 100:.1f}% complete")
                                             
                                             with col2:
                                                 # Timer display
