@@ -778,25 +778,36 @@ def main():
                         key="db_record_limit"
                     )
                 
-                # Build query based on filters
-                base_query = "SELECT * FROM trello_time_tracking WHERE 1=1"
-                
-                if card_filter:
-                    # Escape single quotes and build the query safely
-                    safe_filter = card_filter.replace("'", "''")
-                    base_query += f" AND card_name ILIKE '%{safe_filter}%'"
-                
-                if user_filter != "All":
-                    safe_user = user_filter.replace("'", "''")
-                    base_query += f" AND user_name = '{safe_user}'"
-                
-                base_query += " ORDER BY created_at DESC"
-                
-                if record_limit != "All":
-                    base_query += f" LIMIT {record_limit}"
-                
-                # Load data directly with pandas
-                df_db = pd.read_sql_query(base_query, engine)
+                # Load data using a direct connection approach
+                try:
+                    with engine.connect() as conn:
+                        if card_filter or user_filter != "All":
+                            # Build filtered query
+                            conditions = []
+                            if card_filter:
+                                safe_filter = card_filter.replace("'", "''")
+                                conditions.append(f"card_name ILIKE '%{safe_filter}%'")
+                            if user_filter != "All":
+                                safe_user = user_filter.replace("'", "''")
+                                conditions.append(f"user_name = '{safe_user}'")
+                            
+                            where_clause = " AND ".join(conditions)
+                            query = f"SELECT * FROM trello_time_tracking WHERE {where_clause} ORDER BY created_at DESC"
+                        else:
+                            query = "SELECT * FROM trello_time_tracking ORDER BY created_at DESC"
+                        
+                        if record_limit != "All":
+                            query += f" LIMIT {record_limit}"
+                        
+                        result = conn.execute(text(query))
+                        rows = result.fetchall()
+                        if rows:
+                            df_db = pd.DataFrame([dict(row._mapping) for row in rows])
+                        else:
+                            df_db = pd.DataFrame()
+                except Exception as query_error:
+                    st.error(f"Query error: {str(query_error)}")
+                    df_db = pd.DataFrame()
                 
                 if not df_db.empty:
                     st.subheader("Database Records")
@@ -826,11 +837,24 @@ def main():
                     
                     with col1:
                         if st.button("💾 Save Changes", type="primary"):
-                            st.info("Save functionality is available. To modify data, edit the cells directly in the table above, then click this button to save your changes to the database.")
+                            st.info("Note: Streamlit data_editor automatically handles cell editing. Changes are shown in the interface but manual database updates require additional implementation.")
                     
                     with col2:
-                        if st.button("🗑️ Delete Selected Rows"):
-                            st.warning("This feature requires row selection. Use the checkboxes to select rows first.")
+                        # Add manual deletion by ID
+                        delete_id = st.number_input("Enter ID to delete:", min_value=1, step=1, key="delete_id_input")
+                        if st.button("🗑️ Delete Record", type="secondary"):
+                            if delete_id:
+                                try:
+                                    with engine.connect() as conn:
+                                        result = conn.execute(text("DELETE FROM trello_time_tracking WHERE id = :id"), {"id": delete_id})
+                                        conn.commit()
+                                        if result.rowcount > 0:
+                                            st.success(f"Deleted record with ID {delete_id}")
+                                            st.rerun()
+                                        else:
+                                            st.warning(f"No record found with ID {delete_id}")
+                                except Exception as e:
+                                    st.error(f"Error deleting record: {str(e)}")
                     
                     with col3:
                         if st.button("🔄 Refresh Data"):
