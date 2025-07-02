@@ -67,40 +67,55 @@ def get_user_tasks_from_database(_engine, user_name, start_date=None, end_date=N
     """Get user tasks from database with optional date filtering"""
     try:
         query = '''
-            SELECT card_name, list_name, session_start_time, SUM(time_spent_seconds) as total_time, 
-                   MAX(card_estimate_seconds) as estimated_seconds
-            FROM trello_time_tracking 
-            WHERE user_name = :user_name AND time_spent_seconds > 0
+            WITH task_summary AS (
+                SELECT card_name, list_name, user_name,
+                       SUM(time_spent_seconds) as total_time,
+                       MAX(card_estimate_seconds) as estimated_seconds,
+                       MIN(CASE WHEN session_start_time IS NOT NULL THEN session_start_time END) as first_session
+                FROM trello_time_tracking 
+                WHERE user_name = :user_name
+                GROUP BY card_name, list_name, user_name
+                HAVING SUM(time_spent_seconds) > 0
+            )
+            SELECT card_name, list_name, first_session, total_time, estimated_seconds
+            FROM task_summary
         '''
         params = {'user_name': user_name}
         
-        if start_date:
-            query += ' AND session_start_time >= :start_date'
-            params['start_date'] = start_date
+        # Add date filtering to the main query if needed
+        if start_date or end_date:
+            date_conditions = []
+            if start_date:
+                date_conditions.append('first_session >= :start_date')
+                params['start_date'] = start_date
+            if end_date:
+                date_conditions.append('first_session <= :end_date')
+                params['end_date'] = end_date
+            
+            if date_conditions:
+                query += ' WHERE ' + ' AND '.join(date_conditions)
         
-        if end_date:
-            query += ' AND session_start_time <= :end_date'
-            params['end_date'] = end_date
-        
-        query += ' GROUP BY card_name, list_name, session_start_time ORDER BY session_start_time DESC, card_name, list_name'
+        query += ' ORDER BY first_session DESC, card_name, list_name'
         
         with _engine.connect() as conn:
             result = conn.execute(text(query), params)
             data = []
             for row in result:
-                session_start = row[2]
+                card_name = row[0]
+                list_name = row[1]
+                first_session = row[2]
                 total_time = row[3]
                 estimated_time = row[4] if row[4] else 0
                 
-                if session_start:
+                if first_session:
                     # Format as DD/MM/YYYY HH:MM
-                    date_time_str = session_start.strftime('%d/%m/%Y %H:%M')
+                    date_time_str = first_session.strftime('%d/%m/%Y %H:%M')
                 else:
                     date_time_str = 'Manual Entry'
                     
                 data.append({
-                    'Book Title': row[0],
-                    'List': row[1],
+                    'Book Title': card_name,
+                    'List': list_name,
                     'Session Started': date_time_str,
                     'Time Allocation': format_seconds_to_time(estimated_time) if estimated_time > 0 else 'Not Set',
                     'Time Spent': format_seconds_to_time(total_time)
