@@ -168,9 +168,56 @@ def calculate_completion_status(time_spent_seconds, estimated_seconds):
         over_percentage = int((completion_ratio - 1.0) * 100)
         return f"{over_percentage}% over allocation"
 
-def process_book_summary(df):
-    """Generate Book Summary Table"""
+def get_most_recent_activity(df, card_name):
+    """Get the most recent list/stage worked on for a specific card"""
+    card_data = df[df['Card name'] == card_name]
+    
+    # If Date started (f) exists, use it to find most recent
+    if 'Date started (f)' in df.columns and not card_data['Date started (f)'].isna().all():
+        # Convert dates and find the most recent entry
+        card_data_with_dates = card_data.dropna(subset=['Date started (f)'])
+        if not card_data_with_dates.empty:
+            card_data_with_dates['parsed_date'] = pd.to_datetime(card_data_with_dates['Date started (f)'], format='%m/%d/%Y', errors='coerce')
+            most_recent = card_data_with_dates.loc[card_data_with_dates['parsed_date'].idxmax()]
+            return most_recent['List']
+    
+    # Fallback: return the last entry (by order in CSV)
+    return card_data.iloc[-1]['List']
+
+def create_progress_bar_html(completion_percentage):
+    """Create HTML progress bar for completion status"""
+    if completion_percentage <= 100:
+        # Normal progress (green)
+        width = min(completion_percentage, 100)
+        color = "#28a745"  # Green
+        return f"""
+        <div style="background-color: #f0f0f0; border-radius: 10px; padding: 2px; width: 200px; height: 20px;">
+            <div style="background-color: {color}; width: {width}%; height: 16px; border-radius: 8px; text-align: center; line-height: 16px; color: white; font-size: 11px; font-weight: bold;">
+                {completion_percentage:.1f}%
+            </div>
+        </div>
+        """
+    else:
+        # Over allocation (red with overflow)
+        over_percentage = completion_percentage - 100
+        return f"""
+        <div style="background-color: #f0f0f0; border-radius: 10px; padding: 2px; width: 200px; height: 20px;">
+            <div style="background-color: #dc3545; width: 100%; height: 16px; border-radius: 8px; text-align: center; line-height: 16px; color: white; font-size: 11px; font-weight: bold;">
+                {over_percentage:.1f}% over allocation
+            </div>
+        </div>
+        """
+
+def process_book_summary(df, search_filter=None):
+    """Generate Book Summary Table with optional search filter"""
     try:
+        # Apply search filter if provided
+        if search_filter:
+            df = df[df['Card name'].str.contains(search_filter, case=False, na=False)]
+            
+        if df.empty:
+            return pd.DataFrame()
+        
         # Group by book title (Card name)
         book_groups = df.groupby('Card name')
         
@@ -189,11 +236,30 @@ def process_book_summary(df):
             if pd.isna(estimated_time):
                 estimated_time = 0
             
-            # Calculate completion status
+            # Get most recent activity
+            most_recent_list = get_most_recent_activity(df, book_title)
+            
+            # Calculate completion status and create progress visual
             completion = calculate_completion_status(total_time_spent, estimated_time)
+            
+            # Create visual progress element
+            if estimated_time > 0:
+                completion_percentage = (total_time_spent / estimated_time) * 100
+                progress_bar_html = create_progress_bar_html(completion_percentage)
+            else:
+                progress_bar_html = '<div style="font-style: italic; color: #666;">No estimate</div>'
+            
+            visual_progress = f"""
+            <div style="padding: 10px; border: 1px solid #ddd; border-radius: 8px; margin: 2px 0; background-color: #fafafa;">
+                <div style="font-weight: bold; font-size: 14px; margin-bottom: 5px;">{book_title}</div>
+                <div style="font-size: 12px; color: #666; margin-bottom: 8px;">Current stage: {most_recent_list}</div>
+                <div>{progress_bar_html}</div>
+            </div>
+            """
             
             book_summary_data.append({
                 'Book Title': book_title,
+                'Visual Progress': visual_progress,
                 'Main User': main_user,
                 'Time Spent': format_seconds_to_time(total_time_spent),
                 'Estimated Time': format_seconds_to_time(estimated_time),
@@ -359,18 +425,62 @@ def main():
                 
                 # Process and display Book Summary Table
                 st.header("📚 Book Summary Table")
-                book_summary = process_book_summary(df)
+                
+                # Add search bar for book titles
+                search_query = st.text_input(
+                    "🔍 Search books by title:",
+                    placeholder="Enter book title to filter results...",
+                    help="Search for specific books by typing part of the title"
+                )
+                
+                book_summary = process_book_summary(df, search_filter=search_query if search_query else None)
                 
                 if not book_summary.empty:
-                    st.dataframe(
-                        book_summary,
-                        use_container_width=True,
-                        hide_index=True
-                    )
+                    # Display column headers
+                    col1, col2, col3, col4, col5 = st.columns([3, 4, 2, 2, 3])
+                    with col1:
+                        st.write("**Book Title**")
+                    with col2:
+                        st.write("**Visual Progress**")
+                    with col3:
+                        st.write("**Main User**")
+                    with col4:
+                        st.write("**Time Spent**")
+                    with col5:
+                        st.write("**Completion**")
+                    
+                    st.divider()
+                    
+                    # Display the table with HTML rendering for the Visual Progress column
+                    for idx, row in book_summary.iterrows():
+                        with st.container():
+                            col1, col2, col3, col4, col5 = st.columns([3, 4, 2, 2, 3])
+                            
+                            with col1:
+                                st.write(row['Book Title'])
+                            
+                            with col2:
+                                # Render the HTML visual progress
+                                st.markdown(row['Visual Progress'], unsafe_allow_html=True)
+                            
+                            with col3:
+                                st.write(row['Main User'])
+                            
+                            with col4:
+                                st.write(row['Time Spent'])
+                            
+                            with col5:
+                                st.write(row['Completion'])
+                            
+                            st.divider()
+                    
+                    # Also provide a downloadable version without HTML
+                    book_summary_download = book_summary.copy()
+                    book_summary_download = book_summary_download.drop('Visual Progress', axis=1)
                     
                     # Add download button for book summary
                     csv_buffer = io.StringIO()
-                    book_summary.to_csv(csv_buffer, index=False)
+                    book_summary_download.to_csv(csv_buffer, index=False)
                     st.download_button(
                         label="📥 Download Book Summary as CSV",
                         data=csv_buffer.getvalue(),

@@ -33,7 +33,9 @@ This is a Streamlit-based time tracking analytics application that processes and
 **Key Functions:**
 - `format_seconds_to_time()`: Converts seconds to human-readable time format (hh:mm:ss)
 - `calculate_completion_status()`: Determines completion percentage based on time spent vs estimated time
-- `process_book_summary()`: Generates book-level summary analytics
+- `process_book_summary()`: Generates book-level summary analytics with visual progress tracking
+- `get_most_recent_activity()`: Determines the most recent stage/list worked on for each book
+- `create_progress_bar_html()`: Creates HTML progress bars for visual completion status
 
 **Data Processing Pipeline:**
 1. File upload and data ingestion
@@ -105,6 +107,7 @@ Changelog:
 - July 01, 2025. Added PostgreSQL database integration with duplicate prevention
 - July 01, 2025. Added user filtering interface with date range selection
 - July 01, 2025. Implemented tabbed interface for CSV upload and user task filtering
+- July 02, 2025. Added Visual Progress column with HTML progress bars, current stage tracking, and search functionality for book titles
 ```
 
 ## User Preferences
