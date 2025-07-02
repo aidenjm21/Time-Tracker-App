@@ -453,35 +453,32 @@ def main():
             with col2:
                 board_name = st.text_input("Board", placeholder="Enter board name")
                 
-            # Get existing users for dropdowns
-            existing_users = get_users_from_database(engine)
-            if not existing_users:
-                user_options = ["None", "Add new user..."]
-            else:
-                user_options = ["None"] + existing_users + ["Add new user..."]
-            
             st.subheader("Time Tracking Fields")
             st.markdown("*Assign different users to different stages. Leave time as 0 to skip a stage.*")
+            
+            # Define user groups for different types of work
+            editorial_users = ["None", "Rebecca Phillips-Bartlett", "Charis Mather", "Noah Leatherland", "Bethany Latham"]
+            design_users = ["None", "Drue Rintoul", "Amy Li", "Amelia Harris", "Ker Ker Lee", "Jasmine Pointer", "Rob Delph"]
             
             # Create a dictionary to store time entries
             time_entries = {}
             
-            # Time tracking fields with individual user dropdowns
+            # Time tracking fields with specific user groups
             time_fields = [
-                ("Editorial R&D Time", "Editorial R&D"),
-                ("Editorial Writing", "Editorial Writing"),
-                ("1st Proof", "1st Proof"),
-                ("2nd Proof", "2nd Proof"),
-                ("3rd Proof", "3rd Proof"),
-                ("4th Proof", "4th Proof"),
-                ("5th Proof", "5th Proof"),
-                ("Editorial Sign Off", "Editorial Sign Off"),
-                ("Cover Design", "Cover Design"),
-                ("Design Time", "Design Time"),
-                ("Design Sign Off", "Design Sign Off")
+                ("Editorial R&D Time", "Editorial R&D", editorial_users),
+                ("Editorial Writing", "Editorial Writing", editorial_users),
+                ("1st Proof", "1st Proof", editorial_users),
+                ("2nd Proof", "2nd Proof", editorial_users),
+                ("3rd Proof", "3rd Proof", editorial_users),
+                ("4th Proof", "4th Proof", editorial_users),
+                ("5th Proof", "5th Proof", editorial_users),
+                ("Editorial Sign Off", "Editorial Sign Off", editorial_users),
+                ("Cover Design", "Cover Design", design_users),
+                ("Design Time", "Design Time", design_users),
+                ("Design Sign Off", "Design Sign Off", design_users)
             ]
             
-            for field_label, list_name in time_fields:
+            for field_label, list_name, user_options in time_fields:
                 st.markdown(f"**{field_label} (hours)**")
                 col1, col2 = st.columns([2, 1])
                 
@@ -503,15 +500,8 @@ def main():
                         label_visibility="collapsed"
                     )
                 
-                # Handle "Add new user..." option
-                if selected_user == "Add new user...":
-                    new_user = st.text_input(
-                        f"New user name for {field_label}",
-                        key=f"new_user_{list_name.replace(' ', '_').lower()}",
-                        placeholder="Enter new user name"
-                    )
-                    final_user = new_user if new_user else None
-                elif selected_user == "None":
+                # Handle user selection
+                if selected_user == "None":
                     final_user = None
                 else:
                     final_user = selected_user
