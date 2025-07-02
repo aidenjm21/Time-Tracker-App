@@ -630,17 +630,17 @@ def main():
                                 completion_percentage = 0
                                 progress_text = f"Total: {format_seconds_to_time(total_time_spent)} (No estimate)"
                             
-                            # Create custom expander with title and progress bar always visible
-                            expander_header = f"""
-                            <div style="font-size: 18px; font-weight: bold; margin-bottom: 8px;">{book_title}</div>
-                            <div style="width: 50%; background-color: #f0f0f0; border-radius: 5px; height: 10px; margin-bottom: 5px;">
-                                <div style="width: {min(completion_percentage, 100):.1f}%; background-color: #00ff00; height: 100%; border-radius: 5px;"></div>
-                            </div>
-                            <div style="font-size: 14px; color: #666; margin-bottom: 10px;">{progress_text}</div>
-                            """
-                            st.markdown(expander_header, unsafe_allow_html=True)
+                            # Create expander label with progress text
+                            expander_label = f"{book_title} - {progress_text}"
                             
-                            with st.expander("View Details", expanded=False):
+                            with st.expander(expander_label, expanded=False):
+                                # Show progress bar at the top of expanded content
+                                progress_bar_html = f"""
+                                <div style="width: 50%; background-color: #f0f0f0; border-radius: 5px; height: 10px; margin: 10px 0;">
+                                    <div style="width: {min(completion_percentage, 100):.1f}%; background-color: #00ff00; height: 100%; border-radius: 5px;"></div>
+                                </div>
+                                """
+                                st.markdown(progress_bar_html, unsafe_allow_html=True)
                                 
                                 st.markdown("---")
                                 
