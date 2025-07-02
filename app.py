@@ -630,20 +630,21 @@ def main():
                                 completion_percentage = 0
                                 progress_text = f"Total: {format_seconds_to_time(total_time_spent)} (No estimate)"
                             
-                            # Create a bordered container with title, progress bar, and time always visible
-                            container_html = f"""
-                            <div style="border: 1px solid #ddd; border-radius: 8px; padding: 15px; margin-bottom: 10px; background-color: #fafafa;">
-                                <div style="font-size: 18px; font-weight: bold; margin-bottom: 8px;">{book_title}</div>
+                            # Create expander with title, progress bar, and time in the header area
+                            with st.expander("", expanded=False):
+                                # Display title, progress bar, and time at the top of expander content
+                                st.markdown(f'<div style="font-size: 18px; font-weight: bold; margin-bottom: 8px;">{book_title}</div>', unsafe_allow_html=True)
+                                
+                                # Progress bar with matching color
+                                progress_bar_html = f"""
                                 <div style="width: 50%; background-color: #f0f0f0; border-radius: 5px; height: 10px; margin: 8px 0;">
                                     <div style="width: {min(completion_percentage, 100):.1f}%; background-color: #007bff; height: 100%; border-radius: 5px;"></div>
                                 </div>
-                                <div style="font-size: 14px; color: #666; margin-bottom: 5px;">{progress_text}</div>
-                            </div>
-                            """
-                            st.markdown(container_html, unsafe_allow_html=True)
-                            
-                            # Separate expander for additional details
-                            with st.expander("View Details", expanded=False):
+                                """
+                                st.markdown(progress_bar_html, unsafe_allow_html=True)
+                                
+                                # Progress text
+                                st.markdown(f'<div style="font-size: 14px; color: #666; margin-bottom: 10px;">{progress_text}</div>', unsafe_allow_html=True)
                                 
                                 st.markdown("---")
                                 
