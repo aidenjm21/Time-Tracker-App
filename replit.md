@@ -134,6 +134,7 @@ Changelog:
 - July 02, 2025. Moved success message from top to bottom of Add Book form (below the Add Entry button)
 - July 02, 2025. Implemented comprehensive form clearing: all form field keys removed from session state after book creation to ensure complete reset
 - July 02, 2025. Improved tab switching responsiveness by adding immediate rerun when tab selection changes
+- July 02, 2025. Added delete button to Book Progress tab alongside archive button with double-click confirmation for permanent deletion
 ```
 
 ## User Preferences
