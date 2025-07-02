@@ -754,6 +754,58 @@ def main():
                                                         st.write("**Recording**")
                                                     else:
                                                         st.write("")
+                                                
+                                                # Manual time entry section
+                                                st.write("**Manual Entry:**")
+                                                manual_time = st.text_input(
+                                                    "Add time (hh:mm:ss):", 
+                                                    key=f"manual_{task_key}",
+                                                    placeholder="01:30:00"
+                                                )
+                                                
+                                                if st.button("Add Time", key=f"add_time_{task_key}"):
+                                                    if manual_time:
+                                                        try:
+                                                            # Parse the time format hh:mm:ss
+                                                            time_parts = manual_time.split(':')
+                                                            if len(time_parts) == 3:
+                                                                hours = int(time_parts[0])
+                                                                minutes = int(time_parts[1])
+                                                                seconds = int(time_parts[2])
+                                                                total_seconds = hours * 3600 + minutes * 60 + seconds
+                                                                
+                                                                if total_seconds > 0:
+                                                                    # Add manual time to database
+                                                                    try:
+                                                                        # Get board name from original data
+                                                                        user_original_data = stage_data[stage_data['User'] == user_name].iloc[0]
+                                                                        board_name = user_original_data['Board']
+                                                                        
+                                                                        with engine.connect() as conn:
+                                                                            conn.execute(text('''
+                                                                                INSERT INTO trello_time_tracking 
+                                                                                (card_name, user_name, list_name, time_spent_seconds, board_name, created_at)
+                                                                                VALUES (:card_name, :user_name, :list_name, :time_spent_seconds, :board_name, :created_at)
+                                                                            '''), {
+                                                                                'card_name': book_title,
+                                                                                'user_name': user_name,
+                                                                                'list_name': stage_name,
+                                                                                'time_spent_seconds': total_seconds,
+                                                                                'board_name': board_name,
+                                                                                'created_at': datetime.now()
+                                                                            })
+                                                                            conn.commit()
+                                                                        
+                                                                        st.rerun()
+                                                                        
+                                                                    except Exception as e:
+                                                                        st.error(f"Error saving time: {str(e)}")
+                                                                else:
+                                                                    st.error("Time must be greater than 00:00:00")
+                                                            else:
+                                                                st.error("Please use format hh:mm:ss (e.g., 01:30:00)")
+                                                        except ValueError:
+                                                            st.error("Please enter valid numbers in hh:mm:ss format")
                                         
                                         st.markdown("---")
                                 
