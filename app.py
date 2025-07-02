@@ -679,8 +679,8 @@ def main():
                                         task_container = st.container()
                                         
                                         with task_container:
-                                            # Create columns for task info and timer
-                                            col1, col2, col3, col4 = st.columns([2, 1, 1, 1])
+                                            # Create columns for task info and timer with better spacing
+                                            col1, col2, col3 = st.columns([4, 1, 3])
                                             
                                             with col1:
                                                 st.write(f"**User:** {user_name}")
@@ -704,8 +704,8 @@ def main():
                                                 if task_key not in st.session_state.timers:
                                                     st.session_state.timers[task_key] = False
                                                 
-                                                # Create columns for button and timer
-                                                btn_col, timer_col = st.columns([1, 1])
+                                                # Create columns for button and timer with better spacing
+                                                btn_col, timer_col = st.columns([1, 2])
                                                 
                                                 with btn_col:
                                                     if st.session_state.timers[task_key]:
@@ -757,10 +757,6 @@ def main():
                                                         st.write(f"{format_seconds_to_time(elapsed_seconds)}")
                                                     else:
                                                         st.write("")
-                                            
-                                            with col4:
-                                                # Empty space for future features
-                                                st.write("")
                                         
                                         st.markdown("---")
                                 
@@ -779,7 +775,7 @@ def main():
                                         st.session_state.last_refresh = time.time()
                                     
                                     current_time = time.time()
-                                    if current_time - st.session_state.last_refresh > 5:  # Refresh every 5 seconds
+                                    if current_time - st.session_state.last_refresh > 1:  # Refresh every 1 second
                                         st.session_state.last_refresh = current_time
                                         st.rerun()
                                 
