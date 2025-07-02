@@ -120,6 +120,7 @@ Changelog:
 - July 02, 2025. Reorganized design categories: Design R&D, In Design, Design Sign Off allocated to Design team; remaining stages to Editorial team
 - July 02, 2025. Implemented tab state persistence using dropdown selector to prevent jumping back to first tab on button clicks
 - July 02, 2025. Removed emojis from archive functionality and added delete button with double-click confirmation
+- July 02, 2025. Reorganized and renamed tabs: Book Progress (formerly Book Completion), Add Book (formerly Data Entry), Archive, User Data (formerly Filter User Tasks)
 ```
 
 ## User Preferences

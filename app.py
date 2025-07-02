@@ -410,7 +410,7 @@ def main():
         st.session_state.active_tab = 0
     
     # Create tabs for different views
-    tab_names = ["Data Entry", "Book Completion", "Filter User Tasks", "Archive"]
+    tab_names = ["Book Progress", "Add Book", "Archive", "User Data"]
     selected_tab = st.selectbox("Select Tab:", tab_names, index=st.session_state.active_tab, key="tab_selector")
     
     # Update active tab when changed
@@ -418,7 +418,7 @@ def main():
         st.session_state.active_tab = tab_names.index(selected_tab)
     
     # Create individual tab sections based on selection
-    if selected_tab == "Data Entry":
+    if selected_tab == "Add Book":
         # Manual Data Entry Form
         st.header("Manual Data Entry")
         st.markdown("Add individual time tracking entries for detailed stage-specific analysis.")
@@ -556,7 +556,7 @@ def main():
                 except Exception as e:
                     st.error(f"Error adding manual entry: {str(e)}")
     
-    elif selected_tab == "Book Completion":
+    elif selected_tab == "Book Progress":
         st.header("Book Completion Progress")
         st.markdown("Visual progress tracking for all books with individual task timers.")
         
@@ -867,7 +867,7 @@ def main():
                                             conn.commit()
                                         
                                         # Keep user on the current tab
-                                        st.session_state.active_tab = 1  # Book Completion tab
+                                        st.session_state.active_tab = 0  # Book Progress tab
                                         st.success(f"'{book_title}' has been archived successfully!")
                                         st.rerun()
                                     except Exception as e:
@@ -887,7 +887,7 @@ def main():
         except Exception as e:
             st.error(f"Error accessing database: {str(e)}")
     
-    elif selected_tab == "Filter User Tasks":
+    elif selected_tab == "User Data":
         st.header("Filter User Tasks")
         st.markdown("Filter tasks by user and date range from all uploaded data.")
         
@@ -1106,7 +1106,7 @@ def main():
                                                 conn.commit()
                                             
                                             # Keep user on the Archive tab
-                                            st.session_state.active_tab = 3  # Archive tab
+                                            st.session_state.active_tab = 2  # Archive tab
                                             st.success(f"'{book_title}' has been unarchived successfully!")
                                             st.rerun()
                                         except Exception as e:
@@ -1135,7 +1135,7 @@ def main():
                                                 # Reset confirmation state
                                                 del st.session_state[confirm_key]
                                                 # Keep user on the Archive tab
-                                                st.session_state.active_tab = 3  # Archive tab
+                                                st.session_state.active_tab = 2  # Archive tab
                                                 st.success(f"'{book_title}' has been permanently deleted!")
                                                 st.rerun()
                                             except Exception as e:
