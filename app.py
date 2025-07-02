@@ -441,7 +441,110 @@ def main():
     tab1, tab2, tab3, tab4 = st.tabs(["📁 Upload & Analyse CSV", "📊 Book Completion", "🔍 Filter User Tasks", "🗄️ Database Management"])
     
     with tab1:
+        # Manual Data Entry Form
+        st.header("📝 Manual Data Entry")
+        st.markdown("Add individual time tracking entries for detailed stage-specific analysis.")
+        
+        with st.form("manual_entry_form"):
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                card_name = st.text_input("Card Name", placeholder="Enter book title")
+                board_name = st.text_input("Board", placeholder="Enter board name")
+                
+                # Get existing users for dropdown
+                existing_users = get_users_from_database(engine)
+                if not existing_users:
+                    existing_users = ["Add new user..."]
+                else:
+                    existing_users.append("Add new user...")
+                
+                selected_user = st.selectbox("User", existing_users)
+                
+                # If user selected "Add new user...", show text input
+                if selected_user == "Add new user...":
+                    new_user = st.text_input("New User Name", placeholder="Enter new user name")
+                    final_user = new_user if new_user else ""
+                else:
+                    final_user = selected_user
+            
+            with col2:
+                st.subheader("Time Tracking Fields (in hours)")
+                editorial_rd_time = st.number_input("Editorial R&D Time", min_value=0.0, step=0.1, format="%.1f")
+                editorial_writing = st.number_input("Editorial Writing", min_value=0.0, step=0.1, format="%.1f")
+                proof_1st = st.number_input("1st Proof", min_value=0.0, step=0.1, format="%.1f")
+                proof_2nd = st.number_input("2nd Proof", min_value=0.0, step=0.1, format="%.1f")
+                proof_3rd = st.number_input("3rd Proof", min_value=0.0, step=0.1, format="%.1f")
+                proof_4th = st.number_input("4th Proof", min_value=0.0, step=0.1, format="%.1f")
+                proof_5th = st.number_input("5th Proof", min_value=0.0, step=0.1, format="%.1f")
+                editorial_sign_off = st.number_input("Editorial Sign Off", min_value=0.0, step=0.1, format="%.1f")
+                cover_design = st.number_input("Cover Design", min_value=0.0, step=0.1, format="%.1f")
+                design_time = st.number_input("Design Time", min_value=0.0, step=0.1, format="%.1f")
+                design_sign_off = st.number_input("Design Sign Off", min_value=0.0, step=0.1, format="%.1f")
+            
+            # Submit button
+            submitted = st.form_submit_button("➕ Add Entry", type="primary")
+            
+            if submitted:
+                if not card_name or not final_user:
+                    st.error("Please fill in Card Name and User fields")
+                else:
+                    try:
+                        # Create individual entries for each non-zero time field
+                        entries_added = 0
+                        current_time = datetime.now()
+                        
+                        # List of all time fields with their corresponding list names
+                        time_fields = [
+                            (editorial_rd_time, "Editorial R&D"),
+                            (editorial_writing, "Editorial Writing"),
+                            (proof_1st, "1st Proof"),
+                            (proof_2nd, "2nd Proof"),
+                            (proof_3rd, "3rd Proof"),
+                            (proof_4th, "4th Proof"),
+                            (proof_5th, "5th Proof"),
+                            (editorial_sign_off, "Editorial Sign Off"),
+                            (cover_design, "Cover Design"),
+                            (design_time, "Design Time"),
+                            (design_sign_off, "Design Sign Off")
+                        ]
+                        
+                        with engine.connect() as conn:
+                            for time_value, list_name in time_fields:
+                                if time_value > 0:  # Only add entries with actual time
+                                    # Convert hours to seconds
+                                    time_seconds = int(time_value * 3600)
+                                    
+                                    # Insert into database
+                                    conn.execute(text('''
+                                        INSERT INTO trello_time_tracking 
+                                        (card_name, user_name, list_name, time_spent_seconds, board_name, created_at)
+                                        VALUES (:card_name, :user_name, :list_name, :time_spent_seconds, :board_name, :created_at)
+                                    '''), {
+                                        'card_name': card_name,
+                                        'user_name': final_user,
+                                        'list_name': list_name,
+                                        'time_spent_seconds': time_seconds,
+                                        'board_name': board_name if board_name else 'Manual Entry',
+                                        'created_at': current_time
+                                    })
+                                    entries_added += 1
+                            
+                            conn.commit()
+                        
+                        if entries_added > 0:
+                            st.success(f"Successfully added {entries_added} entries for '{card_name}'")
+                            st.rerun()
+                        else:
+                            st.warning("No entries added - please enter time values greater than 0")
+                            
+                    except Exception as e:
+                        st.error(f"Error adding manual entry: {str(e)}")
+        
+        st.markdown("---")  # Separator between manual entry and CSV upload
+        
         # File upload
+        st.header("📁 CSV File Upload")
         uploaded_file = st.file_uploader(
             "Choose a CSV file", 
             type="csv",

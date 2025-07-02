@@ -109,6 +109,7 @@ Changelog:
 - July 01, 2025. Implemented tabbed interface for CSV upload and user task filtering
 - July 02, 2025. Added separate "Book Completion" tab with visual progress bars, current stage tracking, and search functionality
 - July 02, 2025. Added "Database Management" tab with full CRUD operations, filtering, and bulk data management
+- July 02, 2025. Added manual data entry form above CSV upload with detailed stage-specific time tracking fields (Editorial R&D, Writing, Proofs 1-5, Sign-offs, Design stages)
 ```
 
 ## User Preferences
