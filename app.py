@@ -211,6 +211,9 @@ def create_progress_bar_html(completion_percentage):
 def process_book_summary(df, search_filter=None):
     """Generate Book Summary Table with optional search filter"""
     try:
+        # Keep original df for getting most recent activity
+        original_df = df.copy()
+        
         # Apply search filter if provided
         if search_filter:
             df = df[df['Card name'].str.contains(search_filter, case=False, na=False)]
@@ -229,15 +232,20 @@ def process_book_summary(df, search_filter=None):
             
             # Find main user (most frequent contributor by time spent)
             user_time = group.groupby('User')['Time spent (s)'].sum()
-            main_user = user_time.idxmax() if not user_time.empty else "Unknown"
+            if len(user_time) > 0:
+                main_user = user_time.idxmax()
+            else:
+                main_user = "Unknown"
             
             # Get estimated time (assuming it's the same for all rows of the same book)
-            estimated_time = group['Card estimate(s)'].iloc[0] if 'Card estimate(s)' in group.columns else 0
-            if pd.isna(estimated_time):
-                estimated_time = 0
+            estimated_time = 0
+            if 'Card estimate(s)' in group.columns and len(group) > 0:
+                est_val = group['Card estimate(s)'].iloc[0]
+                if not pd.isna(est_val):
+                    estimated_time = est_val
             
-            # Get most recent activity
-            most_recent_list = get_most_recent_activity(df, book_title)
+            # Get most recent activity from original dataframe
+            most_recent_list = get_most_recent_activity(original_df, book_title)
             
             # Calculate completion status and create progress visual
             completion = calculate_completion_status(total_time_spent, estimated_time)
@@ -270,6 +278,8 @@ def process_book_summary(df, search_filter=None):
     
     except Exception as e:
         st.error(f"Error processing book summary: {str(e)}")
+        import traceback
+        st.error(f"Full error details: {traceback.format_exc()}")
         return pd.DataFrame()
 
 def convert_date_format(date_str):
@@ -433,9 +443,14 @@ def main():
                     help="Search for specific books by typing part of the title"
                 )
                 
+                # Debug: Show data info
+                st.write(f"Processing {len(df)} rows of data")
+                st.write(f"Columns: {list(df.columns)}")
+                
                 book_summary = process_book_summary(df, search_filter=search_query if search_query else None)
                 
                 if not book_summary.empty:
+                    st.write(f"Found {len(book_summary)} books to display")
                     # Display column headers
                     col1, col2, col3, col4, col5 = st.columns([3, 4, 2, 2, 3])
                     with col1:
