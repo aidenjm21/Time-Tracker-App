@@ -622,27 +622,25 @@ def main():
                                 unique_stages = book_data['List'].unique()
                                 estimated_time = sum(default_stage_estimates.get(stage, 3600) for stage in unique_stages)
                             
-                            # Create expandable section with larger title
-                            title_html = f'<div style="font-size: 18px; font-weight: bold;">{book_title}</div>'
-                            st.markdown(title_html, unsafe_allow_html=True)
+                            # Calculate completion percentage for display
+                            if estimated_time > 0:
+                                completion_percentage = (total_time_spent / estimated_time) * 100
+                                progress_text = f"{format_seconds_to_time(total_time_spent)}/{format_seconds_to_time(estimated_time)} ({completion_percentage:.1f}%)"
+                            else:
+                                completion_percentage = 0
+                                progress_text = f"Total: {format_seconds_to_time(total_time_spent)} (No estimate)"
                             
-                            with st.expander("", expanded=False):
-                                # Progress bar and details inside dropdown
-                                col1, col2 = st.columns([1, 1])
-                                
-                                with col1:
-                                    if estimated_time > 0:
-                                        completion_percentage = (total_time_spent / estimated_time) * 100
-                                        # Create 50% width progress bar
-                                        progress_html = f"""
-                                        <div style="width: 50%; background-color: #f0f0f0; border-radius: 5px; height: 10px; margin: 10px 0;">
-                                            <div style="width: {min(completion_percentage, 100):.1f}%; background-color: #00ff00; height: 100%; border-radius: 5px;"></div>
-                                        </div>
-                                        """
-                                        st.markdown(progress_html, unsafe_allow_html=True)
-                                        st.write(f"**Overall Progress:** {format_seconds_to_time(total_time_spent)}/{format_seconds_to_time(estimated_time)} ({completion_percentage:.1f}%)")
-                                    else:
-                                        st.write(f"**Total Time:** {format_seconds_to_time(total_time_spent)} (No estimate)")
+                            # Create custom expander with title and progress bar always visible
+                            expander_header = f"""
+                            <div style="font-size: 18px; font-weight: bold; margin-bottom: 8px;">{book_title}</div>
+                            <div style="width: 50%; background-color: #f0f0f0; border-radius: 5px; height: 10px; margin-bottom: 5px;">
+                                <div style="width: {min(completion_percentage, 100):.1f}%; background-color: #00ff00; height: 100%; border-radius: 5px;"></div>
+                            </div>
+                            <div style="font-size: 14px; color: #666; margin-bottom: 10px;">{progress_text}</div>
+                            """
+                            st.markdown(expander_header, unsafe_allow_html=True)
+                            
+                            with st.expander("View Details", expanded=False):
                                 
                                 st.markdown("---")
                                 
