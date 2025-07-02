@@ -299,10 +299,11 @@ def process_book_completion(df, search_filter=None):
             # Get most recent activity
             most_recent_list = get_most_recent_activity(df, book_title)
             
-            # Get board name
+            # Get board name from the original dataframe
+            book_data = df[df['Card name'] == book_title]
             board_name = "Unknown"
-            if 'Board' in group.columns and len(group) > 0:
-                board_val = group['Board'].iloc[0]
+            if 'Board' in book_data.columns and len(book_data) > 0:
+                board_val = book_data['Board'].iloc[0]
                 if not pd.isna(board_val):
                     board_name = board_val
             
