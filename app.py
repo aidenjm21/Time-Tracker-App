@@ -755,37 +755,31 @@ def main():
                                                         timer_id = f"timer_{task_key.replace(' ', '_').replace('/', '_').replace(':', '_')}"
                                                         
                                                         # Use simple independent timer script
-                                                        st.markdown(f"""
+                                                        timer_html = f"""
                                                         <div id="{timer_id}" style="font-size: 16px; font-weight: bold;">00:00:00</div>
                                                         <script>
-                                                        (function() {{
-                                                            let seconds = 0;
-                                                            const timerElement = document.getElementById('{timer_id}');
+                                                        let seconds_{timer_id} = 0;
+                                                        
+                                                        function pad(num) {{
+                                                            return num.toString().padStart(2, '0');
+                                                        }}
+                                                        
+                                                        function updateTimer_{timer_id}() {{
+                                                            seconds_{timer_id}++;
+                                                            const hrs = Math.floor(seconds_{timer_id} / 3600);
+                                                            const mins = Math.floor((seconds_{timer_id} % 3600) / 60);
+                                                            const secs = seconds_{timer_id} % 60;
                                                             
-                                                            function pad(num) {{
-                                                                return num.toString().padStart(2, '0');
+                                                            const element = document.getElementById('{timer_id}');
+                                                            if (element) {{
+                                                                element.textContent = pad(hrs) + ':' + pad(mins) + ':' + pad(secs);
                                                             }}
-                                                            
-                                                            function updateTimer() {{
-                                                                seconds++;
-                                                                const hrs = Math.floor(seconds / 3600);
-                                                                const mins = Math.floor((seconds % 3600) / 60);
-                                                                const secs = seconds % 60;
-                                                                
-                                                                if (timerElement) {{
-                                                                    timerElement.textContent = pad(hrs) + ':' + pad(mins) + ':' + pad(secs);
-                                                                }}
-                                                            }}
-                                                            
-                                                            const interval = setInterval(updateTimer, 1000);
-                                                            
-                                                            // Clean up when page reloads
-                                                            window.addEventListener('beforeunload', function() {{
-                                                                clearInterval(interval);
-                                                            }});
-                                                        }})();
+                                                        }}
+                                                        
+                                                        setInterval(updateTimer_{timer_id}, 1000);
                                                         </script>
-                                                        """, unsafe_allow_html=True)
+                                                        """
+                                                        st.components.v1.html(timer_html, height=30)
                                                     else:
                                                         st.write("")
                                         
