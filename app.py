@@ -765,6 +765,15 @@ def main():
                                                         placeholder="01:30:00"
                                                     )
                                                     
+                                                    # Hide the submit button with CSS
+                                                    st.markdown("""
+                                                    <style>
+                                                    div[data-testid="stForm"] button {
+                                                        display: none;
+                                                    }
+                                                    </style>
+                                                    """, unsafe_allow_html=True)
+                                                    
                                                     submitted = st.form_submit_button("Add Time")
                                                     
                                                     if submitted and manual_time:
