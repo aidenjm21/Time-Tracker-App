@@ -631,6 +631,14 @@ def main():
                                 progress_text = f"Total: {format_seconds_to_time(total_time_spent)} (No estimate)"
                             
                             with st.expander(book_title, expanded=False):
+                                # Show progress bar and completion info at the top
+                                progress_bar_html = f"""
+                                <div style="width: 50%; background-color: #f0f0f0; border-radius: 5px; height: 10px; margin: 8px 0;">
+                                    <div style="width: {min(completion_percentage, 100):.1f}%; background-color: #007bff; height: 100%; border-radius: 5px;"></div>
+                                </div>
+                                """
+                                st.markdown(progress_bar_html, unsafe_allow_html=True)
+                                st.markdown(f'<div style="font-size: 14px; color: #666; margin-bottom: 10px;">{progress_text}</div>', unsafe_allow_html=True)
                                 
                                 st.markdown("---")
                                 
