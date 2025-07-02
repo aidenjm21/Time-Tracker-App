@@ -752,35 +752,31 @@ def main():
                                                 with timer_col:
                                                     # Show timer only when running
                                                     if st.session_state.timers[task_key] and task_key in st.session_state.timer_start_times:
-                                                        start_time = st.session_state.timer_start_times[task_key]
                                                         timer_id = f"timer_{task_key.replace(' ', '_').replace('/', '_').replace(':', '_')}"
-                                                        start_timestamp = int(start_time.timestamp() * 1000)
                                                         
-                                                        # Use HTML with embedded JavaScript for real-time timer
+                                                        # Use simple independent timer script
                                                         st.markdown(f"""
                                                         <div id="{timer_id}" style="font-size: 16px; font-weight: bold;">00:00:00</div>
                                                         <script>
                                                         (function() {{
-                                                            const startTime = {start_timestamp};
+                                                            let seconds = 0;
                                                             const timerElement = document.getElementById('{timer_id}');
                                                             
+                                                            function pad(num) {{
+                                                                return num.toString().padStart(2, '0');
+                                                            }}
+                                                            
                                                             function updateTimer() {{
-                                                                const now = Date.now();
-                                                                const elapsed = Math.floor((now - startTime) / 1000);
-                                                                
-                                                                const hours = Math.floor(elapsed / 3600).toString().padStart(2, '0');
-                                                                const minutes = Math.floor((elapsed % 3600) / 60).toString().padStart(2, '0');
-                                                                const seconds = (elapsed % 60).toString().padStart(2, '0');
+                                                                seconds++;
+                                                                const hrs = Math.floor(seconds / 3600);
+                                                                const mins = Math.floor((seconds % 3600) / 60);
+                                                                const secs = seconds % 60;
                                                                 
                                                                 if (timerElement) {{
-                                                                    timerElement.textContent = hours + ':' + minutes + ':' + seconds;
+                                                                    timerElement.textContent = pad(hrs) + ':' + pad(mins) + ':' + pad(secs);
                                                                 }}
                                                             }}
                                                             
-                                                            // Update immediately
-                                                            updateTimer();
-                                                            
-                                                            // Update every second
                                                             const interval = setInterval(updateTimer, 1000);
                                                             
                                                             // Clean up when page reloads
