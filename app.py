@@ -299,14 +299,6 @@ def process_book_completion(df, search_filter=None):
             # Get most recent activity
             most_recent_list = get_most_recent_activity(df, book_title)
             
-            # Get board name from the original dataframe
-            book_data = df[df['Card name'] == book_title]
-            board_name = "Unknown"
-            if 'Board' in book_data.columns and len(book_data) > 0:
-                board_val = book_data['Board'].iloc[0]
-                if not pd.isna(board_val):
-                    board_name = board_val
-            
             # Calculate completion status
             completion = calculate_completion_status(total_time_spent, estimated_time)
             
@@ -320,7 +312,6 @@ def process_book_completion(df, search_filter=None):
             visual_progress = f"""
             <div style="padding: 10px; border: 1px solid #ddd; border-radius: 8px; margin: 2px 0; background-color: #fafafa;">
                 <div style="font-weight: bold; font-size: 14px; margin-bottom: 5px; color: #000;">{book_title}</div>
-                <div style="font-size: 11px; color: #888; margin-bottom: 5px;">Board: {board_name}</div>
                 <div style="font-size: 12px; color: #666; margin-bottom: 8px;">Current stage: {most_recent_list}</div>
                 <div>{progress_bar_html}</div>
             </div>
