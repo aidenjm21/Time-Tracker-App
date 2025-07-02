@@ -488,16 +488,20 @@ def main():
                             # Create task entry with 0 time spent - users will use timer to track actual time
                             # The time_hours value from the form is just for estimation display, not actual time spent
                             
-                            # Insert into database with 0 time spent
+                            # Convert hours to seconds for estimate
+                            estimate_seconds = int(entry_data['time_hours'] * 3600)
+                            
+                            # Insert into database with 0 time spent but store the estimate
                             conn.execute(text('''
                                 INSERT INTO trello_time_tracking 
-                                (card_name, user_name, list_name, time_spent_seconds, board_name, created_at)
-                                VALUES (:card_name, :user_name, :list_name, :time_spent_seconds, :board_name, :created_at)
+                                (card_name, user_name, list_name, time_spent_seconds, card_estimate_seconds, board_name, created_at)
+                                VALUES (:card_name, :user_name, :list_name, :time_spent_seconds, :card_estimate_seconds, :board_name, :created_at)
                             '''), {
                                 'card_name': card_name,
                                 'user_name': entry_data['user'],
                                 'list_name': list_name,
                                 'time_spent_seconds': 0,  # Start with 0 time spent
+                                'card_estimate_seconds': estimate_seconds,  # Store the estimate
                                 'board_name': board_name if board_name else 'Manual Entry',
                                 'created_at': current_time
                             })
@@ -571,24 +575,31 @@ def main():
                             # Calculate overall progress using stage-based estimates
                             total_time_spent = book_data['Time spent (s)'].sum()
                             
-                            # Calculate total estimated time based on stages present
-                            stage_estimates = {
-                                'Editorial R&D': 2 * 3600,      # 2 hours
-                                'Editorial Writing': 8 * 3600,   # 8 hours  
-                                '1st Proof': 2 * 3600,          # 2 hours
-                                '2nd Proof': 1.5 * 3600,        # 1.5 hours
-                                '3rd Proof': 1 * 3600,          # 1 hour
-                                '4th Proof': 1 * 3600,          # 1 hour
-                                '5th Proof': 1 * 3600,          # 1 hour
-                                'Editorial Sign Off': 0.5 * 3600, # 30 minutes
-                                'Cover Design': 4 * 3600,       # 4 hours
-                                'Design Time': 6 * 3600,        # 6 hours
-                                'Design Sign Off': 0.5 * 3600   # 30 minutes
-                            }
+                            # Calculate total estimated time from the database entries
+                            # Sum up all estimates stored in the database for this book
+                            estimated_time = 0
+                            if 'Card estimate(s)' in book_data.columns:
+                                book_estimates = book_data['Card estimate(s)'].fillna(0).sum()
+                                if book_estimates > 0:
+                                    estimated_time = book_estimates
                             
-                            # Sum up estimates for all stages present in this book
-                            unique_stages = book_data['List'].unique()
-                            estimated_time = sum(stage_estimates.get(stage, 3600) for stage in unique_stages)
+                            # If no estimates in database, use reasonable defaults per stage
+                            if estimated_time == 0:
+                                default_stage_estimates = {
+                                    'Editorial R&D': 2 * 3600,      # 2 hours default
+                                    'Editorial Writing': 8 * 3600,   # 8 hours default 
+                                    '1st Proof': 2 * 3600,          # 2 hours default
+                                    '2nd Proof': 1.5 * 3600,        # 1.5 hours default
+                                    '3rd Proof': 1 * 3600,          # 1 hour default
+                                    '4th Proof': 1 * 3600,          # 1 hour default
+                                    '5th Proof': 1 * 3600,          # 1 hour default
+                                    'Editorial Sign Off': 0.5 * 3600, # 30 minutes default
+                                    'Cover Design': 4 * 3600,       # 4 hours default
+                                    'Design Time': 6 * 3600,        # 6 hours default
+                                    'Design Sign Off': 0.5 * 3600   # 30 minutes default
+                                }
+                                unique_stages = book_data['List'].unique()
+                                estimated_time = sum(default_stage_estimates.get(stage, 3600) for stage in unique_stages)
                             
                             # Create expandable section for each book
                             with st.expander(f"📖 {book_title}", expanded=False):
@@ -608,39 +619,40 @@ def main():
                                 
                                 st.markdown("---")
                                 
-                                # Group by stage/list and aggregate by user
-                                stages = book_data.groupby('List')
+                                # Define the order of stages to match the data entry form
+                                stage_order = [
+                                    'Editorial R&D', 'Editorial Writing', '1st Proof', '2nd Proof', 
+                                    '3rd Proof', '4th Proof', '5th Proof', 'Editorial Sign Off',
+                                    'Cover Design', 'Design Time', 'Design Sign Off'
+                                ]
                                 
+                                # Group by stage/list and aggregate by user
+                                stages_grouped = book_data.groupby('List')
+                                
+                                # Display stages in the defined order
                                 stage_counter = 0
-                                for stage_name, stage_data in stages:
-                                    st.subheader(f"🎯 {stage_name}")
-                                    
-                                    # Aggregate time by user for this stage
-                                    user_aggregated = stage_data.groupby('User')['Time spent (s)'].sum().reset_index()
-                                    
-                                    # Show one task per user for this stage
-                                    for idx, user_task in user_aggregated.iterrows():
-                                        user_name = user_task['User']
-                                        actual_time = user_task['Time spent (s)']
-                                        task_key = f"{book_title}_{stage_name}_{user_name}"
+                                for stage_name in stage_order:
+                                    if stage_name in stages_grouped.groups:
+                                        stage_data = stages_grouped.get_group(stage_name)
+                                        st.subheader(f"🎯 {stage_name}")
                                         
-                                        # Get estimated time for this task - we'll use a default estimate based on stage
-                                        # This should ideally come from manual data entry estimates
-                                        stage_estimates = {
-                                            'Editorial R&D': 2 * 3600,      # 2 hours
-                                            'Editorial Writing': 8 * 3600,   # 8 hours  
-                                            '1st Proof': 2 * 3600,          # 2 hours
-                                            '2nd Proof': 1.5 * 3600,        # 1.5 hours
-                                            '3rd Proof': 1 * 3600,          # 1 hour
-                                            '4th Proof': 1 * 3600,          # 1 hour
-                                            '5th Proof': 1 * 3600,          # 1 hour
-                                            'Editorial Sign Off': 0.5 * 3600, # 30 minutes
-                                            'Cover Design': 4 * 3600,       # 4 hours
-                                            'Design Time': 6 * 3600,        # 6 hours
-                                            'Design Sign Off': 0.5 * 3600   # 30 minutes
-                                        }
+                                        # Aggregate time by user for this stage
+                                        user_aggregated = stage_data.groupby('User')['Time spent (s)'].sum().reset_index()
                                         
-                                        estimated_time = stage_estimates.get(stage_name, 3600)  # Default 1 hour
+                                        # Show one task per user for this stage
+                                        for idx, user_task in user_aggregated.iterrows():
+                                            user_name = user_task['User']
+                                            actual_time = user_task['Time spent (s)']
+                                            task_key = f"{book_title}_{stage_name}_{user_name}"
+                                            
+                                            # Get estimated time from the database for this specific user/stage combination
+                                            user_stage_data = stage_data[stage_data['User'] == user_name]
+                                            estimated_time = 3600  # Default 1 hour
+                                            
+                                            if not user_stage_data.empty and 'Card estimate(s)' in user_stage_data.columns:
+                                                estimate_val = user_stage_data['Card estimate(s)'].iloc[0]
+                                                if not pd.isna(estimate_val) and estimate_val > 0:
+                                                    estimated_time = estimate_val
                                         
                                         # Task details container
                                         task_container = st.container()
