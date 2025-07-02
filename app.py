@@ -439,16 +439,15 @@ def main():
         
         # Time tracking fields with specific user groups
         time_fields = [
-            ("Editorial R&D Time", "Editorial R&D", editorial_users),
+            ("Editorial R&D", "Editorial R&D", editorial_users),
             ("Editorial Writing", "Editorial Writing", editorial_users),
+            ("1st Edit", "1st Edit", editorial_users),
+            ("2nd Edit", "2nd Edit", editorial_users),
+            ("Design R&D", "Design R&D", design_users),
+            ("In Design", "In Design", design_users),
             ("1st Proof", "1st Proof", editorial_users),
             ("2nd Proof", "2nd Proof", editorial_users),
-            ("3rd Proof", "3rd Proof", editorial_users),
-            ("4th Proof", "4th Proof", editorial_users),
-            ("5th Proof", "5th Proof", editorial_users),
             ("Editorial Sign Off", "Editorial Sign Off", editorial_users),
-            ("Cover Design", "Cover Design", design_users),
-            ("Design Time", "Design Time", design_users),
             ("Design Sign Off", "Design Sign Off", design_users)
         ]
         
@@ -457,8 +456,8 @@ def main():
         design_total = 0.0
         time_entries = {}
         
-        editorial_fields = ["Editorial R&D", "Editorial Writing", "1st Proof", "2nd Proof", "3rd Proof", "4th Proof", "5th Proof", "Editorial Sign Off"]
-        design_fields = ["Cover Design", "Design Time", "Design Sign Off"]
+        editorial_fields = ["Editorial R&D", "Editorial Writing", "1st Edit", "2nd Edit", "1st Proof", "2nd Proof", "Editorial Sign Off"]
+        design_fields = ["Design R&D", "In Design", "Design Sign Off"]
         
         for field_label, list_name, user_options in time_fields:
             st.markdown(f"**{field_label} (hours)**")
@@ -856,7 +855,7 @@ def main():
                                 
                                 # Archive button at the bottom of each book
                                 st.markdown("---")
-                                if st.button(f"📦 Archive '{book_title}'", key=f"archive_{book_title}", help="Move this book to archive"):
+                                if st.button(f"Archive '{book_title}'", key=f"archive_{book_title}", help="Move this book to archive"):
                                     try:
                                         with engine.connect() as conn:
                                             # Add archived field to database if it doesn't exist
@@ -1091,24 +1090,59 @@ def main():
                                 st.write("**Task Breakdown:**")
                                 st.dataframe(task_breakdown, use_container_width=True, hide_index=True)
                                 
-                                # Unarchive button
+                                # Unarchive and Delete buttons
                                 st.markdown("---")
-                                if st.button(f"📤 Unarchive '{book_title}'", key=f"unarchive_{book_title}", help="Move this book back to active books"):
-                                    try:
-                                        with engine.connect() as conn:
-                                            conn.execute(text('''
-                                                UPDATE trello_time_tracking 
-                                                SET archived = FALSE 
-                                                WHERE card_name = :card_name
-                                            '''), {'card_name': book_title})
-                                            conn.commit()
+                                col1, col2 = st.columns(2)
+                                
+                                with col1:
+                                    if st.button(f"Unarchive '{book_title}'", key=f"unarchive_{book_title}", help="Move this book back to active books"):
+                                        try:
+                                            with engine.connect() as conn:
+                                                conn.execute(text('''
+                                                    UPDATE trello_time_tracking 
+                                                    SET archived = FALSE 
+                                                    WHERE card_name = :card_name
+                                                '''), {'card_name': book_title})
+                                                conn.commit()
+                                            
+                                            # Keep user on the Archive tab
+                                            st.session_state.active_tab = 3  # Archive tab
+                                            st.success(f"'{book_title}' has been unarchived successfully!")
+                                            st.rerun()
+                                        except Exception as e:
+                                            st.error(f"Error unarchiving book: {str(e)}")
+                                
+                                with col2:
+                                    if st.button(f"Delete '{book_title}'", key=f"delete_{book_title}", help="Permanently delete this book and all its data", type="secondary"):
+                                        # Add confirmation using session state
+                                        confirm_key = f"confirm_delete_{book_title}"
+                                        if confirm_key not in st.session_state:
+                                            st.session_state[confirm_key] = False
                                         
-                                        # Keep user on the Archive tab
-                                        st.session_state.active_tab = 3  # Archive tab
-                                        st.success(f"'{book_title}' has been unarchived successfully!")
-                                        st.rerun()
-                                    except Exception as e:
-                                        st.error(f"Error unarchiving book: {str(e)}")
+                                        if not st.session_state[confirm_key]:
+                                            st.session_state[confirm_key] = True
+                                            st.warning(f"Click 'Delete {book_title}' again to permanently delete all data for this book.")
+                                            st.rerun()
+                                        else:
+                                            try:
+                                                with engine.connect() as conn:
+                                                    conn.execute(text('''
+                                                        DELETE FROM trello_time_tracking 
+                                                        WHERE card_name = :card_name
+                                                    '''), {'card_name': book_title})
+                                                    conn.commit()
+                                                
+                                                # Reset confirmation state
+                                                del st.session_state[confirm_key]
+                                                # Keep user on the Archive tab
+                                                st.session_state.active_tab = 3  # Archive tab
+                                                st.success(f"'{book_title}' has been permanently deleted!")
+                                                st.rerun()
+                                            except Exception as e:
+                                                st.error(f"Error deleting book: {str(e)}")
+                                                # Reset confirmation state on error
+                                                if confirm_key in st.session_state:
+                                                    del st.session_state[confirm_key]
                     else:
                         if archive_search_query:
                             st.warning(f"No archived books found matching '{archive_search_query}'")

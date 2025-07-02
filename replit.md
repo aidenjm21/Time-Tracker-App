@@ -115,6 +115,11 @@ Changelog:
 - July 02, 2025. Removed Database Management tab and all related code per user request
 - July 02, 2025. Removed CSV upload functionality - app now focuses exclusively on manual data entry with stage-specific time tracking
 - July 02, 2025. Enhanced Book Completion tab with expandable dropdowns, individual task timers, and aggregated time tracking per user/stage combination
+- July 02, 2025. Added Archive tab with archiving/unarchiving functionality and delete capability with confirmation
+- July 02, 2025. Updated manual entry form headings: Editorial R&D, Editorial Writing, 1st Edit, 2nd Edit, Design R&D, In Design, 1st Proof, 2nd Proof, Editorial Sign Off, Design Sign Off
+- July 02, 2025. Reorganized design categories: Design R&D, In Design, Design Sign Off allocated to Design team; remaining stages to Editorial team
+- July 02, 2025. Implemented tab state persistence using dropdown selector to prevent jumping back to first tab on button clicks
+- July 02, 2025. Removed emojis from archive functionality and added delete button with double-click confirmation
 ```
 
 ## User Preferences
