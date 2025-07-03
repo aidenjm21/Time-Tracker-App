@@ -116,6 +116,9 @@ def load_active_timers(engine):
                 # Ensure timezone-aware datetime for consistency
                 if start_time.tzinfo is None:
                     start_time = start_time.replace(tzinfo=UTC_PLUS_1)
+                elif start_time.tzinfo != UTC_PLUS_1:
+                    # Convert to UTC+1 if it's in a different timezone
+                    start_time = start_time.astimezone(UTC_PLUS_1)
                 st.session_state.timer_start_times[timer_key] = start_time
                 
                 active_timers.append({
@@ -875,14 +878,22 @@ def main():
                                 completion_percentage = 0
                                 progress_text = f"Total: {format_seconds_to_time(total_time_spent)} (No estimate)"
                             
-                            # Auto-expand if there are active timers for this book
+                            # Auto-expand if there are active timers for this book or if it was manually expanded
                             has_active_timer = any(
                                 st.session_state.timers.get(f"{book_title}_{stage}_{user}", False)
                                 for stage in ["Editorial R&D", "Editorial Writing", "1st Edit", "2nd Edit", "Design R&D", "In Design", "1st Proof", "2nd Proof", "Editorial Sign Off", "Design Sign Off"]
                                 for user in book_data['User'].unique()
                             )
                             
-                            with st.expander(book_title, expanded=has_active_timer):
+                            # Initialize expanded state if not exists
+                            expanded_key = f"expanded_{book_title}"
+                            if expanded_key not in st.session_state:
+                                st.session_state[expanded_key] = has_active_timer
+                            
+                            # Keep expanded if there are active timers or if user manually expanded
+                            should_expand = has_active_timer or st.session_state.get(expanded_key, False)
+                            
+                            with st.expander(book_title, expanded=should_expand):
                                 # Show progress bar and completion info at the top
                                 progress_bar_html = f"""
                                 <div style="width: 50%; background-color: #f0f0f0; border-radius: 5px; height: 10px; margin: 8px 0;">
@@ -1075,11 +1086,18 @@ def main():
                                                         # Ensure timezone-aware datetime for calculations
                                                         if start_time.tzinfo is None:
                                                             start_time = start_time.replace(tzinfo=UTC_PLUS_1)
+                                                        elif start_time.tzinfo != UTC_PLUS_1:
+                                                            # Convert to UTC+1 if it's in a different timezone
+                                                            start_time = start_time.astimezone(UTC_PLUS_1)
                                                         
                                                         # Calculate and display current elapsed time
                                                         elapsed = datetime.now(UTC_PLUS_1) - start_time
                                                         elapsed_str = str(elapsed).split('.')[0]  # Remove microseconds
                                                         st.write(f"**Recording** ({elapsed_str})")
+                                                        
+                                                        # Add refresh button under active timer
+                                                        if st.button("refresh", key=f"refresh_timer_{task_key}", type="primary", help="Refresh timer display"):
+                                                            st.rerun()
                                                         
                                                         # Add JavaScript for localStorage persistence
                                                         st.markdown(f"""
@@ -1163,14 +1181,10 @@ def main():
                                         
                                         st.markdown("---")
                                 
-                                # Show highlighted refresh text when timers are running
+                                # Show count of running timers (refresh buttons now appear under individual timers)
                                 running_timers = [k for k, v in st.session_state.timers.items() if v and book_title in k]
                                 if running_timers:
                                     st.write(f"{len(running_timers)} timer(s) running")
-                                    # Highlighted refresh text that acts as a clickable button
-                                    st.markdown("**Click to refresh timer displays:**")
-                                    if st.button("refresh", key=f"refresh_{book_title}", type="primary"):
-                                        st.rerun()
                                 
                                 # Archive and Delete buttons at the bottom of each book
                                 st.markdown("---")
