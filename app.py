@@ -493,8 +493,8 @@ def main():
         st.markdown("*Assign users to stages and set time estimates. All tasks start with 0 actual time - use the Book Completion tab to track actual work time.*")
         
         # Define user groups for different types of work (alphabetically ordered)
-        editorial_users = ["None", "Bethany Latham", "Charis Mather", "Noah Leatherland", "Rebecca Phillips-Bartlett"]
-        design_users = ["None", "Amelia Harris", "Amy Li", "Drue Rintoul", "Jasmine Pointer", "Ker Ker Lee", "Rob Delph"]
+        editorial_users = ["Not set", "Bethany Latham", "Charis Mather", "Noah Leatherland", "Rebecca Phillips-Bartlett"]
+        design_users = ["Not set", "Amelia Harris", "Amy Li", "Drue Rintoul", "Jasmine Pointer", "Ker Ker Lee", "Rob Delph"]
         
         # Time tracking fields with specific user groups
         time_fields = [
@@ -541,20 +541,20 @@ def main():
                 )
             
             # Handle user selection and calculate totals
-            if selected_user != "None":
-                final_user = selected_user
+            # Allow time entries with or without user assignment
+            if time_value and time_value > 0:
+                final_user = selected_user if selected_user != "Not set" else None
                 
-                # Store the entry if both user and time are provided
-                if final_user and time_value and time_value > 0:
-                    time_entries[list_name] = {
-                        'user': final_user,
-                        'time_hours': time_value
-                    }
+                # Store the entry (user can be None for unassigned tasks)
+                time_entries[list_name] = {
+                    'user': final_user,
+                    'time_hours': time_value
+                }
                 
-                # Add to category totals (ensure time_value is not None)
-                if time_value and list_name in editorial_fields:
+                # Add to category totals
+                if list_name in editorial_fields:
                     editorial_total += time_value
-                elif time_value and list_name in design_fields:
+                elif list_name in design_fields:
                     design_total += time_value
         
         total_estimation = editorial_total + design_total
@@ -576,7 +576,7 @@ def main():
             if not card_name:
                 st.error("Please fill in Card Name field")
             elif not time_entries:
-                st.error("Please add at least one time entry with a user assigned")
+                st.error("Please add at least one time estimate (user assignment is optional)")
             else:
                 try:
                     entries_added = 0
@@ -619,7 +619,7 @@ def main():
                         estimate_count = len(time_entries)
                         
                         # Store success message in session state for permanent display
-                        st.session_state.book_created_message = f"Book '{card_name}' created successfully with {estimate_count} task assignments!"
+                        st.session_state.book_created_message = f"Book '{card_name}' created successfully with {estimate_count} time estimates!"
                         
                         # Set flag to clear form on next render instead of modifying session state directly
                         st.session_state.clear_form = True
@@ -782,7 +782,52 @@ def main():
                                                 col1, col2, col3 = st.columns([4, 1, 3])
                                                 
                                                 with col1:
-                                                    st.write(f"**User:** {user_name}")
+                                                    # User assignment dropdown
+                                                    current_user = user_name if user_name else "Not set"
+                                                    
+                                                    # Determine user options based on stage type
+                                                    if stage_name in ["Editorial R&D", "Editorial Writing", "1st Edit", "2nd Edit", "1st Proof", "2nd Proof", "Editorial Sign Off"]:
+                                                        user_options = ["Not set", "Bethany Latham", "Charis Mather", "Noah Leatherland", "Rebecca Phillips-Bartlett"]
+                                                    else:  # Design stages
+                                                        user_options = ["Not set", "Amelia Harris", "Amy Li", "Drue Rintoul", "Jasmine Pointer", "Ker Ker Lee", "Rob Delph"]
+                                                    
+                                                    # Find current user index
+                                                    try:
+                                                        current_index = user_options.index(current_user)
+                                                    except ValueError:
+                                                        current_index = 0  # Default to "Not set"
+                                                    
+                                                    new_user = st.selectbox(
+                                                        f"User for {stage_name}:",
+                                                        user_options,
+                                                        index=current_index,
+                                                        key=f"reassign_{book_title}_{stage_name}_{user_name}"
+                                                    )
+                                                    
+                                                    # Handle user reassignment
+                                                    if new_user != current_user:
+                                                        try:
+                                                            with engine.connect() as conn:
+                                                                # Update user assignment in database
+                                                                new_user_value = new_user if new_user != "Not set" else None
+                                                                conn.execute(text('''
+                                                                    UPDATE trello_time_tracking 
+                                                                    SET user_name = :new_user
+                                                                    WHERE card_name = :card_name 
+                                                                    AND list_name = :list_name 
+                                                                    AND user_name = :old_user
+                                                                '''), {
+                                                                    'new_user': new_user_value,
+                                                                    'card_name': book_title,
+                                                                    'list_name': stage_name,
+                                                                    'old_user': user_name
+                                                                })
+                                                                conn.commit()
+                                                            st.success(f"User reassigned to {new_user}")
+                                                            st.rerun()
+                                                        except Exception as e:
+                                                            st.error(f"Error reassigning user: {str(e)}")
+                                                    
                                                     st.write(f"**Progress:** {format_seconds_to_time(actual_time)}/{format_seconds_to_time(estimated_time_for_user)}")
                                                     
                                                     # Progress bar
