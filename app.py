@@ -46,6 +46,26 @@ def init_database():
                 ALTER TABLE trello_time_tracking 
                 ADD COLUMN IF NOT EXISTS archived BOOLEAN DEFAULT FALSE
             '''))
+            
+            # Add session_start_time column if it doesn't exist
+            conn.execute(text('''
+                ALTER TABLE trello_time_tracking 
+                ADD COLUMN IF NOT EXISTS session_start_time TIMESTAMP
+            '''))
+            
+            # Create active timers table for persistent timer storage
+            conn.execute(text('''
+                CREATE TABLE IF NOT EXISTS active_timers (
+                    id SERIAL PRIMARY KEY,
+                    timer_key VARCHAR(500) NOT NULL UNIQUE,
+                    card_name VARCHAR(255) NOT NULL,
+                    user_name VARCHAR(100),
+                    list_name VARCHAR(100) NOT NULL,
+                    board_name VARCHAR(100),
+                    start_time TIMESTAMP NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            '''))
             conn.commit()
         
         return engine
@@ -65,6 +85,85 @@ def get_users_from_database(_engine):
     except Exception as e:
         st.error(f"Error fetching users: {str(e)}")
         return []
+
+
+def load_active_timers(engine):
+    """Load active timers from database and restore session state"""
+    try:
+        with engine.connect() as conn:
+            result = conn.execute(text('''
+                SELECT timer_key, card_name, user_name, list_name, board_name, start_time
+                FROM active_timers
+                ORDER BY start_time DESC
+            '''))
+            
+            active_timers = []
+            for row in result:
+                timer_key = row[0]
+                card_name = row[1]
+                user_name = row[2]
+                list_name = row[3]
+                board_name = row[4]
+                start_time = row[5]
+                
+                # Restore timer state in session
+                if 'timers' not in st.session_state:
+                    st.session_state.timers = {}
+                if 'timer_start_times' not in st.session_state:
+                    st.session_state.timer_start_times = {}
+                
+                st.session_state.timers[timer_key] = True
+                st.session_state.timer_start_times[timer_key] = start_time
+                
+                active_timers.append({
+                    'timer_key': timer_key,
+                    'card_name': card_name,
+                    'user_name': user_name,
+                    'list_name': list_name,
+                    'board_name': board_name,
+                    'start_time': start_time
+                })
+            
+            return active_timers
+    except Exception as e:
+        st.error(f"Error loading active timers: {str(e)}")
+        return []
+
+
+def save_active_timer(engine, timer_key, card_name, user_name, list_name, board_name, start_time):
+    """Save active timer to database"""
+    try:
+        with engine.connect() as conn:
+            conn.execute(text('''
+                INSERT INTO active_timers (timer_key, card_name, user_name, list_name, board_name, start_time)
+                VALUES (:timer_key, :card_name, :user_name, :list_name, :board_name, :start_time)
+                ON CONFLICT (timer_key) DO UPDATE SET
+                    start_time = EXCLUDED.start_time,
+                    created_at = CURRENT_TIMESTAMP
+            '''), {
+                'timer_key': timer_key,
+                'card_name': card_name,
+                'user_name': user_name,
+                'list_name': list_name,
+                'board_name': board_name,
+                'start_time': start_time
+            })
+            conn.commit()
+    except Exception as e:
+        st.error(f"Error saving active timer: {str(e)}")
+
+
+def remove_active_timer(engine, timer_key):
+    """Remove active timer from database"""
+    try:
+        with engine.connect() as conn:
+            conn.execute(text('''
+                DELETE FROM active_timers WHERE timer_key = :timer_key
+            '''), {'timer_key': timer_key})
+            conn.commit()
+    except Exception as e:
+        st.error(f"Error removing active timer: {str(e)}")
+
 
 def get_user_tasks_from_database(_engine, user_name, start_date=None, end_date=None):
     """Get user tasks from database with optional date filtering"""
@@ -439,6 +538,19 @@ def main():
     if 'active_tab' not in st.session_state:
         st.session_state.active_tab = 0
     
+    # Initialize timer session state
+    if 'timers' not in st.session_state:
+        st.session_state.timers = {}
+    if 'timer_start_times' not in st.session_state:
+        st.session_state.timer_start_times = {}
+    
+    # Load and restore active timers from database
+    if 'timers_loaded' not in st.session_state:
+        active_timers = load_active_timers(engine)
+        st.session_state.timers_loaded = True
+        if active_timers:
+            st.info(f"Restored {len(active_timers)} active timer(s) from previous session.")
+    
     # Create tabs for different views
     tab_names = ["Book Progress", "Add Book", "Archive", "User Data"]
     selected_tab = st.selectbox("Select Tab:", tab_names, index=st.session_state.active_tab, key="tab_selector")
@@ -638,6 +750,28 @@ def main():
     elif selected_tab == "Book Progress":
         st.header("Book Completion Progress")
         st.markdown("Visual progress tracking for all books with individual task timers.")
+        
+        # Display active timers at the top
+        active_timer_count = sum(1 for running in st.session_state.timers.values() if running)
+        if active_timer_count > 0:
+            st.info(f"⏱️ {active_timer_count} timer(s) currently running - these will persist even if you refresh the page or close the tab")
+            
+            # Show details of active timers
+            with st.expander("View Active Timers", expanded=False):
+                for task_key, is_running in st.session_state.timers.items():
+                    if is_running and task_key in st.session_state.timer_start_times:
+                        # Extract book, stage, and user from task_key
+                        parts = task_key.split('_')
+                        if len(parts) >= 3:
+                            book_title = '_'.join(parts[:-2])
+                            stage_name = parts[-2]
+                            user_name = parts[-1]
+                            
+                            start_time = st.session_state.timer_start_times[task_key]
+                            elapsed = datetime.now(UTC_PLUS_1) - start_time
+                            elapsed_str = str(elapsed).split('.')[0]  # Remove microseconds
+                            
+                            st.write(f"📚 **{book_title}** - {stage_name} ({user_name}) - Running for {elapsed_str}")
         
         # Initialize session state for timers
         if 'timers' not in st.session_state:
@@ -878,7 +1012,7 @@ def main():
                                                                             VALUES (:card_name, :user_name, :list_name, :time_spent_seconds, :board_name, :created_at, :session_start_time)
                                                                         '''), {
                                                                             'card_name': book_title,
-                                                                            'user_name': user_name,
+                                                                            'user_name': user_name if user_name != "Not set" else None,
                                                                             'list_name': stage_name,
                                                                             'time_spent_seconds': elapsed_seconds,
                                                                             'board_name': board_name,
@@ -886,6 +1020,9 @@ def main():
                                                                             'session_start_time': st.session_state.timer_start_times[task_key]
                                                                         })
                                                                         conn.commit()
+                                                                    
+                                                                    # Remove from persistent storage
+                                                                    remove_active_timer(engine, task_key)
                                                                     
                                                                     st.session_state.timers[task_key] = False
                                                                     del st.session_state.timer_start_times[task_key]
@@ -895,14 +1032,38 @@ def main():
                                                                     st.error(f"Error saving time: {str(e)}")
                                                     else:
                                                         if st.button("Start", key=f"start_{task_key}"):
+                                                            # Start timer and save to persistent storage
+                                                            start_time = datetime.now(UTC_PLUS_1)
                                                             st.session_state.timers[task_key] = True
-                                                            st.session_state.timer_start_times[task_key] = datetime.now(UTC_PLUS_1)
+                                                            st.session_state.timer_start_times[task_key] = start_time
+                                                            
+                                                            # Save to persistent storage
+                                                            user_original_data = stage_data[stage_data['User'] == user_name].iloc[0]
+                                                            board_name = user_original_data['Board']
+                                                            
+                                                            save_active_timer(
+                                                                engine, task_key, book_title, 
+                                                                user_name if user_name != "Not set" else None,
+                                                                stage_name, board_name, start_time
+                                                            )
+                                                            
                                                             st.rerun()
                                                 
                                                 with timer_col:
                                                     # Show "Recording" text when timer is running
                                                     if st.session_state.timers[task_key] and task_key in st.session_state.timer_start_times:
-                                                        st.write("**Recording**")
+                                                        start_time = st.session_state.timer_start_times[task_key]
+                                                        elapsed = datetime.now(UTC_PLUS_1) - start_time
+                                                        elapsed_str = str(elapsed).split('.')[0]  # Remove microseconds
+                                                        st.write(f"**Recording** ({elapsed_str})")
+                                                        
+                                                        # Add JavaScript for localStorage persistence
+                                                        st.markdown(f"""
+                                                        <script>
+                                                        // Store active timer in localStorage
+                                                        localStorage.setItem('activeTimer_{task_key}', '{start_time.isoformat()}');
+                                                        </script>
+                                                        """, unsafe_allow_html=True)
                                                     else:
                                                         st.write("")
                                                 
