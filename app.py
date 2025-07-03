@@ -37,7 +37,7 @@ def get_trello_card_cover_image(card_url):
         st.info(f"Debug: Extracted card ID: {card_id}")
         
         # First try to get the card info to check for cover
-        card_info_url = f"https://api.trello.com/1/cards/{card_id}?fields=cover"
+        card_info_url = f"https://api.trello.com/1/cards/{card_id}?fields=cover,attachments&attachments=true&attachment_fields=all"
         card_response = requests.get(card_info_url, timeout=10)
         
         if card_response.status_code == 200:
@@ -56,21 +56,53 @@ def get_trello_card_cover_image(card_url):
                         img_response = requests.get(img_url, timeout=10)
                         if img_response.status_code == 200:
                             return Image.open(io.BytesIO(img_response.content))
+            
+            # If no cover set but there's a cover attachment ID, try that
+            if cover_info and cover_info.get('idAttachment'):
+                attachment_id = cover_info.get('idAttachment')
+                # Get the specific attachment
+                attachment_url = f"https://api.trello.com/1/attachments/{attachment_id}"
+                att_response = requests.get(attachment_url, timeout=10)
+                if att_response.status_code == 200:
+                    att_data = att_response.json()
+                    img_url = att_data.get('url')
+                    if img_url:
+                        st.info(f"Debug: Trying to fetch cover attachment from: {img_url}")
+                        img_response = requests.get(img_url, timeout=10)
+                        if img_response.status_code == 200:
+                            return Image.open(io.BytesIO(img_response.content))
         
-        # Fallback: try attachments
+        # Also check attachments from the card data we already fetched
+        attachments = card_data.get('attachments', [])
+        st.info(f"Debug: Found {len(attachments)} attachments in card data")
+        
+        # Look for image attachments that could be covers
+        for attachment in attachments:
+            st.info(f"Debug: Attachment details: {attachment}")
+            if attachment.get('mimeType', '').startswith('image/'):
+                img_url = attachment.get('url')
+                if img_url:
+                    st.info(f"Debug: Trying attachment image: {img_url}")
+                    # Download the image
+                    img_response = requests.get(img_url, timeout=10)
+                    if img_response.status_code == 200:
+                        return Image.open(io.BytesIO(img_response.content))
+        
+        # Fallback: try separate attachments endpoint
         api_url = f"https://api.trello.com/1/cards/{card_id}/attachments"
         response = requests.get(api_url, timeout=10)
         
         if response.status_code == 200:
-            attachments = response.json()
-            st.info(f"Debug: Found {len(attachments)} attachments")
+            fallback_attachments = response.json()
+            st.info(f"Debug: Found {len(fallback_attachments)} attachments via separate endpoint")
             
-            # Look for image attachments that could be covers
-            for attachment in attachments:
-                if attachment.get('isUpload', False) and attachment.get('mimeType', '').startswith('image/'):
+            # Look for any image attachments
+            for attachment in fallback_attachments:
+                st.info(f"Debug: Fallback attachment: {attachment}")
+                if attachment.get('mimeType', '').startswith('image/'):
                     img_url = attachment.get('url')
                     if img_url:
-                        st.info(f"Debug: Trying attachment image: {img_url}")
+                        st.info(f"Debug: Trying fallback attachment image: {img_url}")
                         # Download the image
                         img_response = requests.get(img_url, timeout=10)
                         if img_response.status_code == 200:
