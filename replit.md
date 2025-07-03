@@ -141,6 +141,8 @@ Changelog:
 - July 02, 2025. Added user reassignment functionality to Book Progress tab with stage-appropriate user dropdown options
 - July 03, 2025. Implemented persistent timer functionality: timers now survive page refreshes and tab closures by storing state in database
 - July 03, 2025. Added real-time JavaScript timer displays that update every second showing live elapsed time without requiring page refreshes
+- July 03, 2025. Improved dropdown behavior: only one book expanded at a time, books with active timers auto-expand, dropdowns stay open when starting/stopping timers
+- July 03, 2025. Added clickable refresh button for each active timer to manually update elapsed time display
 ```
 
 ## User Preferences

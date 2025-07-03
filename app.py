@@ -830,9 +830,9 @@ def main():
                     if len(unique_books) > 0:
                         st.write(f"Found {len(unique_books)} books to display")
                         
-                        # Initialize session state for expanded books
-                        if 'expanded_books' not in st.session_state:
-                            st.session_state.expanded_books = set()
+                        # Initialize session state for expanded books (only one at a time)
+                        if 'expanded_book' not in st.session_state:
+                            st.session_state.expanded_book = None
                         
                         # Display each book with enhanced visualization
                         for book_title in unique_books:
@@ -875,14 +875,39 @@ def main():
                                 completion_percentage = 0
                                 progress_text = f"Total: {format_seconds_to_time(total_time_spent)} (No estimate)"
                             
-                            # Auto-expand if there are active timers for this book
+                            # Check if there are active timers for this book
                             has_active_timer = any(
                                 st.session_state.timers.get(f"{book_title}_{stage}_{user}", False)
                                 for stage in ["Editorial R&D", "Editorial Writing", "1st Edit", "2nd Edit", "Design R&D", "In Design", "1st Proof", "2nd Proof", "Editorial Sign Off", "Design Sign Off"]
                                 for user in book_data['User'].unique()
                             )
                             
-                            with st.expander(book_title, expanded=has_active_timer):
+                            # Determine if this book should be expanded (only one at a time, prefer books with active timers)
+                            should_expand = False
+                            if has_active_timer and st.session_state.expanded_book != book_title:
+                                st.session_state.expanded_book = book_title
+                                should_expand = True
+                            elif st.session_state.expanded_book == book_title:
+                                should_expand = True
+                            elif st.session_state.expanded_book is None and book_title == unique_books[0]:
+                                # Expand first book if none are expanded and no active timers
+                                st.session_state.expanded_book = book_title
+                                should_expand = True
+                            
+                            # Add a button to toggle expansion
+                            col1, col2 = st.columns([1, 10])
+                            with col1:
+                                if st.button("📖" if should_expand else "📚", key=f"toggle_{book_title}", help="Click to expand/collapse"):
+                                    if st.session_state.expanded_book == book_title:
+                                        st.session_state.expanded_book = None
+                                    else:
+                                        st.session_state.expanded_book = book_title
+                                    st.rerun()
+                            
+                            with col2:
+                                st.markdown(f"**{book_title}**")
+                            
+                            if should_expand:
                                 # Show progress bar and completion info at the top
                                 progress_bar_html = f"""
                                 <div style="width: 50%; background-color: #f0f0f0; border-radius: 5px; height: 10px; margin: 8px 0;">
@@ -1045,7 +1070,8 @@ def main():
                                                                     
                                                                     st.session_state.timers[task_key] = False
                                                                     del st.session_state.timer_start_times[task_key]
-                                                                    st.rerun()
+                                                                    st.success(f"Timer stopped. {format_seconds_to_time(elapsed_seconds)} recorded.")
+                                                                    # Don't call st.rerun() to keep dropdown open
                                                                     
                                                                 except Exception as e:
                                                                     st.error(f"Error saving time: {str(e)}")
@@ -1066,7 +1092,8 @@ def main():
                                                                 stage_name, board_name, start_time
                                                             )
                                                             
-                                                            st.rerun()
+                                                            st.success("Timer started!")
+                                                            # Don't call st.rerun() to keep dropdown open
                                                 
                                                 with timer_col:
                                                     # Show "Recording" text when timer is running
@@ -1080,6 +1107,11 @@ def main():
                                                         elapsed = datetime.now(UTC_PLUS_1) - start_time
                                                         elapsed_str = str(elapsed).split('.')[0]  # Remove microseconds
                                                         st.write(f"**Recording** ({elapsed_str})")
+                                                        
+                                                        # Add refresh button for timer
+                                                        if st.button("🔄 refresh", key=f"refresh_{task_key}", help="Click to update timer"):
+                                                            # Don't change expanded state, just refresh
+                                                            pass
                                                         
                                                         # Add JavaScript for localStorage persistence
                                                         st.markdown(f"""
