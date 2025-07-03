@@ -951,10 +951,40 @@ def main():
                                         # Keep expanded if there are active timers
                                         should_expand_stage = stage_has_active_timer or st.session_state.get(stage_expanded_key, False)
                                         
-                                        with st.expander(stage_name, expanded=should_expand_stage):
-                                            # Aggregate time by user for this stage
-                                            user_aggregated = stage_data.groupby('User')['Time spent (s)'].sum().reset_index()
+                                        # Aggregate time by user for this stage
+                                        user_aggregated = stage_data.groupby('User')['Time spent (s)'].sum().reset_index()
+                                        
+                                        # Create a summary for the expander title showing all users and their progress
+                                        stage_summary_parts = []
+                                        for idx, user_task in user_aggregated.iterrows():
+                                            user_name = user_task['User']
+                                            actual_time = user_task['Time spent (s)']
                                             
+                                            # Get estimated time from the database for this specific user/stage combination
+                                            user_stage_data = stage_data[stage_data['User'] == user_name]
+                                            estimated_time_for_user = 3600  # Default 1 hour
+                                            
+                                            if not user_stage_data.empty and 'Card estimate(s)' in user_stage_data.columns:
+                                                # Find the first record that has a non-null, non-zero estimate
+                                                estimates = user_stage_data['Card estimate(s)'].dropna()
+                                                non_zero_estimates = estimates[estimates > 0]
+                                                if not non_zero_estimates.empty:
+                                                    estimated_time_for_user = non_zero_estimates.iloc[0]
+                                            
+                                            # Format times for display
+                                            actual_time_str = format_seconds_to_time(actual_time)
+                                            estimated_time_str = format_seconds_to_time(estimated_time_for_user)
+                                            user_display = user_name if user_name and user_name != "Not set" else "Unassigned"
+                                            
+                                            stage_summary_parts.append(f"{user_display}    {actual_time_str}/{estimated_time_str}")
+                                        
+                                        # Create expander title with stage name and user summaries
+                                        if stage_summary_parts:
+                                            expander_title = f"{stage_name}    " + "    |    ".join(stage_summary_parts)
+                                        else:
+                                            expander_title = stage_name
+                                        
+                                        with st.expander(expander_title, expanded=should_expand_stage):
                                             # Show one task per user for this stage
                                             for idx, user_task in user_aggregated.iterrows():
                                                 user_name = user_task['User']
