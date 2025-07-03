@@ -60,7 +60,7 @@ def get_users_from_database(_engine):
     """Get list of unique users from database"""
     try:
         with _engine.connect() as conn:
-            result = conn.execute(text('SELECT DISTINCT user_name FROM trello_time_tracking ORDER BY user_name'))
+            result = conn.execute(text('SELECT DISTINCT COALESCE(user_name, \'Not set\') FROM trello_time_tracking ORDER BY COALESCE(user_name, \'Not set\')'))
             return [row[0] for row in result]
     except Exception as e:
         st.error(f"Error fetching users: {str(e)}")
@@ -71,13 +71,13 @@ def get_user_tasks_from_database(_engine, user_name, start_date=None, end_date=N
     try:
         query = '''
             WITH task_summary AS (
-                SELECT card_name, list_name, user_name,
+                SELECT card_name, list_name, COALESCE(user_name, 'Not set') as user_name,
                        SUM(time_spent_seconds) as total_time,
                        MAX(card_estimate_seconds) as estimated_seconds,
                        MIN(CASE WHEN session_start_time IS NOT NULL THEN session_start_time END) as first_session
                 FROM trello_time_tracking 
-                WHERE user_name = :user_name
-                GROUP BY card_name, list_name, user_name
+                WHERE COALESCE(user_name, 'Not set') = :user_name
+                GROUP BY card_name, list_name, COALESCE(user_name, 'Not set')
                 HAVING SUM(time_spent_seconds) > 0
             )
             SELECT card_name, list_name, first_session, total_time, estimated_seconds
@@ -656,9 +656,13 @@ def main():
                 
                 # Get data from database for book completion (exclude archived)
                 df_from_db = pd.read_sql(
-                    '''SELECT card_name as "Card name", user_name as "User", list_name as "List", 
-                       time_spent_seconds as "Time spent (s)", date_started as "Date started (f)", 
-                       card_estimate_seconds as "Card estimate(s)", board_name as "Board", created_at 
+                    '''SELECT card_name as "Card name", 
+                       COALESCE(user_name, 'Not set') as "User", 
+                       list_name as "List", 
+                       time_spent_seconds as "Time spent (s)", 
+                       date_started as "Date started (f)", 
+                       card_estimate_seconds as "Card estimate(s)", 
+                       board_name as "Board", created_at 
                        FROM trello_time_tracking WHERE archived = FALSE ORDER BY created_at DESC''', 
                     engine
                 )
@@ -1182,9 +1186,13 @@ def main():
                 
                 # Get archived data from database
                 df_archived = pd.read_sql(
-                    '''SELECT card_name as "Card name", user_name as "User", list_name as "List", 
-                       time_spent_seconds as "Time spent (s)", date_started as "Date started (f)", 
-                       card_estimate_seconds as "Card estimate(s)", board_name as "Board", created_at 
+                    '''SELECT card_name as "Card name", 
+                       COALESCE(user_name, 'Not set') as "User", 
+                       list_name as "List", 
+                       time_spent_seconds as "Time spent (s)", 
+                       date_started as "Date started (f)", 
+                       card_estimate_seconds as "Card estimate(s)", 
+                       board_name as "Board", created_at 
                        FROM trello_time_tracking WHERE archived = TRUE ORDER BY created_at DESC''', 
                     engine
                 )
