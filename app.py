@@ -1040,6 +1040,13 @@ def main():
                                                 with btn_col:
                                                     if st.session_state.timers[task_key]:
                                                         if st.button("Stop", key=f"stop_{task_key}"):
+                                                            # Store scroll position before stopping timer
+                                                            st.markdown("""
+                                                            <script>
+                                                            sessionStorage.setItem('scrollPosition', window.pageYOffset);
+                                                            </script>
+                                                            """, unsafe_allow_html=True)
+                                                            
                                                             # Stop timer and add time to database
                                                             if task_key in st.session_state.timer_start_times:
                                                                 # Use consistent UTC-based calculation
