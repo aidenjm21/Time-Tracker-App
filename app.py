@@ -113,6 +113,9 @@ def load_active_timers(engine):
                     st.session_state.timer_start_times = {}
                 
                 st.session_state.timers[timer_key] = True
+                # Ensure timezone-aware datetime for consistency
+                if start_time.tzinfo is None:
+                    start_time = start_time.replace(tzinfo=UTC_PLUS_1)
                 st.session_state.timer_start_times[timer_key] = start_time
                 
                 active_timers.append({
@@ -768,6 +771,9 @@ def main():
                             user_name = parts[-1]
                             
                             start_time = st.session_state.timer_start_times[task_key]
+                            # Ensure timezone-aware datetime for calculations
+                            if start_time.tzinfo is None:
+                                start_time = start_time.replace(tzinfo=UTC_PLUS_1)
                             elapsed = datetime.now(UTC_PLUS_1) - start_time
                             elapsed_str = str(elapsed).split('.')[0]  # Remove microseconds
                             
@@ -1053,6 +1059,9 @@ def main():
                                                     # Show "Recording" text when timer is running
                                                     if st.session_state.timers[task_key] and task_key in st.session_state.timer_start_times:
                                                         start_time = st.session_state.timer_start_times[task_key]
+                                                        # Ensure timezone-aware datetime for calculations
+                                                        if start_time.tzinfo is None:
+                                                            start_time = start_time.replace(tzinfo=UTC_PLUS_1)
                                                         elapsed = datetime.now(UTC_PLUS_1) - start_time
                                                         elapsed_str = str(elapsed).split('.')[0]  # Remove microseconds
                                                         st.write(f"**Recording** ({elapsed_str})")
