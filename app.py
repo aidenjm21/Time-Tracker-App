@@ -1115,11 +1115,39 @@ def main():
                                                         current_time = datetime.utcnow().replace(tzinfo=timezone.utc).astimezone(BST)
                                                         elapsed = current_time - start_time
                                                         elapsed_str = str(elapsed).split('.')[0]  # Remove microseconds
-                                                        st.write(f"**Recording** ({elapsed_str})")
                                                         
-                                                        # Add refresh button under active timer
-                                                        if st.button("refresh", key=f"refresh_timer_{task_key}", type="primary", help="Refresh timer display"):
-                                                            st.rerun()
+                                                        # Add live JavaScript timer that updates without page reload
+                                                        st.markdown(f"""
+                                                        <div id="timer_{task_key.replace(' ', '_').replace('-', '_')}" style="margin: 5px 0;">
+                                                            <script>
+                                                            // Auto-update timer every second without page reload
+                                                            function updateTimer_{task_key.replace(' ', '_').replace('-', '_')}() {{
+                                                                const startTime = new Date('{start_time.isoformat()}');
+                                                                // Adjust for BST timezone
+                                                                const now = new Date();
+                                                                const elapsed = Math.floor((now - startTime) / 1000);
+                                                                const hours = Math.floor(elapsed / 3600);
+                                                                const minutes = Math.floor((elapsed % 3600) / 60);
+                                                                const seconds = elapsed % 60;
+                                                                const timeString = hours.toString().padStart(2, '0') + ':' + 
+                                                                                 minutes.toString().padStart(2, '0') + ':' + 
+                                                                                 seconds.toString().padStart(2, '0');
+                                                                
+                                                                const element = document.getElementById('live_timer_{task_key.replace(' ', '_').replace('-', '_')}');
+                                                                if (element) {{
+                                                                    element.innerHTML = '<strong>Recording (' + timeString + ')</strong>';
+                                                                }}
+                                                            }}
+                                                            
+                                                            // Update immediately and then every second
+                                                            updateTimer_{task_key.replace(' ', '_').replace('-', '_')}();
+                                                            setInterval(updateTimer_{task_key.replace(' ', '_').replace('-', '_')}, 1000);
+                                                            </script>
+                                                            <div id="live_timer_{task_key.replace(' ', '_').replace('-', '_')}">
+                                                                <strong>Recording ({elapsed_str})</strong>
+                                                            </div>
+                                                        </div>
+                                                        """, unsafe_allow_html=True)
                                                         
                                                         # Add JavaScript for localStorage persistence
                                                         st.markdown(f"""
