@@ -25,37 +25,62 @@ def get_trello_card_cover_image(card_url):
         # Extract card ID from URL
         # Trello card URLs format: https://trello.com/c/CARD_ID/card-name
         if not card_url or not isinstance(card_url, str):
+            st.info("Debug: No URL provided or invalid URL format")
             return None
         
         card_id_match = re.search(r'/c/([a-zA-Z0-9]+)', card_url)
         if not card_id_match:
+            st.warning(f"Debug: Could not extract card ID from URL: {card_url}")
             return None
         
         card_id = card_id_match.group(1)
+        st.info(f"Debug: Extracted card ID: {card_id}")
         
-        # Trello API endpoint for card attachments (covers are attachments)
+        # First try to get the card info to check for cover
+        card_info_url = f"https://api.trello.com/1/cards/{card_id}?fields=cover"
+        card_response = requests.get(card_info_url, timeout=10)
+        
+        if card_response.status_code == 200:
+            card_data = card_response.json()
+            cover_info = card_data.get('cover', {})
+            
+            st.info(f"Debug: Card cover info: {cover_info}")
+            
+            # Check if there's a cover image
+            if cover_info and cover_info.get('scaled'):
+                # Try different sizes
+                for size_info in cover_info['scaled']:
+                    img_url = size_info.get('url')
+                    if img_url:
+                        st.info(f"Debug: Trying to fetch image from: {img_url}")
+                        img_response = requests.get(img_url, timeout=10)
+                        if img_response.status_code == 200:
+                            return Image.open(io.BytesIO(img_response.content))
+        
+        # Fallback: try attachments
         api_url = f"https://api.trello.com/1/cards/{card_id}/attachments"
-        
-        # Make request to Trello API (public cards don't need authentication for basic info)
         response = requests.get(api_url, timeout=10)
         
         if response.status_code == 200:
             attachments = response.json()
+            st.info(f"Debug: Found {len(attachments)} attachments")
             
             # Look for image attachments that could be covers
             for attachment in attachments:
                 if attachment.get('isUpload', False) and attachment.get('mimeType', '').startswith('image/'):
                     img_url = attachment.get('url')
                     if img_url:
+                        st.info(f"Debug: Trying attachment image: {img_url}")
                         # Download the image
                         img_response = requests.get(img_url, timeout=10)
                         if img_response.status_code == 200:
                             return Image.open(io.BytesIO(img_response.content))
         
+        st.warning("Debug: No cover image found")
         return None
         
     except Exception as e:
-        st.warning(f"Could not fetch cover image: {str(e)}")
+        st.error(f"Debug: Error fetching cover image: {str(e)}")
         return None
 
 @st.cache_resource
