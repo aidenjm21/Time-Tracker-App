@@ -894,10 +894,10 @@ def main():
                                 st.session_state.expanded_book = book_title
                                 should_expand = True
                             
-                            # Add a button to toggle expansion
-                            col1, col2 = st.columns([1, 10])
+                            # Add invisible button to detect clicks and manage single dropdown behavior
+                            col1, col2 = st.columns([1, 20])
                             with col1:
-                                if st.button("📖" if should_expand else "📚", key=f"toggle_{book_title}", help="Click to expand/collapse"):
+                                if st.button("▼" if should_expand else "▶", key=f"expand_{book_title}", help="Click to expand/collapse"):
                                     if st.session_state.expanded_book == book_title:
                                         st.session_state.expanded_book = None
                                     else:
@@ -905,85 +905,84 @@ def main():
                                     st.rerun()
                             
                             with col2:
-                                st.markdown(f"**{book_title}**")
-                            
-                            if should_expand:
-                                # Show progress bar and completion info at the top
-                                progress_bar_html = f"""
-                                <div style="width: 50%; background-color: #f0f0f0; border-radius: 5px; height: 10px; margin: 8px 0;">
-                                    <div style="width: {min(completion_percentage, 100):.1f}%; background-color: #007bff; height: 100%; border-radius: 5px;"></div>
-                                </div>
-                                """
-                                st.markdown(progress_bar_html, unsafe_allow_html=True)
-                                st.markdown(f'<div style="font-size: 14px; color: #666; margin-bottom: 10px;">{progress_text}</div>', unsafe_allow_html=True)
-                                
-                                st.markdown("---")
-                                
-                                # Define the order of stages to match the actual data entry form
-                                stage_order = [
-                                    'Editorial R&D', 'Editorial Writing', '1st Edit', '2nd Edit',
-                                    'Design R&D', 'In Design', '1st Proof', '2nd Proof', 
-                                    'Editorial Sign Off', 'Design Sign Off'
-                                ]
-                                
-                                # Group by stage/list and aggregate by user
-                                stages_grouped = book_data.groupby('List')
-                                
-                                # Display stages in the defined order
-                                stage_counter = 0
-                                for stage_name in stage_order:
-                                    if stage_name in stages_grouped.groups:
-                                        stage_data = stages_grouped.get_group(stage_name)
-                                        st.subheader(f"{stage_name}")
-                                        
-                                        # Aggregate time by user for this stage
-                                        user_aggregated = stage_data.groupby('User')['Time spent (s)'].sum().reset_index()
-                                        
-                                        # Show one task per user for this stage
-                                        for idx, user_task in user_aggregated.iterrows():
-                                            user_name = user_task['User']
-                                            actual_time = user_task['Time spent (s)']
-                                            task_key = f"{book_title}_{stage_name}_{user_name}"
+                                # Use expander with controlled state
+                                with st.expander(book_title, expanded=should_expand):
+                                    # Show progress bar and completion info at the top
+                                    progress_bar_html = f"""
+                                    <div style="width: 50%; background-color: #f0f0f0; border-radius: 5px; height: 10px; margin: 8px 0;">
+                                        <div style="width: {min(completion_percentage, 100):.1f}%; background-color: #007bff; height: 100%; border-radius: 5px;"></div>
+                                    </div>
+                                    """
+                                    st.markdown(progress_bar_html, unsafe_allow_html=True)
+                                    st.markdown(f'<div style="font-size: 14px; color: #666; margin-bottom: 10px;">{progress_text}</div>', unsafe_allow_html=True)
+                                    
+                                    st.markdown("---")
+                                    
+                                    # Define the order of stages to match the actual data entry form
+                                    stage_order = [
+                                        'Editorial R&D', 'Editorial Writing', '1st Edit', '2nd Edit',
+                                        'Design R&D', 'In Design', '1st Proof', '2nd Proof', 
+                                        'Editorial Sign Off', 'Design Sign Off'
+                                    ]
+                                    
+                                    # Group by stage/list and aggregate by user
+                                    stages_grouped = book_data.groupby('List')
+                                    
+                                    # Display stages in the defined order
+                                    stage_counter = 0
+                                    for stage_name in stage_order:
+                                        if stage_name in stages_grouped.groups:
+                                            stage_data = stages_grouped.get_group(stage_name)
+                                            st.subheader(f"{stage_name}")
                                             
-                                            # Get estimated time from the database for this specific user/stage combination
-                                            user_stage_data = stage_data[stage_data['User'] == user_name]
-                                            estimated_time_for_user = 3600  # Default 1 hour
+                                            # Aggregate time by user for this stage
+                                            user_aggregated = stage_data.groupby('User')['Time spent (s)'].sum().reset_index()
                                             
-                                            if not user_stage_data.empty and 'Card estimate(s)' in user_stage_data.columns:
-                                                # Find the first record that has a non-null, non-zero estimate
-                                                estimates = user_stage_data['Card estimate(s)'].dropna()
-                                                non_zero_estimates = estimates[estimates > 0]
-                                                if not non_zero_estimates.empty:
-                                                    estimated_time_for_user = non_zero_estimates.iloc[0]
-                                            
-                                            # Task details container
-                                            task_container = st.container()
-                                            
-                                            with task_container:
-                                                # Create columns for task info and timer with better spacing
-                                                col1, col2, col3 = st.columns([4, 1, 3])
+                                            # Show one task per user for this stage
+                                            for idx, user_task in user_aggregated.iterrows():
+                                                user_name = user_task['User']
+                                                actual_time = user_task['Time spent (s)']
+                                                task_key = f"{book_title}_{stage_name}_{user_name}"
                                                 
-                                                with col1:
-                                                    # User assignment dropdown
-                                                    current_user = user_name if user_name else "Not set"
+                                                # Get estimated time from the database for this specific user/stage combination
+                                                user_stage_data = stage_data[stage_data['User'] == user_name]
+                                                estimated_time_for_user = 3600  # Default 1 hour
+                                                
+                                                if not user_stage_data.empty and 'Card estimate(s)' in user_stage_data.columns:
+                                                    # Find the first record that has a non-null, non-zero estimate
+                                                    estimates = user_stage_data['Card estimate(s)'].dropna()
+                                                    non_zero_estimates = estimates[estimates > 0]
+                                                    if not non_zero_estimates.empty:
+                                                        estimated_time_for_user = non_zero_estimates.iloc[0]
+                                                
+                                                # Task details container
+                                                task_container = st.container()
+                                                
+                                                with task_container:
+                                                    # Create columns for task info and timer with better spacing
+                                                    col1, col2, col3 = st.columns([4, 1, 3])
                                                     
-                                                    # Determine user options based on stage type
-                                                    if stage_name in ["Editorial R&D", "Editorial Writing", "1st Edit", "2nd Edit", "1st Proof", "2nd Proof", "Editorial Sign Off"]:
-                                                        user_options = ["Not set", "Bethany Latham", "Charis Mather", "Noah Leatherland", "Rebecca Phillips-Bartlett"]
-                                                    else:  # Design stages
-                                                        user_options = ["Not set", "Amelia Harris", "Amy Li", "Drue Rintoul", "Jasmine Pointer", "Ker Ker Lee", "Rob Delph"]
-                                                    
-                                                    # Find current user index
-                                                    try:
-                                                        current_index = user_options.index(current_user)
-                                                    except ValueError:
-                                                        current_index = 0  # Default to "Not set"
-                                                    
-                                                    new_user = st.selectbox(
-                                                        f"User for {stage_name}:",
-                                                        user_options,
-                                                        index=current_index,
-                                                        key=f"reassign_{book_title}_{stage_name}_{user_name}"
+                                                    with col1:
+                                                        # User assignment dropdown
+                                                        current_user = user_name if user_name else "Not set"
+                                                        
+                                                        # Determine user options based on stage type
+                                                        if stage_name in ["Editorial R&D", "Editorial Writing", "1st Edit", "2nd Edit", "1st Proof", "2nd Proof", "Editorial Sign Off"]:
+                                                            user_options = ["Not set", "Bethany Latham", "Charis Mather", "Noah Leatherland", "Rebecca Phillips-Bartlett"]
+                                                        else:  # Design stages
+                                                            user_options = ["Not set", "Amelia Harris", "Amy Li", "Drue Rintoul", "Jasmine Pointer", "Ker Ker Lee", "Rob Delph"]
+                                                        
+                                                        # Find current user index
+                                                        try:
+                                                            current_index = user_options.index(current_user)
+                                                        except ValueError:
+                                                            current_index = 0  # Default to "Not set"
+                                                        
+                                                        new_user = st.selectbox(
+                                                            f"User for {stage_name}:",
+                                                            user_options,
+                                                            index=current_index,
+                                                            key=f"reassign_{book_title}_{stage_name}_{user_name}"
                                                     )
                                                     
                                                     # Handle user reassignment
@@ -1108,8 +1107,8 @@ def main():
                                                         elapsed_str = str(elapsed).split('.')[0]  # Remove microseconds
                                                         st.write(f"**Recording** ({elapsed_str})")
                                                         
-                                                        # Add refresh button for timer
-                                                        if st.button("🔄 refresh", key=f"refresh_{task_key}", help="Click to update timer"):
+                                                        # Add refresh link for timer
+                                                        if st.button("refresh", key=f"refresh_{task_key}", help="Click to update timer"):
                                                             # Don't change expanded state, just refresh
                                                             pass
                                                         
