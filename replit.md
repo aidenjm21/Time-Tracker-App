@@ -139,6 +139,8 @@ Changelog:
 - July 02, 2025. Improved estimate retrieval logic to handle multiple database records per user/stage by prioritizing records with actual estimate values
 - July 02, 2025. Updated Task Assignment form: replaced "None" with "Not set" and enabled time estimates without user assignment
 - July 02, 2025. Added user reassignment functionality to Book Progress tab with stage-appropriate user dropdown options
+- July 03, 2025. Implemented persistent timer functionality: timers now survive page refreshes and tab closures by storing state in database
+- July 03, 2025. Added real-time JavaScript timer displays that update every second showing live elapsed time without requiring page refreshes
 ```
 
 ## User Preferences
