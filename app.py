@@ -931,38 +931,47 @@ def main():
                                 # Group by stage/list and aggregate by user
                                 stages_grouped = book_data.groupby('List')
                                 
-                                # Display stages in the defined order
-                                stage_counter = 0
+                                # Display stages in accordion style (each stage as its own expander)
                                 for stage_name in stage_order:
                                     if stage_name in stages_grouped.groups:
                                         stage_data = stages_grouped.get_group(stage_name)
-                                        st.subheader(f"{stage_name}")
                                         
-                                        # Aggregate time by user for this stage
-                                        user_aggregated = stage_data.groupby('User')['Time spent (s)'].sum().reset_index()
+                                        # Check if this stage has any active timers
+                                        stage_has_active_timer = any(
+                                            st.session_state.timers.get(f"{book_title}_{stage_name}_{user}", False)
+                                            for user in stage_data['User'].unique()
+                                        )
                                         
-                                        # Show one task per user for this stage
-                                        for idx, user_task in user_aggregated.iterrows():
-                                            user_name = user_task['User']
-                                            actual_time = user_task['Time spent (s)']
-                                            task_key = f"{book_title}_{stage_name}_{user_name}"
+                                        # Initialize stage expanded state
+                                        stage_expanded_key = f"stage_expanded_{book_title}_{stage_name}"
+                                        if stage_expanded_key not in st.session_state:
+                                            st.session_state[stage_expanded_key] = stage_has_active_timer
+                                        
+                                        # Keep expanded if there are active timers
+                                        should_expand_stage = stage_has_active_timer or st.session_state.get(stage_expanded_key, False)
+                                        
+                                        with st.expander(f"🔹 {stage_name}", expanded=should_expand_stage):
+                                            # Aggregate time by user for this stage
+                                            user_aggregated = stage_data.groupby('User')['Time spent (s)'].sum().reset_index()
                                             
-                                            # Get estimated time from the database for this specific user/stage combination
-                                            user_stage_data = stage_data[stage_data['User'] == user_name]
-                                            estimated_time_for_user = 3600  # Default 1 hour
-                                            
-                                            if not user_stage_data.empty and 'Card estimate(s)' in user_stage_data.columns:
-                                                # Find the first record that has a non-null, non-zero estimate
-                                                estimates = user_stage_data['Card estimate(s)'].dropna()
-                                                non_zero_estimates = estimates[estimates > 0]
-                                                if not non_zero_estimates.empty:
-                                                    estimated_time_for_user = non_zero_estimates.iloc[0]
-                                            
-                                            # Task details container
-                                            task_container = st.container()
-                                            
-                                            with task_container:
-                                                # Create columns for task info and timer with better spacing
+                                            # Show one task per user for this stage
+                                            for idx, user_task in user_aggregated.iterrows():
+                                                user_name = user_task['User']
+                                                actual_time = user_task['Time spent (s)']
+                                                task_key = f"{book_title}_{stage_name}_{user_name}"
+                                                
+                                                # Get estimated time from the database for this specific user/stage combination
+                                                user_stage_data = stage_data[stage_data['User'] == user_name]
+                                                estimated_time_for_user = 3600  # Default 1 hour
+                                                
+                                                if not user_stage_data.empty and 'Card estimate(s)' in user_stage_data.columns:
+                                                    # Find the first record that has a non-null, non-zero estimate
+                                                    estimates = user_stage_data['Card estimate(s)'].dropna()
+                                                    non_zero_estimates = estimates[estimates > 0]
+                                                    if not non_zero_estimates.empty:
+                                                        estimated_time_for_user = non_zero_estimates.iloc[0]
+                                                
+                                                # Create columns for task info and timer
                                                 col1, col2, col3 = st.columns([4, 1, 3])
                                                 
                                                 with col1:
@@ -1047,9 +1056,13 @@ def main():
                                                             </script>
                                                             """, unsafe_allow_html=True)
                                                             
-                                                            # Keep the book card expanded after stopping timer
+                                                            # Keep the book card and stage expanded after stopping timer
                                                             expanded_key = f"expanded_{book_title}"
                                                             st.session_state[expanded_key] = True
+                                                            
+                                                            # Also keep the stage expanded
+                                                            stage_expanded_key = f"stage_expanded_{book_title}_{stage_name}"
+                                                            st.session_state[stage_expanded_key] = True
                                                             
                                                             # Stop timer and add time to database
                                                             if task_key in st.session_state.timer_start_times:
