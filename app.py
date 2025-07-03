@@ -976,11 +976,11 @@ def main():
                                             estimated_time_str = format_seconds_to_time(estimated_time_for_user)
                                             user_display = user_name if user_name and user_name != "Not set" else "Unassigned"
                                             
-                                            stage_summary_parts.append(f"{user_display}    {actual_time_str}/{estimated_time_str}")
+                                            stage_summary_parts.append(f"{user_display} | {actual_time_str}/{estimated_time_str}")
                                         
                                         # Create expander title with stage name and user summaries
                                         if stage_summary_parts:
-                                            expander_title = f"{stage_name}    " + "    |    ".join(stage_summary_parts)
+                                            expander_title = f"{stage_name} | " + " | ".join(stage_summary_parts)
                                         else:
                                             expander_title = stage_name
                                         
