@@ -1047,6 +1047,10 @@ def main():
                                                             </script>
                                                             """, unsafe_allow_html=True)
                                                             
+                                                            # Keep the book card expanded after stopping timer
+                                                            expanded_key = f"expanded_{book_title}"
+                                                            st.session_state[expanded_key] = True
+                                                            
                                                             # Stop timer and add time to database
                                                             if task_key in st.session_state.timer_start_times:
                                                                 # Use consistent UTC-based calculation
