@@ -775,35 +775,11 @@ def main():
                             if start_time.tzinfo is None:
                                 start_time = start_time.replace(tzinfo=UTC_PLUS_1)
                             
-                            # Create real-time timer display with JavaScript
-                            start_timestamp = int(start_time.timestamp() * 1000)  # Convert to milliseconds
-                            st.markdown(f"""
-                            📚 **{book_title}** - {stage_name} ({user_name}) - Running for <span id="timer_{task_key}">calculating...</span>
-                            <script>
-                            function updateTimer_{task_key.replace(' ', '_').replace('-', '_')}() {{
-                                const startTime = {start_timestamp};
-                                const now = new Date().getTime();
-                                const elapsed = Math.floor((now - startTime) / 1000);
-                                
-                                const hours = Math.floor(elapsed / 3600);
-                                const minutes = Math.floor((elapsed % 3600) / 60);
-                                const seconds = elapsed % 60;
-                                
-                                const timeStr = hours.toString().padStart(2, '0') + ':' + 
-                                              minutes.toString().padStart(2, '0') + ':' + 
-                                              seconds.toString().padStart(2, '0');
-                                
-                                const element = document.getElementById('timer_{task_key}');
-                                if (element) {{
-                                    element.textContent = timeStr;
-                                }}
-                            }}
+                            # Calculate current elapsed time
+                            elapsed = datetime.now(UTC_PLUS_1) - start_time
+                            elapsed_str = str(elapsed).split('.')[0]  # Remove microseconds
                             
-                            // Update immediately and then every second
-                            updateTimer_{task_key.replace(' ', '_').replace('-', '_')}();
-                            setInterval(updateTimer_{task_key.replace(' ', '_').replace('-', '_')}, 1000);
-                            </script>
-                            """, unsafe_allow_html=True)
+                            st.write(f"📚 **{book_title}** - {stage_name} ({user_name}) - Running for {elapsed_str}")
         
         # Initialize session state for timers
         if 'timers' not in st.session_state:
@@ -854,6 +830,10 @@ def main():
                     if len(unique_books) > 0:
                         st.write(f"Found {len(unique_books)} books to display")
                         
+                        # Initialize session state for expanded books
+                        if 'expanded_books' not in st.session_state:
+                            st.session_state.expanded_books = set()
+                        
                         # Display each book with enhanced visualization
                         for book_title in unique_books:
                             book_mask = filtered_df['Card name'] == book_title
@@ -895,7 +875,14 @@ def main():
                                 completion_percentage = 0
                                 progress_text = f"Total: {format_seconds_to_time(total_time_spent)} (No estimate)"
                             
-                            with st.expander(book_title, expanded=False):
+                            # Auto-expand if there are active timers for this book
+                            has_active_timer = any(
+                                st.session_state.timers.get(f"{book_title}_{stage}_{user}", False)
+                                for stage in ["Editorial R&D", "Editorial Writing", "1st Edit", "2nd Edit", "Design R&D", "In Design", "1st Proof", "2nd Proof", "Editorial Sign Off", "Design Sign Off"]
+                                for user in book_data['User'].unique()
+                            )
+                            
+                            with st.expander(book_title, expanded=has_active_timer):
                                 # Show progress bar and completion info at the top
                                 progress_bar_html = f"""
                                 <div style="width: 50%; background-color: #f0f0f0; border-radius: 5px; height: 10px; margin: 8px 0;">
@@ -1089,37 +1076,10 @@ def main():
                                                         if start_time.tzinfo is None:
                                                             start_time = start_time.replace(tzinfo=UTC_PLUS_1)
                                                         
-                                                        # Create real-time timer display
-                                                        start_timestamp = int(start_time.timestamp() * 1000)
-                                                        timer_id = f"live_timer_{task_key.replace(' ', '_').replace('-', '_')}"
-                                                        
-                                                        st.markdown(f"""
-                                                        **Recording** (<span id="{timer_id}">calculating...</span>)
-                                                        <script>
-                                                        function updateLiveTimer_{task_key.replace(' ', '_').replace('-', '_')}() {{
-                                                            const startTime = {start_timestamp};
-                                                            const now = new Date().getTime();
-                                                            const elapsed = Math.floor((now - startTime) / 1000);
-                                                            
-                                                            const hours = Math.floor(elapsed / 3600);
-                                                            const minutes = Math.floor((elapsed % 3600) / 60);
-                                                            const seconds = elapsed % 60;
-                                                            
-                                                            const timeStr = hours.toString().padStart(2, '0') + ':' + 
-                                                                          minutes.toString().padStart(2, '0') + ':' + 
-                                                                          seconds.toString().padStart(2, '0');
-                                                            
-                                                            const element = document.getElementById('{timer_id}');
-                                                            if (element) {{
-                                                                element.textContent = timeStr;
-                                                            }}
-                                                        }}
-                                                        
-                                                        // Update immediately and then every second
-                                                        updateLiveTimer_{task_key.replace(' ', '_').replace('-', '_')}();
-                                                        setInterval(updateLiveTimer_{task_key.replace(' ', '_').replace('-', '_')}, 1000);
-                                                        </script>
-                                                        """, unsafe_allow_html=True)
+                                                        # Calculate and display current elapsed time
+                                                        elapsed = datetime.now(UTC_PLUS_1) - start_time
+                                                        elapsed_str = str(elapsed).split('.')[0]  # Remove microseconds
+                                                        st.write(f"**Recording** ({elapsed_str})")
                                                         
                                                         # Add JavaScript for localStorage persistence
                                                         st.markdown(f"""
