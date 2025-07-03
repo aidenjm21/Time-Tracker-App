@@ -950,7 +950,7 @@ def main():
                                         # Keep expanded if there are active timers
                                         should_expand_stage = stage_has_active_timer or st.session_state.get(stage_expanded_key, False)
                                         
-                                        with st.expander(f"🔹 {stage_name}", expanded=should_expand_stage):
+                                        with st.expander(stage_name, expanded=should_expand_stage):
                                             # Aggregate time by user for this stage
                                             user_aggregated = stage_data.groupby('User')['Time spent (s)'].sum().reset_index()
                                             
@@ -1247,8 +1247,7 @@ def main():
                                                                 st.error("Please use format hh:mm:ss (e.g., 01:30:00)")
                                                         except ValueError:
                                                             st.error("Please enter valid numbers in hh:mm:ss format")
-                                        
-                                        st.markdown("---")
+
                                 
                                 # Show count of running timers (refresh buttons now appear under individual timers)
                                 running_timers = [k for k, v in st.session_state.timers.items() if v and book_title in k]
