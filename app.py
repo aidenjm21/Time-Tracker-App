@@ -6,12 +6,57 @@ from collections import Counter
 import io
 import os
 import re
+import requests
+from PIL import Image
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import IntegrityError
 
 # Set BST timezone (UTC+1)
 BST = timezone(timedelta(hours=1))
 UTC_PLUS_1 = BST  # Keep backward compatibility
+
+@st.cache_data(ttl=3600)  # Cache for 1 hour
+def get_trello_card_cover_image(card_url):
+    """
+    Fetch cover image from Trello card URL
+    Returns PIL Image object or None if no cover found
+    """
+    try:
+        # Extract card ID from URL
+        # Trello card URLs format: https://trello.com/c/CARD_ID/card-name
+        if not card_url or not isinstance(card_url, str):
+            return None
+        
+        card_id_match = re.search(r'/c/([a-zA-Z0-9]+)', card_url)
+        if not card_id_match:
+            return None
+        
+        card_id = card_id_match.group(1)
+        
+        # Trello API endpoint for card attachments (covers are attachments)
+        api_url = f"https://api.trello.com/1/cards/{card_id}/attachments"
+        
+        # Make request to Trello API (public cards don't need authentication for basic info)
+        response = requests.get(api_url, timeout=10)
+        
+        if response.status_code == 200:
+            attachments = response.json()
+            
+            # Look for image attachments that could be covers
+            for attachment in attachments:
+                if attachment.get('isUpload', False) and attachment.get('mimeType', '').startswith('image/'):
+                    img_url = attachment.get('url')
+                    if img_url:
+                        # Download the image
+                        img_response = requests.get(img_url, timeout=10)
+                        if img_response.status_code == 200:
+                            return Image.open(io.BytesIO(img_response.content))
+        
+        return None
+        
+    except Exception as e:
+        st.warning(f"Could not fetch cover image: {str(e)}")
+        return None
 
 @st.cache_resource
 def init_database():
@@ -52,6 +97,12 @@ def init_database():
             conn.execute(text('''
                 ALTER TABLE trello_time_tracking 
                 ADD COLUMN IF NOT EXISTS session_start_time TIMESTAMP
+            '''))
+            
+            # Add trello_card_url column if it doesn't exist
+            conn.execute(text('''
+                ALTER TABLE trello_time_tracking 
+                ADD COLUMN IF NOT EXISTS trello_card_url VARCHAR(500)
             '''))
             
             # Create active timers table for persistent timer storage
@@ -593,7 +644,7 @@ def main():
         if clear_form:
             # Define all form field keys that need to be cleared
             form_keys_to_clear = [
-                "manual_card_name", "manual_board_name",
+                "manual_card_name", "manual_board_name", "manual_trello_url",
                 # Time tracking field keys
                 "user_editorial_r&d", "time_editorial_r&d",
                 "user_editorial_writing", "time_editorial_writing", 
@@ -621,6 +672,9 @@ def main():
             card_name = st.text_input("Card Name", placeholder="Enter book title", key="manual_card_name", value="" if clear_form else None)
         with col2:
             board_name = st.text_input("Board", placeholder="Enter board name", key="manual_board_name", value="" if clear_form else None)
+            
+        # Trello card URL field
+        trello_url = st.text_input("Trello Card URL (optional)", placeholder="https://trello.com/c/...", key="manual_trello_url", value="" if clear_form else None, help="Paste the full Trello card URL to display the cover image")
             
         st.subheader("Task Assignment & Estimates")
         st.markdown("*Assign users to stages and set time estimates. All tasks start with 0 actual time - use the Book Completion tab to track actual work time.*")
@@ -727,8 +781,8 @@ def main():
                             # Insert into database with 0 time spent but store the estimate
                             conn.execute(text('''
                                 INSERT INTO trello_time_tracking 
-                                (card_name, user_name, list_name, time_spent_seconds, card_estimate_seconds, board_name, created_at, session_start_time)
-                                VALUES (:card_name, :user_name, :list_name, :time_spent_seconds, :card_estimate_seconds, :board_name, :created_at, :session_start_time)
+                                (card_name, user_name, list_name, time_spent_seconds, card_estimate_seconds, board_name, created_at, session_start_time, trello_card_url)
+                                VALUES (:card_name, :user_name, :list_name, :time_spent_seconds, :card_estimate_seconds, :board_name, :created_at, :session_start_time, :trello_card_url)
                             '''), {
                                 'card_name': card_name,
                                 'user_name': entry_data['user'],
@@ -737,7 +791,8 @@ def main():
                                 'card_estimate_seconds': estimate_seconds,  # Store the estimate
                                 'board_name': board_name if board_name else 'Manual Entry',
                                 'created_at': current_time,
-                                'session_start_time': None  # No active session for manual entries
+                                'session_start_time': None,  # No active session for manual entries
+                                'trello_card_url': trello_url if trello_url else None
                             })
                             entries_added += 1
                         
@@ -823,7 +878,8 @@ def main():
                        time_spent_seconds as "Time spent (s)", 
                        date_started as "Date started (f)", 
                        card_estimate_seconds as "Card estimate(s)", 
-                       board_name as "Board", created_at 
+                       board_name as "Board", created_at, 
+                       trello_card_url
                        FROM trello_time_tracking WHERE archived = FALSE ORDER BY created_at DESC''', 
                     engine
                 )
@@ -910,6 +966,20 @@ def main():
                             should_expand = has_active_timer or st.session_state.get(expanded_key, False)
                             
                             with st.expander(book_title, expanded=should_expand):
+                                # Display cover image if available
+                                trello_url = None
+                                if 'trello_card_url' in book_data.columns:
+                                    trello_urls = book_data['trello_card_url'].dropna().unique()
+                                    if len(trello_urls) > 0:
+                                        trello_url = trello_urls[0]
+                                
+                                if trello_url:
+                                    cover_image = get_trello_card_cover_image(trello_url)
+                                    if cover_image:
+                                        # Display the cover image with a reasonable size
+                                        st.image(cover_image, caption=f"Cover: {book_title}", width=200)
+                                        st.markdown("---")
+                                
                                 # Show progress bar and completion info at the top
                                 progress_bar_html = f"""
                                 <div style="width: 50%; background-color: #f0f0f0; border-radius: 5px; height: 10px; margin: 8px 0;">
@@ -1492,7 +1562,8 @@ def main():
                        time_spent_seconds as "Time spent (s)", 
                        date_started as "Date started (f)", 
                        card_estimate_seconds as "Card estimate(s)", 
-                       board_name as "Board", created_at 
+                       board_name as "Board", created_at, 
+                       trello_card_url
                        FROM trello_time_tracking WHERE archived = TRUE ORDER BY created_at DESC''', 
                     engine
                 )

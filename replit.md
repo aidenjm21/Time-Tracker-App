@@ -141,6 +141,7 @@ Changelog:
 - July 02, 2025. Added user reassignment functionality to Book Progress tab with stage-appropriate user dropdown options
 - July 03, 2025. Implemented persistent timer functionality: timers now survive page refreshes and tab closures by storing state in database
 - July 03, 2025. Added real-time JavaScript timer displays that update every second showing live elapsed time without requiring page refreshes
+- July 03, 2025. Added Trello integration for book cover images: new optional Trello Card URL field in Add Book form fetches and displays cover images from Trello cards in Book Progress tab
 ```
 
 ## User Preferences
