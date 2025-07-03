@@ -932,6 +932,7 @@ def main():
                                 stages_grouped = book_data.groupby('List')
                                 
                                 # Display stages in accordion style (each stage as its own expander)
+                                stage_counter = 0
                                 for stage_name in stage_order:
                                     if stage_name in stages_grouped.groups:
                                         stage_data = stages_grouped.get_group(stage_name)
@@ -1308,8 +1309,8 @@ def main():
                                                 # Reset confirmation state on error
                                                 if confirm_key in st.session_state:
                                                     del st.session_state[confirm_key]
-                                
-                                stage_counter += 1
+                                        
+                                        stage_counter += 1
                     else:
                         if search_query:
                             st.warning(f"No books found matching '{search_query}'")
