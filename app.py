@@ -1163,11 +1163,13 @@ def main():
                                         
                                         st.markdown("---")
                                 
-                                # Show manual refresh button when timers are running
+                                # Show highlighted refresh text when timers are running
                                 running_timers = [k for k, v in st.session_state.timers.items() if v and book_title in k]
                                 if running_timers:
                                     st.write(f"{len(running_timers)} timer(s) running")
-                                    if st.button("🔄 Refresh Timers", key=f"refresh_{book_title}"):
+                                    # Highlighted refresh text that acts as a clickable button
+                                    st.markdown("**Click to refresh timer displays:**")
+                                    if st.button("refresh", key=f"refresh_{book_title}", type="primary"):
                                         st.rerun()
                                 
                                 # Archive and Delete buttons at the bottom of each book
