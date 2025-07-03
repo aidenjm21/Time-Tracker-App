@@ -63,10 +63,24 @@ def init_database():
                     user_name VARCHAR(100),
                     list_name VARCHAR(100) NOT NULL,
                     board_name VARCHAR(100),
-                    start_time TIMESTAMP NOT NULL,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    start_time TIMESTAMPTZ NOT NULL,
+                    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
                 )
             '''))
+            
+            # Migrate existing TIMESTAMP columns to TIMESTAMPTZ if needed
+            try:
+                conn.execute(text('''
+                    ALTER TABLE active_timers 
+                    ALTER COLUMN start_time TYPE TIMESTAMPTZ USING start_time AT TIME ZONE 'Europe/London'
+                '''))
+                conn.execute(text('''
+                    ALTER TABLE active_timers 
+                    ALTER COLUMN created_at TYPE TIMESTAMPTZ USING created_at AT TIME ZONE 'Europe/London'
+                '''))
+            except Exception:
+                # Columns might already be TIMESTAMPTZ, ignore the error
+                pass
             conn.commit()
         
         return engine
@@ -779,8 +793,9 @@ def main():
                             if start_time.tzinfo is None:
                                 start_time = start_time.replace(tzinfo=BST)
                             
-                            # Calculate current elapsed time
-                            elapsed = datetime.now(BST) - start_time
+                            # Calculate current elapsed time using consistent UTC-based approach
+                            current_time = datetime.utcnow().replace(tzinfo=timezone.utc).astimezone(BST)
+                            elapsed = current_time - start_time
                             elapsed_str = str(elapsed).split('.')[0]  # Remove microseconds
                             
                             st.write(f"📚 **{book_title}** - {stage_name} ({user_name}) - Running for {elapsed_str}")
@@ -1027,7 +1042,9 @@ def main():
                                                         if st.button("Stop", key=f"stop_{task_key}"):
                                                             # Stop timer and add time to database
                                                             if task_key in st.session_state.timer_start_times:
-                                                                elapsed = datetime.now(BST) - st.session_state.timer_start_times[task_key]
+                                                                # Use consistent UTC-based calculation
+                                                                current_time = datetime.utcnow().replace(tzinfo=timezone.utc).astimezone(BST)
+                                                                elapsed = current_time - st.session_state.timer_start_times[task_key]
                                                                 elapsed_seconds = int(elapsed.total_seconds())
                                                                 
                                                                 # Add elapsed time to database
@@ -1064,7 +1081,9 @@ def main():
                                                     else:
                                                         if st.button("Start", key=f"start_{task_key}"):
                                                             # Start timer and save to persistent storage
-                                                            start_time = datetime.now(BST)
+                                                            # Ensure we're using BST (UTC+1) consistently
+                                                            utc_time = datetime.utcnow()
+                                                            start_time = utc_time.replace(tzinfo=timezone.utc).astimezone(BST)
                                                             st.session_state.timers[task_key] = True
                                                             st.session_state.timer_start_times[task_key] = start_time
                                                             
@@ -1092,7 +1111,9 @@ def main():
                                                             start_time = start_time.astimezone(BST)
                                                         
                                                         # Calculate and display current elapsed time
-                                                        elapsed = datetime.now(BST) - start_time
+                                                        # Use UTC time and convert to BST for consistent calculation
+                                                        current_time = datetime.utcnow().replace(tzinfo=timezone.utc).astimezone(BST)
+                                                        elapsed = current_time - start_time
                                                         elapsed_str = str(elapsed).split('.')[0]  # Remove microseconds
                                                         st.write(f"**Recording** ({elapsed_str})")
                                                         
