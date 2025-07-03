@@ -830,9 +830,9 @@ def main():
                     if len(unique_books) > 0:
                         st.write(f"Found {len(unique_books)} books to display")
                         
-                        # Initialize session state for expanded books (only one at a time)
-                        if 'expanded_book' not in st.session_state:
-                            st.session_state.expanded_book = None
+                        # Initialize session state for expanded books
+                        if 'expanded_books' not in st.session_state:
+                            st.session_state.expanded_books = set()
                         
                         # Display each book with enhanced visualization
                         for book_title in unique_books:
@@ -875,38 +875,14 @@ def main():
                                 completion_percentage = 0
                                 progress_text = f"Total: {format_seconds_to_time(total_time_spent)} (No estimate)"
                             
-                            # Check if there are active timers for this book
+                            # Auto-expand if there are active timers for this book
                             has_active_timer = any(
                                 st.session_state.timers.get(f"{book_title}_{stage}_{user}", False)
                                 for stage in ["Editorial R&D", "Editorial Writing", "1st Edit", "2nd Edit", "Design R&D", "In Design", "1st Proof", "2nd Proof", "Editorial Sign Off", "Design Sign Off"]
                                 for user in book_data['User'].unique()
                             )
                             
-                            # Determine if this book should be expanded (only one at a time, prefer books with active timers)
-                            should_expand = False
-                            if has_active_timer and st.session_state.expanded_book != book_title:
-                                st.session_state.expanded_book = book_title
-                                should_expand = True
-                            elif st.session_state.expanded_book == book_title:
-                                should_expand = True
-                            elif st.session_state.expanded_book is None and book_title == unique_books[0]:
-                                # Expand first book if none are expanded and no active timers
-                                st.session_state.expanded_book = book_title
-                                should_expand = True
-                            
-                            # Add invisible button to detect clicks and manage single dropdown behavior
-                            col1, col2 = st.columns([1, 20])
-                            with col1:
-                                if st.button("▼" if should_expand else "▶", key=f"expand_{book_title}", help="Click to expand/collapse"):
-                                    if st.session_state.expanded_book == book_title:
-                                        st.session_state.expanded_book = None
-                                    else:
-                                        st.session_state.expanded_book = book_title
-                                    st.rerun()
-                            
-                            with col2:
-                                # Use expander with controlled state
-                                with st.expander(book_title, expanded=should_expand):
+                            with st.expander(book_title, expanded=has_active_timer):
                                     # Show progress bar and completion info at the top
                                     progress_bar_html = f"""
                                     <div style="width: 50%; background-color: #f0f0f0; border-radius: 5px; height: 10px; margin: 8px 0;">
@@ -1193,70 +1169,70 @@ def main():
                                                             st.error("Please enter valid numbers in hh:mm:ss format")
                                         
                                         st.markdown("---")
-                                
-                                # Show manual refresh button when timers are running
-                                running_timers = [k for k, v in st.session_state.timers.items() if v and book_title in k]
-                                if running_timers:
-                                    st.write(f"{len(running_timers)} timer(s) running")
-                                    if st.button("🔄 Refresh Timers", key=f"refresh_{book_title}"):
-                                        st.rerun()
-                                
-                                # Archive and Delete buttons at the bottom of each book
-                                st.markdown("---")
-                                col1, col2 = st.columns(2)
-                                
-                                with col1:
-                                    if st.button(f"Archive '{book_title}'", key=f"archive_{book_title}", help="Move this book to archive"):
-                                        try:
-                                            with engine.connect() as conn:
-                                                # Add archived field to database if it doesn't exist
-                                                conn.execute(text('''
-                                                    UPDATE trello_time_tracking 
-                                                    SET archived = TRUE 
-                                                    WHERE card_name = :card_name
-                                                '''), {'card_name': book_title})
-                                                conn.commit()
-                                            
-                                            # Keep user on the current tab
-                                            st.session_state.active_tab = 0  # Book Progress tab
-                                            st.success(f"'{book_title}' has been archived successfully!")
+                                    
+                                    # Show manual refresh button when timers are running
+                                    running_timers = [k for k, v in st.session_state.timers.items() if v and book_title in k]
+                                    if running_timers:
+                                        st.write(f"{len(running_timers)} timer(s) running")
+                                        if st.button("🔄 Refresh Timers", key=f"refresh_{book_title}"):
                                             st.rerun()
-                                        except Exception as e:
-                                            st.error(f"Error archiving book: {str(e)}")
-                                
-                                with col2:
-                                    if st.button(f"Delete '{book_title}'", key=f"delete_progress_{book_title}", help="Permanently delete this book and all its data", type="secondary"):
-                                        # Add confirmation using session state
-                                        confirm_key = f"confirm_delete_progress_{book_title}"
-                                        if confirm_key not in st.session_state:
-                                            st.session_state[confirm_key] = False
-                                        
-                                        if not st.session_state[confirm_key]:
-                                            st.session_state[confirm_key] = True
-                                            st.warning(f"Click 'Delete {book_title}' again to permanently delete all data for this book.")
-                                            st.rerun()
-                                        else:
+                                    
+                                    # Archive and Delete buttons at the bottom of each book
+                                    st.markdown("---")
+                                    col1, col2 = st.columns(2)
+                                    
+                                    with col1:
+                                        if st.button(f"Archive '{book_title}'", key=f"archive_{book_title}", help="Move this book to archive"):
                                             try:
                                                 with engine.connect() as conn:
+                                                    # Add archived field to database if it doesn't exist
                                                     conn.execute(text('''
-                                                        DELETE FROM trello_time_tracking 
+                                                        UPDATE trello_time_tracking 
+                                                        SET archived = TRUE 
                                                         WHERE card_name = :card_name
                                                     '''), {'card_name': book_title})
                                                     conn.commit()
                                                 
-                                                # Reset confirmation state
-                                                del st.session_state[confirm_key]
-                                                # Keep user on the Book Progress tab
+                                                # Keep user on the current tab
                                                 st.session_state.active_tab = 0  # Book Progress tab
-                                                st.success(f"'{book_title}' has been permanently deleted!")
+                                                st.success(f"'{book_title}' has been archived successfully!")
                                                 st.rerun()
                                             except Exception as e:
-                                                st.error(f"Error deleting book: {str(e)}")
-                                                # Reset confirmation state on error
-                                                if confirm_key in st.session_state:
+                                                st.error(f"Error archiving book: {str(e)}")
+                                    
+                                    with col2:
+                                        if st.button(f"Delete '{book_title}'", key=f"delete_progress_{book_title}", help="Permanently delete this book and all its data", type="secondary"):
+                                            # Add confirmation using session state
+                                            confirm_key = f"confirm_delete_progress_{book_title}"
+                                            if confirm_key not in st.session_state:
+                                                st.session_state[confirm_key] = False
+                                            
+                                            if not st.session_state[confirm_key]:
+                                                st.session_state[confirm_key] = True
+                                                st.warning(f"Click 'Delete {book_title}' again to permanently delete all data for this book.")
+                                                st.rerun()
+                                            else:
+                                                try:
+                                                    with engine.connect() as conn:
+                                                        conn.execute(text('''
+                                                            DELETE FROM trello_time_tracking 
+                                                            WHERE card_name = :card_name
+                                                        '''), {'card_name': book_title})
+                                                        conn.commit()
+                                                    
+                                                    # Reset confirmation state
                                                     del st.session_state[confirm_key]
-                                
-                                stage_counter += 1
+                                                    # Keep user on the Book Progress tab
+                                                    st.session_state.active_tab = 0  # Book Progress tab
+                                                    st.success(f"'{book_title}' has been permanently deleted!")
+                                                    st.rerun()
+                                                except Exception as e:
+                                                    st.error(f"Error deleting book: {str(e)}")
+                                                    # Reset confirmation state on error
+                                                    if confirm_key in st.session_state:
+                                                        del st.session_state[confirm_key]
+                            
+                            stage_counter += 1
                     else:
                         if search_query:
                             st.warning(f"No books found matching '{search_query}'")
