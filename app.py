@@ -9,8 +9,9 @@ import re
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import IntegrityError
 
-# Set UTC+1 timezone
-UTC_PLUS_1 = timezone(timedelta(hours=1))
+# Set BST timezone (UTC+1)
+BST = timezone(timedelta(hours=1))
+UTC_PLUS_1 = BST  # Keep backward compatibility
 
 @st.cache_resource
 def init_database():
@@ -115,10 +116,10 @@ def load_active_timers(engine):
                 st.session_state.timers[timer_key] = True
                 # Ensure timezone-aware datetime for consistency
                 if start_time.tzinfo is None:
-                    start_time = start_time.replace(tzinfo=UTC_PLUS_1)
-                elif start_time.tzinfo != UTC_PLUS_1:
-                    # Convert to UTC+1 if it's in a different timezone
-                    start_time = start_time.astimezone(UTC_PLUS_1)
+                    start_time = start_time.replace(tzinfo=BST)
+                elif start_time.tzinfo != BST:
+                    # Convert to BST if it's in a different timezone
+                    start_time = start_time.astimezone(BST)
                 st.session_state.timer_start_times[timer_key] = start_time
                 
                 active_timers.append({
@@ -152,7 +153,7 @@ def save_active_timer(engine, timer_key, card_name, user_name, list_name, board_
                 'user_name': user_name,
                 'list_name': list_name,
                 'board_name': board_name,
-                'start_time': start_time
+                'start_time': start_time.astimezone(BST) if start_time.tzinfo else start_time.replace(tzinfo=BST)
             })
             conn.commit()
     except Exception as e:
@@ -698,7 +699,7 @@ def main():
             else:
                 try:
                     entries_added = 0
-                    current_time = datetime.now(UTC_PLUS_1)
+                    current_time = datetime.now(BST)
                     
                     with engine.connect() as conn:
                         # Add estimate entries (task assignments with 0 time spent)
@@ -776,10 +777,10 @@ def main():
                             start_time = st.session_state.timer_start_times[task_key]
                             # Ensure timezone-aware datetime for calculations
                             if start_time.tzinfo is None:
-                                start_time = start_time.replace(tzinfo=UTC_PLUS_1)
+                                start_time = start_time.replace(tzinfo=BST)
                             
                             # Calculate current elapsed time
-                            elapsed = datetime.now(UTC_PLUS_1) - start_time
+                            elapsed = datetime.now(BST) - start_time
                             elapsed_str = str(elapsed).split('.')[0]  # Remove microseconds
                             
                             st.write(f"📚 **{book_title}** - {stage_name} ({user_name}) - Running for {elapsed_str}")
@@ -835,7 +836,7 @@ def main():
                         
                         # Initialize session state for expanded books
                         if 'expanded_books' not in st.session_state:
-                            st.session_state.expanded_books = set()
+                            st.session_state.expanded_books = []
                         
                         # Display each book with enhanced visualization
                         for book_title in unique_books:
@@ -1026,7 +1027,7 @@ def main():
                                                         if st.button("Stop", key=f"stop_{task_key}"):
                                                             # Stop timer and add time to database
                                                             if task_key in st.session_state.timer_start_times:
-                                                                elapsed = datetime.now(UTC_PLUS_1) - st.session_state.timer_start_times[task_key]
+                                                                elapsed = datetime.now(BST) - st.session_state.timer_start_times[task_key]
                                                                 elapsed_seconds = int(elapsed.total_seconds())
                                                                 
                                                                 # Add elapsed time to database
@@ -1046,7 +1047,7 @@ def main():
                                                                             'list_name': stage_name,
                                                                             'time_spent_seconds': elapsed_seconds,
                                                                             'board_name': board_name,
-                                                                            'created_at': datetime.now(UTC_PLUS_1),
+                                                                            'created_at': datetime.now(BST),
                                                                             'session_start_time': st.session_state.timer_start_times[task_key]
                                                                         })
                                                                         conn.commit()
@@ -1063,7 +1064,7 @@ def main():
                                                     else:
                                                         if st.button("Start", key=f"start_{task_key}"):
                                                             # Start timer and save to persistent storage
-                                                            start_time = datetime.now(UTC_PLUS_1)
+                                                            start_time = datetime.now(BST)
                                                             st.session_state.timers[task_key] = True
                                                             st.session_state.timer_start_times[task_key] = start_time
                                                             
@@ -1085,13 +1086,13 @@ def main():
                                                         start_time = st.session_state.timer_start_times[task_key]
                                                         # Ensure timezone-aware datetime for calculations
                                                         if start_time.tzinfo is None:
-                                                            start_time = start_time.replace(tzinfo=UTC_PLUS_1)
-                                                        elif start_time.tzinfo != UTC_PLUS_1:
-                                                            # Convert to UTC+1 if it's in a different timezone
-                                                            start_time = start_time.astimezone(UTC_PLUS_1)
+                                                            start_time = start_time.replace(tzinfo=BST)
+                                                        elif start_time.tzinfo != BST:
+                                                            # Convert to BST if it's in a different timezone
+                                                            start_time = start_time.astimezone(BST)
                                                         
                                                         # Calculate and display current elapsed time
-                                                        elapsed = datetime.now(UTC_PLUS_1) - start_time
+                                                        elapsed = datetime.now(BST) - start_time
                                                         elapsed_str = str(elapsed).split('.')[0]  # Remove microseconds
                                                         st.write(f"**Recording** ({elapsed_str})")
                                                         
@@ -1163,7 +1164,7 @@ def main():
                                                                                 'list_name': stage_name,
                                                                                 'time_spent_seconds': total_seconds,
                                                                                 'board_name': board_name,
-                                                                                'created_at': datetime.now(UTC_PLUS_1)
+                                                                                'created_at': datetime.now(BST)
                                                                             })
                                                                             conn.commit()
                                                                         
