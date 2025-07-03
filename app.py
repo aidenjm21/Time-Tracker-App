@@ -980,7 +980,7 @@ def main():
                                         
                                         # Create expander title with stage name and user summaries
                                         if stage_summary_parts:
-                                            expander_title = f"{stage_name} | " + " | ".join(stage_summary_parts)
+                                            expander_title = f"**{stage_name}** | " + " | ".join(stage_summary_parts)
                                         else:
                                             expander_title = stage_name
                                         
