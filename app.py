@@ -54,6 +54,12 @@ def init_database():
                 ADD COLUMN IF NOT EXISTS session_start_time TIMESTAMP
             '''))
             
+            # Add tag column if it doesn't exist
+            conn.execute(text('''
+                ALTER TABLE trello_time_tracking 
+                ADD COLUMN IF NOT EXISTS tag VARCHAR(255)
+            '''))
+            
             # Create active timers table for persistent timer storage
             conn.execute(text('''
                 CREATE TABLE IF NOT EXISTS active_timers (
@@ -99,6 +105,17 @@ def get_users_from_database(_engine):
             return [row[0] for row in result]
     except Exception as e:
         st.error(f"Error fetching users: {str(e)}")
+        return []
+
+def get_tags_from_database(_engine):
+    """Get list of unique tags from database"""
+    try:
+        with _engine.connect() as conn:
+            result = conn.execute(text("SELECT DISTINCT tag FROM trello_time_tracking WHERE tag IS NOT NULL AND tag != '' ORDER BY tag"))
+            tags = [row[0] for row in result]
+            return tags
+    except Exception as e:
+        st.error(f"Error fetching tags: {str(e)}")
         return []
 
 
@@ -593,7 +610,7 @@ def main():
         if clear_form:
             # Define all form field keys that need to be cleared
             form_keys_to_clear = [
-                "manual_card_name", "manual_board_name",
+                "manual_card_name", "manual_board_name", "manual_tag_select", "manual_add_new_tag", "manual_new_tag",
                 # Time tracking field keys
                 "user_editorial_r&d", "time_editorial_r&d",
                 "user_editorial_writing", "time_editorial_writing", 
@@ -621,6 +638,30 @@ def main():
             card_name = st.text_input("Card Name", placeholder="Enter book title", key="manual_card_name", value="" if clear_form else None)
         with col2:
             board_name = st.text_input("Board", placeholder="Enter board name", key="manual_board_name", value="" if clear_form else None)
+            
+        # Tag field
+        existing_tags = get_tags_from_database(engine)
+        tag_options = [""] + existing_tags  # Empty option for no tag
+        
+        # Create tag input - allow selecting existing or adding new
+        col1, col2 = st.columns([3, 1])
+        with col1:
+            selected_tag = st.selectbox(
+                "Tag (optional)",
+                tag_options,
+                key="manual_tag_select",
+                help="Select an existing tag or choose 'Add New' to create a new tag",
+                index=0 if clear_form else None
+            )
+        with col2:
+            add_new_tag = st.checkbox("Add New", key="manual_add_new_tag", value=False if clear_form else None)
+        
+        # If user wants to add new tag, show text input
+        if add_new_tag:
+            new_tag = st.text_input("New Tag", placeholder="Enter new tag name", key="manual_new_tag", value="" if clear_form else None)
+            final_tag = new_tag.strip() if new_tag else None
+        else:
+            final_tag = selected_tag if selected_tag else None
             
         st.subheader("Task Assignment & Estimates")
         st.markdown("*Assign users to stages and set time estimates. All tasks start with 0 actual time - use the Book Completion tab to track actual work time.*")
@@ -727,8 +768,8 @@ def main():
                             # Insert into database with 0 time spent but store the estimate
                             conn.execute(text('''
                                 INSERT INTO trello_time_tracking 
-                                (card_name, user_name, list_name, time_spent_seconds, card_estimate_seconds, board_name, created_at, session_start_time)
-                                VALUES (:card_name, :user_name, :list_name, :time_spent_seconds, :card_estimate_seconds, :board_name, :created_at, :session_start_time)
+                                (card_name, user_name, list_name, time_spent_seconds, card_estimate_seconds, board_name, created_at, session_start_time, tag)
+                                VALUES (:card_name, :user_name, :list_name, :time_spent_seconds, :card_estimate_seconds, :board_name, :created_at, :session_start_time, :tag)
                             '''), {
                                 'card_name': card_name,
                                 'user_name': entry_data['user'],
@@ -737,7 +778,8 @@ def main():
                                 'card_estimate_seconds': estimate_seconds,  # Store the estimate
                                 'board_name': board_name if board_name else 'Manual Entry',
                                 'created_at': current_time,
-                                'session_start_time': None  # No active session for manual entries
+                                'session_start_time': None,  # No active session for manual entries
+                                'tag': final_tag
                             })
                             entries_added += 1
                         
@@ -929,6 +971,12 @@ def main():
                                 st.markdown(progress_bar_html, unsafe_allow_html=True)
                                 st.markdown(f'<div style="font-size: 14px; color: #666; margin-bottom: 10px;">{progress_text}</div>', unsafe_allow_html=True)
                                 
+                                # Display tag if available
+                                book_tags = book_data['Tag'].dropna().unique()
+                                if len(book_tags) > 0 and book_tags[0]:
+                                    tag_display = book_tags[0]
+                                    st.markdown(f'<div style="font-size: 12px; color: #888; margin-bottom: 10px;"><strong>Tag:</strong> {tag_display}</div>', unsafe_allow_html=True)
+                                
                                 st.markdown("---")
                                 
                                 # Define the order of stages to match the actual data entry form
@@ -1117,12 +1165,14 @@ def main():
                                                                     # Get board name from original data
                                                                     user_original_data = stage_data[stage_data['User'] == user_name].iloc[0]
                                                                     board_name = user_original_data['Board']
+                                                                    # Get existing tag from original data
+                                                                    existing_tag = user_original_data.get('Tag', None) if 'Tag' in user_original_data else None
                                                                     
                                                                     with engine.connect() as conn:
                                                                         conn.execute(text('''
                                                                             INSERT INTO trello_time_tracking 
-                                                                            (card_name, user_name, list_name, time_spent_seconds, board_name, created_at, session_start_time)
-                                                                            VALUES (:card_name, :user_name, :list_name, :time_spent_seconds, :board_name, :created_at, :session_start_time)
+                                                                            (card_name, user_name, list_name, time_spent_seconds, board_name, created_at, session_start_time, tag)
+                                                                            VALUES (:card_name, :user_name, :list_name, :time_spent_seconds, :board_name, :created_at, :session_start_time, :tag)
                                                                         '''), {
                                                                             'card_name': book_title,
                                                                             'user_name': user_name if user_name != "Not set" else None,
@@ -1130,7 +1180,8 @@ def main():
                                                                             'time_spent_seconds': elapsed_seconds,
                                                                             'board_name': board_name,
                                                                             'created_at': datetime.now(BST),
-                                                                            'session_start_time': st.session_state.timer_start_times[task_key]
+                                                                            'session_start_time': st.session_state.timer_start_times[task_key],
+                                                                            'tag': existing_tag
                                                                         })
                                                                         conn.commit()
                                                                     
@@ -1261,19 +1312,22 @@ def main():
                                                                         # Get board name from original data
                                                                         user_original_data = stage_data[stage_data['User'] == user_name].iloc[0]
                                                                         board_name = user_original_data['Board']
+                                                                        # Get existing tag from original data
+                                                                        existing_tag = user_original_data.get('Tag', None) if 'Tag' in user_original_data else None
                                                                         
                                                                         with engine.connect() as conn:
                                                                             conn.execute(text('''
                                                                                 INSERT INTO trello_time_tracking 
-                                                                                (card_name, user_name, list_name, time_spent_seconds, board_name, created_at)
-                                                                                VALUES (:card_name, :user_name, :list_name, :time_spent_seconds, :board_name, :created_at)
+                                                                                (card_name, user_name, list_name, time_spent_seconds, board_name, created_at, tag)
+                                                                                VALUES (:card_name, :user_name, :list_name, :time_spent_seconds, :board_name, :created_at, :tag)
                                                                             '''), {
                                                                                 'card_name': book_title,
                                                                                 'user_name': user_name,
                                                                                 'list_name': stage_name,
                                                                                 'time_spent_seconds': total_seconds,
                                                                                 'board_name': board_name,
-                                                                                'created_at': datetime.now(BST)
+                                                                                'created_at': datetime.now(BST),
+                                                                                'tag': existing_tag
                                                                             })
                                                                             conn.commit()
                                                                         
