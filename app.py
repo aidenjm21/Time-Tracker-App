@@ -258,7 +258,6 @@ def get_filtered_tasks_from_database(_engine, user_name=None, book_name=None, bo
         
         query += '''
                 GROUP BY card_name, list_name, COALESCE(user_name, 'Not set'), board_name, tag
-                HAVING SUM(time_spent_seconds) > 0
             )
             SELECT card_name, list_name, user_name, board_name, tag, first_session, total_time, estimated_seconds
             FROM task_summary
