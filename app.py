@@ -1513,49 +1513,19 @@ def main():
                 selected_book = "All Books"
         
         with col2:
-            # Board search input
-            board_search = st.text_input(
-                "Search Board (optional):",
-                placeholder="Start typing to search boards...",
-                help="Type to search for a specific board"
+            # Board selection dropdown
+            selected_board = st.selectbox(
+                "Select Board (optional):",
+                options=["All Boards"] + boards,
+                help="Choose a specific board to filter by"
             )
-            # Match the search to available boards
-            if board_search:
-                matched_boards = [board for board in boards if board_search.lower() in board.lower()]
-                if matched_boards:
-                    selected_board = st.selectbox(
-                        "Select from matches:",
-                        options=matched_boards,
-                        help="Choose from matching boards",
-                        key="board_select"
-                    )
-                else:
-                    st.warning("No boards found matching your search")
-                    selected_board = "All Boards"
-            else:
-                selected_board = "All Boards"
             
-            # Tag search input
-            tag_search = st.text_input(
-                "Search Tag (optional):",
-                placeholder="Start typing to search tags...",
-                help="Type to search for a specific tag"
+            # Tag selection dropdown
+            selected_tag = st.selectbox(
+                "Select Tag (optional):",
+                options=["All Tags"] + tags,
+                help="Choose a specific tag to filter by"
             )
-            # Match the search to available tags
-            if tag_search:
-                matched_tags = [tag for tag in tags if tag_search.lower() in tag.lower()]
-                if matched_tags:
-                    selected_tag = st.selectbox(
-                        "Select from matches:",
-                        options=matched_tags,
-                        help="Choose from matching tags",
-                        key="tag_select"
-                    )
-                else:
-                    st.warning("No tags found matching your search")
-                    selected_tag = "All Tags"
-            else:
-                selected_tag = "All Tags"
         
         # Date range selection
         col1, col2 = st.columns(2)
