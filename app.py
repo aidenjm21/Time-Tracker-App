@@ -865,7 +865,7 @@ def main():
                        time_spent_seconds as "Time spent (s)", 
                        date_started as "Date started (f)", 
                        card_estimate_seconds as "Card estimate(s)", 
-                       board_name as "Board", created_at 
+                       board_name as "Board", created_at, tag as "Tag"
                        FROM trello_time_tracking WHERE archived = FALSE ORDER BY created_at DESC''', 
                     engine
                 )
@@ -1556,7 +1556,7 @@ def main():
                        time_spent_seconds as "Time spent (s)", 
                        date_started as "Date started (f)", 
                        card_estimate_seconds as "Card estimate(s)", 
-                       board_name as "Board", created_at 
+                       board_name as "Board", created_at, tag as "Tag"
                        FROM trello_time_tracking WHERE archived = TRUE ORDER BY created_at DESC''', 
                     engine
                 )
