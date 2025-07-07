@@ -133,7 +133,7 @@ def get_boards_from_database(_engine):
     """Get list of unique board names from database"""
     try:
         with _engine.connect() as conn:
-            result = conn.execute(text("SELECT DISTINCT board_name FROM trello_time_tracking WHERE board_name IS NOT NULL ORDER BY board_name"))
+            result = conn.execute(text("SELECT DISTINCT board_name FROM trello_time_tracking WHERE board_name IS NOT NULL AND board_name != '' ORDER BY board_name"))
             boards = [row[0] for row in result]
             return boards
     except Exception as e:
@@ -824,7 +824,7 @@ def main():
                                 'list_name': list_name,
                                 'time_spent_seconds': 0,  # Start with 0 time spent
                                 'card_estimate_seconds': estimate_seconds,  # Store the estimate
-                                'board_name': board_name if board_name else 'Manual Entry',
+                                'board_name': board_name if board_name else None,
                                 'created_at': current_time,
                                 'session_start_time': None,  # No active session for manual entries
                                 'tag': final_tag
@@ -1491,27 +1491,71 @@ def main():
                 help="Choose a user to view their tasks"
             )
             
-            # Book selection dropdown
-            selected_book = st.selectbox(
-                "Select Book (optional):",
-                options=["All Books"] + books,
-                help="Choose a specific book to filter by"
+            # Book search input
+            book_search = st.text_input(
+                "Search Book (optional):",
+                placeholder="Start typing to search books...",
+                help="Type to search for a specific book"
             )
+            # Match the search to available books
+            if book_search:
+                matched_books = [book for book in books if book_search.lower() in book.lower()]
+                if matched_books:
+                    selected_book = st.selectbox(
+                        "Select from matches:",
+                        options=matched_books,
+                        help="Choose from matching books"
+                    )
+                else:
+                    st.warning("No books found matching your search")
+                    selected_book = "All Books"
+            else:
+                selected_book = "All Books"
         
         with col2:
-            # Board selection dropdown
-            selected_board = st.selectbox(
-                "Select Board (optional):",
-                options=["All Boards"] + boards,
-                help="Choose a specific board to filter by"
+            # Board search input
+            board_search = st.text_input(
+                "Search Board (optional):",
+                placeholder="Start typing to search boards...",
+                help="Type to search for a specific board"
             )
+            # Match the search to available boards
+            if board_search:
+                matched_boards = [board for board in boards if board_search.lower() in board.lower()]
+                if matched_boards:
+                    selected_board = st.selectbox(
+                        "Select from matches:",
+                        options=matched_boards,
+                        help="Choose from matching boards",
+                        key="board_select"
+                    )
+                else:
+                    st.warning("No boards found matching your search")
+                    selected_board = "All Boards"
+            else:
+                selected_board = "All Boards"
             
-            # Tag selection dropdown
-            selected_tag = st.selectbox(
-                "Select Tag (optional):",
-                options=["All Tags"] + tags,
-                help="Choose a specific tag to filter by"
+            # Tag search input
+            tag_search = st.text_input(
+                "Search Tag (optional):",
+                placeholder="Start typing to search tags...",
+                help="Type to search for a specific tag"
             )
+            # Match the search to available tags
+            if tag_search:
+                matched_tags = [tag for tag in tags if tag_search.lower() in tag.lower()]
+                if matched_tags:
+                    selected_tag = st.selectbox(
+                        "Select from matches:",
+                        options=matched_tags,
+                        help="Choose from matching tags",
+                        key="tag_select"
+                    )
+                else:
+                    st.warning("No tags found matching your search")
+                    selected_tag = "All Tags"
+            else:
+                selected_tag = "All Tags"
         
         # Date range selection
         col1, col2 = st.columns(2)
