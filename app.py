@@ -909,7 +909,17 @@ def main():
                             # Keep expanded if there are active timers or if user manually expanded
                             should_expand = has_active_timer or st.session_state.get(expanded_key, False)
                             
-                            with st.expander(book_title, expanded=should_expand):
+                            # Create book title with progress percentage
+                            if estimated_time > 0:
+                                if completion_percentage > 100:
+                                    over_percentage = completion_percentage - 100
+                                    book_title_with_progress = f"**{book_title}** ({over_percentage:.1f}% over estimate)"
+                                else:
+                                    book_title_with_progress = f"**{book_title}** ({completion_percentage:.1f}%)"
+                            else:
+                                book_title_with_progress = f"**{book_title}** (No estimate)"
+                            
+                            with st.expander(book_title_with_progress, expanded=should_expand):
                                 # Show progress bar and completion info at the top
                                 progress_bar_html = f"""
                                 <div style="width: 50%; background-color: #f0f0f0; border-radius: 5px; height: 10px; margin: 8px 0;">
