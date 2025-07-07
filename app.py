@@ -118,6 +118,28 @@ def get_tags_from_database(_engine):
         st.error(f"Error fetching tags: {str(e)}")
         return []
 
+def get_books_from_database(_engine):
+    """Get list of unique book names from database"""
+    try:
+        with _engine.connect() as conn:
+            result = conn.execute(text("SELECT DISTINCT card_name FROM trello_time_tracking WHERE card_name IS NOT NULL ORDER BY card_name"))
+            books = [row[0] for row in result]
+            return books
+    except Exception as e:
+        st.error(f"Error fetching books: {str(e)}")
+        return []
+
+def get_boards_from_database(_engine):
+    """Get list of unique board names from database"""
+    try:
+        with _engine.connect() as conn:
+            result = conn.execute(text("SELECT DISTINCT board_name FROM trello_time_tracking WHERE board_name IS NOT NULL ORDER BY board_name"))
+            boards = [row[0] for row in result]
+            return boards
+    except Exception as e:
+        st.error(f"Error fetching boards: {str(e)}")
+        return []
+
 
 def load_active_timers(engine):
     """Load active timers from database and restore session state"""
@@ -203,24 +225,44 @@ def remove_active_timer(engine, timer_key):
         st.error(f"Error removing active timer: {str(e)}")
 
 
-def get_user_tasks_from_database(_engine, user_name, start_date=None, end_date=None):
-    """Get user tasks from database with optional date filtering"""
+def get_filtered_tasks_from_database(_engine, user_name=None, book_name=None, board_name=None, tag_name=None, start_date=None, end_date=None):
+    """Get filtered tasks from database with multiple filter options"""
     try:
         query = '''
             WITH task_summary AS (
-                SELECT card_name, list_name, COALESCE(user_name, 'Not set') as user_name,
+                SELECT card_name, list_name, COALESCE(user_name, 'Not set') as user_name, board_name, tag,
                        SUM(time_spent_seconds) as total_time,
                        MAX(card_estimate_seconds) as estimated_seconds,
                        MIN(CASE WHEN session_start_time IS NOT NULL THEN session_start_time END) as first_session
                 FROM trello_time_tracking 
-                WHERE COALESCE(user_name, 'Not set') = :user_name
-                GROUP BY card_name, list_name, COALESCE(user_name, 'Not set')
+                WHERE 1=1
+        '''
+        params = {}
+        
+        # Add filters based on provided parameters
+        if user_name and user_name != "All Users":
+            query += ' AND COALESCE(user_name, \'Not set\') = :user_name'
+            params['user_name'] = user_name
+            
+        if book_name and book_name != "All Books":
+            query += ' AND card_name = :book_name'
+            params['book_name'] = book_name
+            
+        if board_name and board_name != "All Boards":
+            query += ' AND board_name = :board_name'
+            params['board_name'] = board_name
+            
+        if tag_name and tag_name != "All Tags":
+            query += ' AND tag = :tag_name'
+            params['tag_name'] = tag_name
+        
+        query += '''
+                GROUP BY card_name, list_name, COALESCE(user_name, 'Not set'), board_name, tag
                 HAVING SUM(time_spent_seconds) > 0
             )
-            SELECT card_name, list_name, first_session, total_time, estimated_seconds
+            SELECT card_name, list_name, user_name, board_name, tag, first_session, total_time, estimated_seconds
             FROM task_summary
         '''
-        params = {'user_name': user_name}
         
         # Add date filtering to the main query if needed
         if start_date or end_date:
@@ -243,9 +285,12 @@ def get_user_tasks_from_database(_engine, user_name, start_date=None, end_date=N
             for row in result:
                 card_name = row[0]
                 list_name = row[1]
-                first_session = row[2]
-                total_time = row[3]
-                estimated_time = row[4] if row[4] else 0
+                user_name = row[2]
+                board_name = row[3]
+                tag = row[4]
+                first_session = row[5]
+                total_time = row[6]
+                estimated_time = row[7] if row[7] else 0
                 
                 if first_session:
                     # Format as DD/MM/YYYY HH:MM
@@ -255,7 +300,10 @@ def get_user_tasks_from_database(_engine, user_name, start_date=None, end_date=N
                     
                 data.append({
                     'Book Title': card_name,
-                    'List': list_name,
+                    'Stage': list_name,
+                    'User': user_name,
+                    'Board': board_name,
+                    'Tag': tag if tag else 'No Tag',
                     'Session Started': date_time_str,
                     'Time Allocation': format_seconds_to_time(estimated_time) if estimated_time > 0 else 'Not Set',
                     'Time Spent': format_seconds_to_time(total_time)
@@ -590,7 +638,7 @@ def main():
             st.info(f"Restored {len(active_timers)} active timer(s) from previous session.")
     
     # Create tabs for different views
-    tab_names = ["Book Progress", "Add Book", "Archive", "User Data"]
+    tab_names = ["Book Progress", "Add Book", "Archive", "Reporting"]
     selected_tab = st.selectbox("Select Tab:", tab_names, index=st.session_state.active_tab, key="tab_selector")
     
     # Update active tab when changed - force immediate update
@@ -975,7 +1023,7 @@ def main():
                                 book_tags = book_data['Tag'].dropna().unique()
                                 if len(book_tags) > 0 and book_tags[0]:
                                     tag_display = book_tags[0]
-                                    st.markdown(f'<div style="font-size: 12px; color: #888; margin-bottom: 10px;"><strong>Tag:</strong> {tag_display}</div>', unsafe_allow_html=True)
+                                    st.markdown(f'<div style="font-size: 14px; color: #888; margin-bottom: 10px;"><strong>Tag:</strong> {tag_display}</div>', unsafe_allow_html=True)
                                 
                                 st.markdown("---")
                                 
@@ -1418,23 +1466,52 @@ def main():
         except Exception as e:
             st.error(f"Error accessing database: {str(e)}")
     
-    elif selected_tab == "User Data":
-        st.header("Filter User Tasks")
-        st.markdown("Filter tasks by user and date range from all uploaded data.")
+    elif selected_tab == "Reporting":
+        st.header("Reporting")
+        st.markdown("Filter tasks by user, book, board, tag, and date range from all uploaded data.")
         
-        # Get users from database
+        # Get filter options from database
         users = get_users_from_database(engine)
+        books = get_books_from_database(engine)
+        boards = get_boards_from_database(engine)
+        tags = get_tags_from_database(engine)
         
         if not users:
-            st.info("No users found in database. Please add entries in the 'Data Entry' tab first.")
+            st.info("No users found in database. Please add entries in the 'Add Book' tab first.")
             return
         
-        # User selection dropdown
-        selected_user = st.selectbox(
-            "Select User:",
-            options=users,
-            help="Choose a user to view their tasks"
-        )
+        # Filter selection - organized in columns
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            # User selection dropdown
+            selected_user = st.selectbox(
+                "Select User:",
+                options=["All Users"] + users,
+                help="Choose a user to view their tasks"
+            )
+            
+            # Book selection dropdown
+            selected_book = st.selectbox(
+                "Select Book (optional):",
+                options=["All Books"] + books,
+                help="Choose a specific book to filter by"
+            )
+        
+        with col2:
+            # Board selection dropdown
+            selected_board = st.selectbox(
+                "Select Board (optional):",
+                options=["All Boards"] + boards,
+                help="Choose a specific board to filter by"
+            )
+            
+            # Tag selection dropdown
+            selected_tag = st.selectbox(
+                "Select Tag (optional):",
+                options=["All Tags"] + tags,
+                help="Choose a specific tag to filter by"
+            )
         
         # Date range selection
         col1, col2 = st.columns(2)
@@ -1461,69 +1538,90 @@ def main():
             return
         
         # Filter and display results only when button is clicked or on initial load
-        if selected_user and (update_button or 'user_tasks_displayed' not in st.session_state):
-            with st.spinner("Loading user tasks..."):
-                user_tasks = get_user_tasks_from_database(
+        if update_button or 'filtered_tasks_displayed' not in st.session_state:
+            with st.spinner("Loading filtered tasks..."):
+                filtered_tasks = get_filtered_tasks_from_database(
                     engine, 
-                    selected_user, 
-                    start_date, 
-                    end_date
+                    user_name=selected_user if selected_user != "All Users" else None,
+                    book_name=selected_book if selected_book != "All Books" else None,
+                    board_name=selected_board if selected_board != "All Boards" else None,
+                    tag_name=selected_tag if selected_tag != "All Tags" else None,
+                    start_date=start_date, 
+                    end_date=end_date
                 )
             
             # Store in session state to prevent automatic reloading
-            st.session_state.user_tasks_displayed = True
-            st.session_state.current_user_tasks = user_tasks
-            st.session_state.current_user = selected_user
-            st.session_state.current_start_date = start_date
-            st.session_state.current_end_date = end_date
+            st.session_state.filtered_tasks_displayed = True
+            st.session_state.current_filtered_tasks = filtered_tasks
+            st.session_state.current_filters = {
+                'user': selected_user,
+                'book': selected_book,
+                'board': selected_board,
+                'tag': selected_tag,
+                'start_date': start_date,
+                'end_date': end_date
+            }
         
         # Display cached results if available
-        if ('current_user_tasks' in st.session_state and 
-            'current_user' in st.session_state and 
-            st.session_state.current_user == selected_user):
+        if 'current_filtered_tasks' in st.session_state:
             
-            user_tasks = st.session_state.current_user_tasks
-            display_start_date = st.session_state.get('current_start_date')
-            display_end_date = st.session_state.get('current_end_date')
+            filtered_tasks = st.session_state.current_filtered_tasks
+            current_filters = st.session_state.get('current_filters', {})
             
-            if not user_tasks.empty:
-                st.subheader(f"Tasks for {selected_user}")
+            if not filtered_tasks.empty:
+                st.subheader("Filtered Results")
                 
-                # Show date range info
-                if display_start_date or display_end_date:
-                    date_info = f"Date range: {display_start_date.strftime('%d/%m/%Y') if display_start_date else 'All'} to {display_end_date.strftime('%d/%m/%Y') if display_end_date else 'All'}"
-                    st.info(date_info)
+                # Show active filters info
+                active_filters = []
+                if current_filters.get('user') and current_filters.get('user') != "All Users":
+                    active_filters.append(f"User: {current_filters.get('user')}")
+                if current_filters.get('book') and current_filters.get('book') != "All Books":
+                    active_filters.append(f"Book: {current_filters.get('book')}")
+                if current_filters.get('board') and current_filters.get('board') != "All Boards":
+                    active_filters.append(f"Board: {current_filters.get('board')}")
+                if current_filters.get('tag') and current_filters.get('tag') != "All Tags":
+                    active_filters.append(f"Tag: {current_filters.get('tag')}")
+                if current_filters.get('start_date') or current_filters.get('end_date'):
+                    start_str = current_filters.get('start_date').strftime('%d/%m/%Y') if current_filters.get('start_date') else 'All'
+                    end_str = current_filters.get('end_date').strftime('%d/%m/%Y') if current_filters.get('end_date') else 'All'
+                    active_filters.append(f"Date range: {start_str} to {end_str}")
+                
+                if active_filters:
+                    st.info("Active filters: " + " | ".join(active_filters))
                 
                 st.dataframe(
-                    user_tasks,
+                    filtered_tasks,
                     use_container_width=True,
                     hide_index=True
                 )
                 
                 # Download button for filtered results
                 csv_buffer = io.StringIO()
-                user_tasks.to_csv(csv_buffer, index=False)
+                filtered_tasks.to_csv(csv_buffer, index=False)
                 st.download_button(
-                    label=f"Download {selected_user}'s Tasks",
+                    label="Download Filtered Results",
                     data=csv_buffer.getvalue(),
-                    file_name=f"{selected_user}_tasks.csv",
+                    file_name="filtered_tasks.csv",
                     mime="text/csv"
                 )
                 
                 # Summary statistics for filtered data
                 st.subheader("Summary")
-                col1, col2, col3 = st.columns(3)
+                col1, col2, col3, col4 = st.columns(4)
                 
                 with col1:
-                    st.metric("Total Books", int(user_tasks['Book Title'].nunique()))
+                    st.metric("Total Books", int(filtered_tasks['Book Title'].nunique()))
                 
                 with col2:
-                    st.metric("Total Tasks", len(user_tasks))
+                    st.metric("Total Tasks", len(filtered_tasks))
                 
                 with col3:
+                    st.metric("Unique Users", int(filtered_tasks['User'].nunique()))
+                
+                with col4:
                     # Calculate total time from formatted time strings
                     total_seconds = 0
-                    for time_str in user_tasks['Time Spent']:
+                    for time_str in filtered_tasks['Time Spent']:
                         if time_str != "00:00:00":
                             parts = time_str.split(':')
                             total_seconds += int(parts[0]) * 3600 + int(parts[1]) * 60 + int(parts[2])
@@ -1531,10 +1629,10 @@ def main():
                     st.metric("Total Time (Hours)", f"{total_hours:.1f}")
             
             else:
-                st.warning(f"No tasks found for {selected_user} in the specified date range.")
+                st.warning("No tasks found matching the selected filters.")
         
-        elif selected_user and 'user_tasks_displayed' not in st.session_state:
-            st.info("Click 'Update Table' to load tasks for the selected user.")
+        elif 'filtered_tasks_displayed' not in st.session_state:
+            st.info("Click 'Update Table' to load filtered results.")
     
     elif selected_tab == "Archive":
         st.header("Archive")

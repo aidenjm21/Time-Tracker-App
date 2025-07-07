@@ -141,6 +141,10 @@ Changelog:
 - July 02, 2025. Added user reassignment functionality to Book Progress tab with stage-appropriate user dropdown options
 - July 03, 2025. Implemented persistent timer functionality: timers now survive page refreshes and tab closures by storing state in database
 - July 03, 2025. Added real-time JavaScript timer displays that update every second showing live elapsed time without requiring page refreshes
+- July 07, 2025. Enhanced dropdown titles to show "Stage Name | User | Time/Estimate" format when collapsed for better progress visibility
+- July 07, 2025. Added bold book titles with progress percentages on main cards (e.g., "**Test Book** (41.8%)" or "**Book Name** (20% over estimate)")
+- July 07, 2025. Implemented comprehensive tag system: dropdown in Add Book form, database storage, and display in Book Progress cards
+- July 07, 2025. Renamed "Filter User Tasks" to "Reporting" with enhanced filtering by User, Book, Board, Tag, and date range
 ```
 
 ## User Preferences
