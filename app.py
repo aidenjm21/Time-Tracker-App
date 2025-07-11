@@ -319,6 +319,48 @@ def delete_task_stage(engine, card_name, user_name, list_name):
         return False
 
 
+def create_book_record(engine, card_name, board_name=None, tag=None):
+    """Create a book record in the books table"""
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("""
+                INSERT INTO books (card_name, board_name, tag)
+                VALUES (:card_name, :board_name, :tag)
+                ON CONFLICT (card_name) DO UPDATE SET
+                    board_name = EXCLUDED.board_name,
+                    tag = EXCLUDED.tag
+            """), {
+                'card_name': card_name,
+                'board_name': board_name,
+                'tag': tag
+            })
+            conn.commit()
+            return True
+    except Exception as e:
+        st.error(f"Error creating book record: {str(e)}")
+        return False
+
+
+def get_all_books(engine):
+    """Get all books from the books table, including those without tasks"""
+    try:
+        with engine.connect() as conn:
+            result = conn.execute(text("""
+                SELECT DISTINCT card_name, board_name, tag
+                FROM books
+                WHERE archived = FALSE
+                UNION
+                SELECT DISTINCT card_name, board_name, tag
+                FROM trello_time_tracking
+                WHERE archived = FALSE
+                ORDER BY card_name
+            """))
+            return result.fetchall()
+    except Exception as e:
+        st.error(f"Error fetching books: {str(e)}")
+        return []
+
+
 def get_filtered_tasks_from_database(_engine, user_name=None, book_name=None, board_name=None, tag_name=None, start_date=None, end_date=None):
     """Get filtered tasks from database with multiple filter options"""
     try:
@@ -890,15 +932,16 @@ def main():
         if st.button("Add Entry", type="primary", key="manual_submit"):
             if not card_name:
                 st.error("Please fill in Card Name field")
-            elif not time_entries:
-                st.error("Please add at least one time estimate (user assignment is optional)")
             else:
                 try:
                     entries_added = 0
                     current_time = datetime.now(BST)
                     
+                    # Always create a book record first
+                    create_book_record(engine, card_name, board_name, final_tag)
+                    
                     with engine.connect() as conn:
-                        # Add estimate entries (task assignments with 0 time spent)
+                        # Add estimate entries (task assignments with 0 time spent) if any exist
                         for list_name, entry_data in time_entries.items():
                             # Create task entry with 0 time spent - users will use timer to track actual time
                             # The time_hours value from the form is just for estimation display, not actual time spent
@@ -924,25 +967,22 @@ def main():
                             })
                             entries_added += 1
                         
-
-                        
                         conn.commit()
                     
+                    # Keep user on the Add Book tab
+                    st.session_state.active_tab = 1  # Add Book tab
+                    
                     if entries_added > 0:
-                        # Keep user on the Add Book tab
-                        st.session_state.active_tab = 1  # Add Book tab
-                        
-                        estimate_count = len(time_entries)
-                        
                         # Store success message in session state for permanent display
-                        st.session_state.book_created_message = f"Book '{card_name}' created successfully with {estimate_count} time estimates!"
-                        
-                        # Set flag to clear form on next render instead of modifying session state directly
-                        st.session_state.clear_form = True
-                        
-                        st.rerun()
+                        st.session_state.book_created_message = f"Book '{card_name}' created successfully with {entries_added} time estimates!"
                     else:
-                        st.warning("No tasks created - please assign users to stages (time estimates are optional)")
+                        # Book created without tasks
+                        st.session_state.book_created_message = f"Book '{card_name}' created successfully! You can add tasks later from the Book Progress tab."
+                    
+                    # Set flag to clear form on next render instead of modifying session state directly
+                    st.session_state.clear_form = True
+                    
+                    st.rerun()
                         
                 except Exception as e:
                     st.error(f"Error adding manual entry: {str(e)}")
@@ -998,7 +1038,10 @@ def main():
             if total_records and total_records > 0:
                 st.info(f"Showing completion progress for books from {total_records} database records.")
                 
-                # Get data from database for book completion (exclude archived)
+                # Get all books including those without tasks
+                all_books = get_all_books(engine)
+                
+                # Get task data from database for book completion (exclude archived)
                 df_from_db = pd.read_sql(
                     '''SELECT card_name as "Card name", 
                        COALESCE(user_name, 'Not set') as "User", 
@@ -1026,20 +1069,48 @@ def main():
                         mask = filtered_df['Card name'].str.contains(search_query, case=False, na=False)
                         filtered_df = filtered_df[mask]
                     
-                    # Get unique books and sort alphabetically
-                    unique_books = sorted(filtered_df['Card name'].unique())
+                    # Get unique books from both sources and sort alphabetically
+                    books_with_tasks = set(filtered_df['Card name'].unique()) if not filtered_df.empty else set()
+                    books_without_tasks = set(book[0] for book in all_books if book[0] not in books_with_tasks)
                     
-                    if len(unique_books) > 0:
-                        st.write(f"Found {len(unique_books)} books to display")
+                    # Filter books without tasks based on search query
+                    if search_query:
+                        books_without_tasks = {book for book in books_without_tasks if search_query.lower() in book.lower()}
+                    
+                    all_unique_books = sorted(books_with_tasks | books_without_tasks)
+                    
+                    if len(all_unique_books) > 0:
+                        st.write(f"Found {len(all_unique_books)} books to display")
                         
                         # Initialize session state for expanded books
                         if 'expanded_books' not in st.session_state:
                             st.session_state.expanded_books = []
                         
                         # Display each book with enhanced visualization
-                        for book_title in unique_books:
-                            book_mask = filtered_df['Card name'] == book_title
-                            book_data = filtered_df[book_mask].copy()
+                        for book_title in all_unique_books:
+                            # Check if book has tasks
+                            if not filtered_df.empty:
+                                book_mask = filtered_df['Card name'] == book_title
+                                book_data = filtered_df[book_mask].copy()
+                            else:
+                                book_data = pd.DataFrame()
+                            
+                            # If book has no tasks, create empty data structure
+                            if book_data.empty:
+                                # Get book info from all_books
+                                book_info = next((book for book in all_books if book[0] == book_title), None)
+                                if book_info:
+                                    # Create minimal book data structure
+                                    book_data = pd.DataFrame({
+                                        'Card name': [book_title],
+                                        'User': ['Not set'],
+                                        'List': ['No tasks assigned'],
+                                        'Time spent (s)': [0],
+                                        'Date started (f)': [None],
+                                        'Card estimate(s)': [0],
+                                        'Board': [book_info[1] if book_info[1] else 'Not set'],
+                                        'Tag': [book_info[2] if book_info[2] else None]
+                                    })
                             
                             # Calculate overall progress using stage-based estimates
                             total_time_spent = book_data['Time spent (s)'].sum()
@@ -1506,7 +1577,6 @@ def main():
                                                             st.error("Please enter valid numbers in hh:mm:ss format")
                                                 
                                                 # Add Remove stage button at the bottom right of the column
-                                                st.markdown("---")
                                                 if st.button("Remove stage", key=f"remove_{book_title}_{stage_name}_{user_name}", type="secondary"):
                                                     # Single click delete
                                                     if delete_task_stage(engine, book_title, user_name, stage_name):
