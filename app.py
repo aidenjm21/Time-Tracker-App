@@ -1272,48 +1272,30 @@ def main():
                                                     else:
                                                         st.write(f"{progress_percentage * 100:.1f}% complete")
                                                     
-                                                    # Completion checkbox
-                                                    is_completed = get_task_completion(engine, book_title, user_name, stage_name)
-                                                    new_completion_status = st.checkbox(
-                                                        "Completed",
-                                                        value=is_completed,
-                                                        key=f"complete_{book_title}_{stage_name}_{user_name}"
-                                                    )
+                                                    # Completion checkbox and remove button in same row
+                                                    checkbox_col, remove_col = st.columns([3, 1])
                                                     
-                                                    # Update completion status if changed
-                                                    if new_completion_status != is_completed:
-                                                        update_task_completion(engine, book_title, user_name, stage_name, new_completion_status)
-                                                        st.rerun()
+                                                    with checkbox_col:
+                                                        is_completed = get_task_completion(engine, book_title, user_name, stage_name)
+                                                        new_completion_status = st.checkbox(
+                                                            "Completed",
+                                                            value=is_completed,
+                                                            key=f"complete_{book_title}_{stage_name}_{user_name}"
+                                                        )
+                                                        
+                                                        # Update completion status if changed
+                                                        if new_completion_status != is_completed:
+                                                            update_task_completion(engine, book_title, user_name, stage_name, new_completion_status)
+                                                            st.rerun()
                                                     
-                                                    # Remove stage button (bottom right)
-                                                    remove_col1, remove_col2 = st.columns([3, 1])
-                                                    with remove_col2:
+                                                    with remove_col:
                                                         if st.button("Remove stage", key=f"remove_{book_title}_{stage_name}_{user_name}", type="secondary"):
-                                                            # Show confirmation dialog
-                                                            confirmation_key = f"confirm_remove_{book_title}_{stage_name}_{user_name}"
-                                                            if confirmation_key not in st.session_state:
-                                                                st.session_state[confirmation_key] = False
-                                                            
-                                                            if not st.session_state[confirmation_key]:
-                                                                st.session_state[confirmation_key] = True
+                                                            # Single click delete
+                                                            if delete_task_stage(engine, book_title, user_name, stage_name):
+                                                                st.success(f"Removed {stage_name} for {user_name}")
                                                                 st.rerun()
                                                             else:
-                                                                # User confirmed, delete the task
-                                                                if delete_task_stage(engine, book_title, user_name, stage_name):
-                                                                    st.success(f"Removed {stage_name} for {user_name}")
-                                                                    # Clear confirmation state
-                                                                    st.session_state[confirmation_key] = False
-                                                                    st.rerun()
-                                                                else:
-                                                                    st.error("Failed to remove stage")
-                                                        
-                                                        # Show confirmation dialog if needed
-                                                        confirmation_key = f"confirm_remove_{book_title}_{stage_name}_{user_name}"
-                                                        if st.session_state.get(confirmation_key, False):
-                                                            st.warning("Click 'Remove stage' again to confirm deletion")
-                                                            if st.button("Cancel", key=f"cancel_{book_title}_{stage_name}_{user_name}"):
-                                                                st.session_state[confirmation_key] = False
-                                                                st.rerun()
+                                                                st.error("Failed to remove stage")
                                             
                                             with col2:
                                                 # Empty space - timer moved to button column
