@@ -225,6 +225,49 @@ def remove_active_timer(engine, timer_key):
         st.error(f"Error removing active timer: {str(e)}")
 
 
+def update_task_completion(engine, card_name, user_name, list_name, completed):
+    """Update task completion status"""
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("""
+                UPDATE trello_time_tracking 
+                SET completed = :completed
+                WHERE card_name = :card_name 
+                AND COALESCE(user_name, 'Not set') = :user_name 
+                AND list_name = :list_name
+            """), {
+                'completed': completed,
+                'card_name': card_name,
+                'user_name': user_name,
+                'list_name': list_name
+            })
+            conn.commit()
+    except Exception as e:
+        st.error(f"Error updating task completion: {str(e)}")
+
+
+def get_task_completion(engine, card_name, user_name, list_name):
+    """Get task completion status"""
+    try:
+        with engine.connect() as conn:
+            result = conn.execute(text("""
+                SELECT completed FROM trello_time_tracking 
+                WHERE card_name = :card_name 
+                AND COALESCE(user_name, 'Not set') = :user_name 
+                AND list_name = :list_name
+                LIMIT 1
+            """), {
+                'card_name': card_name,
+                'user_name': user_name,
+                'list_name': list_name
+            })
+            row = result.fetchone()
+            return row[0] if row else False
+    except Exception as e:
+        st.error(f"Error getting task completion: {str(e)}")
+        return False
+
+
 def get_filtered_tasks_from_database(_engine, user_name=None, book_name=None, board_name=None, tag_name=None, start_date=None, end_date=None):
     """Get filtered tasks from database with multiple filter options"""
     try:
@@ -1076,12 +1119,16 @@ def main():
                                                 if not non_zero_estimates.empty:
                                                     estimated_time_for_user = non_zero_estimates.iloc[0]
                                             
+                                            # Check if task is completed
+                                            is_completed = get_task_completion(engine, book_title, user_name, stage_name)
+                                            completion_emoji = "✅ " if is_completed else ""
+                                            
                                             # Format times for display
                                             actual_time_str = format_seconds_to_time(actual_time)
                                             estimated_time_str = format_seconds_to_time(estimated_time_for_user)
                                             user_display = user_name if user_name and user_name != "Not set" else "Unassigned"
                                             
-                                            stage_summary_parts.append(f"{user_display} | {actual_time_str}/{estimated_time_str}")
+                                            stage_summary_parts.append(f"{completion_emoji}{user_display} | {actual_time_str}/{estimated_time_str}")
                                         
                                         # Create expander title with stage name and user summaries
                                         if stage_summary_parts:
@@ -1169,6 +1216,19 @@ def main():
                                                         st.write("COMPLETE: 100%")
                                                     else:
                                                         st.write(f"{progress_percentage * 100:.1f}% complete")
+                                                    
+                                                    # Completion checkbox
+                                                    is_completed = get_task_completion(engine, book_title, user_name, stage_name)
+                                                    new_completion_status = st.checkbox(
+                                                        "Completed",
+                                                        value=is_completed,
+                                                        key=f"complete_{book_title}_{stage_name}_{user_name}"
+                                                    )
+                                                    
+                                                    # Update completion status if changed
+                                                    if new_completion_status != is_completed:
+                                                        update_task_completion(engine, book_title, user_name, stage_name, new_completion_status)
+                                                        st.rerun()
                                             
                                             with col2:
                                                 # Empty space - timer moved to button column
