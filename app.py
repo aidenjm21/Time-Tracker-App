@@ -361,6 +361,55 @@ def get_all_books(engine):
         return []
 
 
+def get_available_stages_for_book(engine, card_name):
+    """Get stages not yet associated with a book"""
+    all_stages = [
+        "Editorial R&D", "Editorial Writing", "1st Edit", "2nd Edit",
+        "Design R&D", "In Design", "1st Proof", "2nd Proof", 
+        "Editorial Sign Off", "Design Sign Off"
+    ]
+    
+    try:
+        with engine.connect() as conn:
+            result = conn.execute(text("""
+                SELECT DISTINCT list_name
+                FROM trello_time_tracking
+                WHERE card_name = :card_name AND archived = FALSE
+            """), {'card_name': card_name})
+            
+            existing_stages = [row[0] for row in result.fetchall()]
+            available_stages = [stage for stage in all_stages if stage not in existing_stages]
+            return available_stages
+    except Exception as e:
+        st.error(f"Error getting available stages: {str(e)}")
+        return []
+
+
+def add_stage_to_book(engine, card_name, stage_name, board_name=None, tag=None):
+    """Add a new stage to a book"""
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("""
+                INSERT INTO trello_time_tracking 
+                (card_name, user_name, list_name, time_spent_seconds, card_estimate_seconds, board_name, created_at, tag)
+                VALUES (:card_name, :user_name, :list_name, :time_spent_seconds, :card_estimate_seconds, :board_name, :created_at, :tag)
+            """), {
+                'card_name': card_name,
+                'user_name': None,  # Unassigned initially
+                'list_name': stage_name,
+                'time_spent_seconds': 0,
+                'card_estimate_seconds': 3600,  # Default 1 hour estimate
+                'board_name': board_name,
+                'created_at': datetime.now(BST),
+                'tag': tag
+            })
+            conn.commit()
+            return True
+    except Exception as e:
+        st.error(f"Error adding stage: {str(e)}")
+        return False
+
+
 def get_filtered_tasks_from_database(_engine, user_name=None, book_name=None, board_name=None, tag_name=None, start_date=None, end_date=None):
     """Get filtered tasks from database with multiple filter options"""
     try:
@@ -1590,6 +1639,28 @@ def main():
                                 running_timers = [k for k, v in st.session_state.timers.items() if v and book_title in k]
                                 if running_timers:
                                     st.write(f"{len(running_timers)} timer(s) running")
+                                
+                                # Add stage dropdown
+                                available_stages = get_available_stages_for_book(engine, book_title)
+                                if available_stages:
+                                    st.markdown("---")
+                                    selected_stage = st.selectbox(
+                                        "Add stage:",
+                                        options=["Select a stage to add..."] + available_stages,
+                                        key=f"add_stage_{book_title}"
+                                    )
+                                    
+                                    if selected_stage != "Select a stage to add...":
+                                        # Get book info for board name and tag
+                                        book_info = next((book for book in all_books if book[0] == book_title), None)
+                                        board_name = book_info[1] if book_info else None
+                                        tag = book_info[2] if book_info else None
+                                        
+                                        if add_stage_to_book(engine, book_title, selected_stage, board_name, tag):
+                                            st.success(f"Added {selected_stage} to {book_title}")
+                                            st.rerun()
+                                        else:
+                                            st.error("Failed to add stage")
                                 
                                 # Archive and Delete buttons at the bottom of each book
                                 st.markdown("---")
