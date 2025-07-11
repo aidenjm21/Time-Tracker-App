@@ -268,6 +268,36 @@ def get_task_completion(engine, card_name, user_name, list_name):
         return False
 
 
+def check_all_tasks_completed(engine, card_name):
+    """Check if all tasks for a book are completed"""
+    try:
+        with engine.connect() as conn:
+            # Get all tasks for this book
+            result = conn.execute(text("""
+                SELECT DISTINCT list_name, COALESCE(user_name, 'Not set') as user_name, 
+                       COALESCE(completed, false) as completed
+                FROM trello_time_tracking 
+                WHERE card_name = :card_name 
+                AND archived = FALSE
+            """), {
+                'card_name': card_name
+            })
+            
+            tasks = result.fetchall()
+            if not tasks:
+                return False
+            
+            # Check if all tasks are completed
+            for task in tasks:
+                if not task[2]:  # completed column
+                    return False
+            
+            return True
+    except Exception as e:
+        st.error(f"Error checking book completion: {str(e)}")
+        return False
+
+
 def get_filtered_tasks_from_database(_engine, user_name=None, book_name=None, board_name=None, tag_name=None, start_date=None, end_date=None):
     """Get filtered tasks from database with multiple filter options"""
     try:
@@ -1041,15 +1071,19 @@ def main():
                             # Keep expanded if there are active timers or if user manually expanded
                             should_expand = has_active_timer or st.session_state.get(expanded_key, False)
                             
+                            # Check if all tasks are completed
+                            all_tasks_completed = check_all_tasks_completed(engine, book_title)
+                            completion_emoji = "✅ " if all_tasks_completed else ""
+                            
                             # Create book title with progress percentage
                             if estimated_time > 0:
                                 if completion_percentage > 100:
                                     over_percentage = completion_percentage - 100
-                                    book_title_with_progress = f"**{book_title}** ({over_percentage:.1f}% over estimate)"
+                                    book_title_with_progress = f"{completion_emoji}**{book_title}** ({over_percentage:.1f}% over estimate)"
                                 else:
-                                    book_title_with_progress = f"**{book_title}** ({completion_percentage:.1f}%)"
+                                    book_title_with_progress = f"{completion_emoji}**{book_title}** ({completion_percentage:.1f}%)"
                             else:
-                                book_title_with_progress = f"**{book_title}** (No estimate)"
+                                book_title_with_progress = f"{completion_emoji}**{book_title}** (No estimate)"
                             
                             with st.expander(book_title_with_progress, expanded=should_expand):
                                 # Show progress bar and completion info at the top
