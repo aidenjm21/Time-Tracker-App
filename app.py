@@ -385,7 +385,7 @@ def get_available_stages_for_book(engine, card_name):
         return []
 
 
-def add_stage_to_book(engine, card_name, stage_name, board_name=None, tag=None):
+def add_stage_to_book(engine, card_name, stage_name, board_name=None, tag=None, estimate_seconds=3600):
     """Add a new stage to a book"""
     try:
         with engine.connect() as conn:
@@ -398,7 +398,7 @@ def add_stage_to_book(engine, card_name, stage_name, board_name=None, tag=None):
                 'user_name': None,  # Unassigned initially
                 'list_name': stage_name,
                 'time_spent_seconds': 0,
-                'card_estimate_seconds': 3600,  # Default 1 hour estimate
+                'card_estimate_seconds': estimate_seconds,
                 'board_name': board_name,
                 'created_at': datetime.now(BST),
                 'tag': tag
@@ -1644,11 +1644,24 @@ def main():
                                 available_stages = get_available_stages_for_book(engine, book_title)
                                 if available_stages:
                                     st.markdown("---")
-                                    selected_stage = st.selectbox(
-                                        "Add stage:",
-                                        options=["Select a stage to add..."] + available_stages,
-                                        key=f"add_stage_{book_title}"
-                                    )
+                                    col1, col2 = st.columns([3, 1])
+                                    
+                                    with col1:
+                                        selected_stage = st.selectbox(
+                                            "Add stage:",
+                                            options=["Select a stage to add..."] + available_stages,
+                                            key=f"add_stage_{book_title}"
+                                        )
+                                    
+                                    with col2:
+                                        time_estimate = st.number_input(
+                                            "Hours:",
+                                            min_value=0.0,
+                                            step=0.1,
+                                            format="%.1f",
+                                            value=1.0,
+                                            key=f"add_stage_time_{book_title}"
+                                        )
                                     
                                     if selected_stage != "Select a stage to add...":
                                         # Get book info for board name and tag
@@ -1656,8 +1669,11 @@ def main():
                                         board_name = book_info[1] if book_info else None
                                         tag = book_info[2] if book_info else None
                                         
-                                        if add_stage_to_book(engine, book_title, selected_stage, board_name, tag):
-                                            st.success(f"Added {selected_stage} to {book_title}")
+                                        # Convert hours to seconds for estimate
+                                        estimate_seconds = int(time_estimate * 3600)
+                                        
+                                        if add_stage_to_book(engine, book_title, selected_stage, board_name, tag, estimate_seconds):
+                                            st.success(f"Added {selected_stage} to {book_title} with {time_estimate} hour estimate")
                                             st.rerun()
                                         else:
                                             st.error("Failed to add stage")

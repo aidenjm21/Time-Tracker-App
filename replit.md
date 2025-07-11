@@ -151,6 +151,7 @@ Changelog:
 - July 11, 2025. Enhanced book management: books can now be created without tasks and remain visible even when all tasks are deleted
 - July 11, 2025. Added books table: separate tracking for books independent of tasks, allowing books to exist without any assigned stages
 - July 11, 2025. Added "Add stage" dropdown: each book card now includes a dropdown to add missing stages, showing only stages not currently associated with the book
+- July 11, 2025. Enhanced "Add stage" with time input: added hours field next to dropdown allowing custom time estimates when adding stages
 - July 11, 2025. Enhanced Book search filter in Reporting with type-to-search functionality while keeping Board and Tag as simple dropdowns
 - July 11, 2025. Fixed Board field to display actual form values instead of defaulting to "Manual Entry"
 - July 11, 2025. Updated Reporting filtered results to show all books and stages regardless of time spent for complete project visibility
