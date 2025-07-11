@@ -298,6 +298,27 @@ def check_all_tasks_completed(engine, card_name):
         return False
 
 
+def delete_task_stage(engine, card_name, user_name, list_name):
+    """Delete a specific task stage from the database"""
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("""
+                DELETE FROM trello_time_tracking 
+                WHERE card_name = :card_name 
+                AND COALESCE(user_name, 'Not set') = :user_name 
+                AND list_name = :list_name
+            """), {
+                'card_name': card_name,
+                'user_name': user_name,
+                'list_name': list_name
+            })
+            conn.commit()
+            return True
+    except Exception as e:
+        st.error(f"Error deleting task stage: {str(e)}")
+        return False
+
+
 def get_filtered_tasks_from_database(_engine, user_name=None, book_name=None, board_name=None, tag_name=None, start_date=None, end_date=None):
     """Get filtered tasks from database with multiple filter options"""
     try:
@@ -1263,6 +1284,36 @@ def main():
                                                     if new_completion_status != is_completed:
                                                         update_task_completion(engine, book_title, user_name, stage_name, new_completion_status)
                                                         st.rerun()
+                                                    
+                                                    # Remove stage button (bottom right)
+                                                    remove_col1, remove_col2 = st.columns([3, 1])
+                                                    with remove_col2:
+                                                        if st.button("Remove stage", key=f"remove_{book_title}_{stage_name}_{user_name}", type="secondary"):
+                                                            # Show confirmation dialog
+                                                            confirmation_key = f"confirm_remove_{book_title}_{stage_name}_{user_name}"
+                                                            if confirmation_key not in st.session_state:
+                                                                st.session_state[confirmation_key] = False
+                                                            
+                                                            if not st.session_state[confirmation_key]:
+                                                                st.session_state[confirmation_key] = True
+                                                                st.rerun()
+                                                            else:
+                                                                # User confirmed, delete the task
+                                                                if delete_task_stage(engine, book_title, user_name, stage_name):
+                                                                    st.success(f"Removed {stage_name} for {user_name}")
+                                                                    # Clear confirmation state
+                                                                    st.session_state[confirmation_key] = False
+                                                                    st.rerun()
+                                                                else:
+                                                                    st.error("Failed to remove stage")
+                                                        
+                                                        # Show confirmation dialog if needed
+                                                        confirmation_key = f"confirm_remove_{book_title}_{stage_name}_{user_name}"
+                                                        if st.session_state.get(confirmation_key, False):
+                                                            st.warning("Click 'Remove stage' again to confirm deletion")
+                                                            if st.button("Cancel", key=f"cancel_{book_title}_{stage_name}_{user_name}"):
+                                                                st.session_state[confirmation_key] = False
+                                                                st.rerun()
                                             
                                             with col2:
                                                 # Empty space - timer moved to button column
