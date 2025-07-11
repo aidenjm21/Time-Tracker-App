@@ -1660,20 +1660,25 @@ def main():
                                             step=0.1,
                                             format="%.1f",
                                             value=1.0,
-                                            key=f"add_stage_time_{book_title}"
+                                            key=f"add_stage_time_{book_title}",
+                                            on_change=None  # Prevent automatic refresh
                                         )
                                     
                                     if selected_stage != "Select a stage to add...":
+                                        # Get the current time estimate from session state
+                                        time_estimate_key = f"add_stage_time_{book_title}"
+                                        current_time_estimate = st.session_state.get(time_estimate_key, 1.0)
+                                        
                                         # Get book info for board name and tag
                                         book_info = next((book for book in all_books if book[0] == book_title), None)
                                         board_name = book_info[1] if book_info else None
                                         tag = book_info[2] if book_info else None
                                         
                                         # Convert hours to seconds for estimate
-                                        estimate_seconds = int(time_estimate * 3600)
+                                        estimate_seconds = int(current_time_estimate * 3600)
                                         
                                         if add_stage_to_book(engine, book_title, selected_stage, board_name, tag, estimate_seconds):
-                                            st.success(f"Added {selected_stage} to {book_title} with {time_estimate} hour estimate")
+                                            st.success(f"Added {selected_stage} to {book_title} with {current_time_estimate} hour estimate")
                                             st.rerun()
                                         else:
                                             st.error("Failed to add stage")
