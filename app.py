@@ -816,7 +816,9 @@ def main():
         st.error("Could not connect to database. Please check your configuration.")
         return
     
-    # Native tabs don't need session state for tracking
+    # Initialize session state for active tab
+    if 'active_tab' not in st.session_state:
+        st.session_state.active_tab = 0
     
     # Initialize timer session state
     if 'timers' not in st.session_state:
@@ -831,11 +833,18 @@ def main():
         if active_timers:
             st.info(f"Restored {len(active_timers)} active timer(s) from previous session.")
     
-    # Create horizontal tabs using Streamlit's tab functionality
-    tab1, tab2, tab3, tab4 = st.tabs(["Book Progress", "Add Book", "Archive", "Reporting"])
+    # Create tabs for different views
+    tab_names = ["Book Progress", "Add Book", "Archive", "Reporting"]
+    selected_tab = st.selectbox("Select Tab:", tab_names, index=st.session_state.active_tab, key="tab_selector")
     
-    # Add Book tab content
-    with tab2:
+    # Update active tab when changed - force immediate update
+    current_index = tab_names.index(selected_tab)
+    if current_index != st.session_state.active_tab:
+        st.session_state.active_tab = current_index
+        st.rerun()
+    
+    # Create individual tab sections based on selection
+    if selected_tab == "Add Book":
         # Manual Data Entry Form
         st.header("Manual Data Entry")
         st.markdown("Add individual time tracking entries for detailed stage-specific analysis.")
@@ -1021,7 +1030,8 @@ def main():
                         
                         conn.commit()
                     
-                    # User remains on the Add Book tab automatically
+                    # Keep user on the Add Book tab
+                    st.session_state.active_tab = 1  # Add Book tab
                     
                     if entries_added > 0:
                         # Store success message in session state for permanent display
@@ -1042,8 +1052,7 @@ def main():
         if 'book_created_message' in st.session_state:
             st.success(st.session_state.book_created_message)
     
-    # Book Progress tab content
-    with tab1:
+    elif selected_tab == "Book Progress":
         st.header("Book Completion Progress")
         st.markdown("Visual progress tracking for all books with individual task timers.")
         
@@ -1702,7 +1711,8 @@ def main():
                                                 '''), {'card_name': book_title})
                                                 conn.commit()
                                             
-                                            # User remains on the current tab automatically
+                                            # Keep user on the current tab
+                                            st.session_state.active_tab = 0  # Book Progress tab
                                             st.success(f"'{book_title}' has been archived successfully!")
                                             st.rerun()
                                         except Exception as e:
@@ -1730,7 +1740,8 @@ def main():
                                                 
                                                 # Reset confirmation state
                                                 del st.session_state[confirm_key]
-                                                # User remains on the current tab automatically
+                                                # Keep user on the Book Progress tab
+                                                st.session_state.active_tab = 0  # Book Progress tab
                                                 st.success(f"'{book_title}' has been permanently deleted!")
                                                 st.rerun()
                                             except Exception as e:
@@ -1753,8 +1764,7 @@ def main():
         except Exception as e:
             st.error(f"Error accessing database: {str(e)}")
     
-    # Reporting tab content
-    with tab4:
+    elif selected_tab == "Reporting":
         st.header("Reporting")
         st.markdown("Filter tasks by user, book, board, tag, and date range from all uploaded data.")
         
@@ -1936,8 +1946,7 @@ def main():
         elif 'filtered_tasks_displayed' not in st.session_state:
             st.info("Click 'Update Table' to load filtered results.")
     
-    # Archive tab content
-    with tab3:
+    elif selected_tab == "Archive":
         st.header("Archive")
         st.markdown("View and manage archived books.")
         
@@ -2041,7 +2050,8 @@ def main():
                                                 '''), {'card_name': book_title})
                                                 conn.commit()
                                             
-                                            # User remains on the current tab automatically
+                                            # Keep user on the Archive tab
+                                            st.session_state.active_tab = 2  # Archive tab
                                             st.success(f"'{book_title}' has been unarchived successfully!")
                                             st.rerun()
                                         except Exception as e:

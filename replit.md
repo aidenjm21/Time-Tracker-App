@@ -156,7 +156,6 @@ Changelog:
 - July 11, 2025. Fixed Board field to display actual form values instead of defaulting to "Manual Entry"
 - July 11, 2025. Updated Reporting filtered results to show all books and stages regardless of time spent for complete project visibility
 - July 11, 2025. Added completion percentage column to Reporting filtered results showing task progress relative to time estimates
-- July 11, 2025. Converted tab dropdown to horizontal menu using Streamlit's native tab functionality for better user experience
 ```
 
 ## User Preferences
