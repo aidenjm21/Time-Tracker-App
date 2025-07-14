@@ -482,6 +482,17 @@ def get_filtered_tasks_from_database(_engine, user_name=None, book_name=None, bo
                 else:
                     date_time_str = 'Manual Entry'
                     
+                # Calculate completion percentage
+                if estimated_time > 0:
+                    completion_ratio = total_time / estimated_time
+                    if completion_ratio <= 1.0:
+                        completion_percentage = f"{int(completion_ratio * 100)}%"
+                    else:
+                        over_percentage = int((completion_ratio - 1.0) * 100)
+                        completion_percentage = f"{over_percentage}% over"
+                else:
+                    completion_percentage = "No estimate"
+                
                 data.append({
                     'Book Title': card_name,
                     'Stage': list_name,
@@ -490,7 +501,8 @@ def get_filtered_tasks_from_database(_engine, user_name=None, book_name=None, bo
                     'Tag': tag if tag else 'No Tag',
                     'Session Started': date_time_str,
                     'Time Allocation': format_seconds_to_time(estimated_time) if estimated_time > 0 else 'Not Set',
-                    'Time Spent': format_seconds_to_time(total_time)
+                    'Time Spent': format_seconds_to_time(total_time),
+                    'Completion %': completion_percentage
                 })
             return pd.DataFrame(data)
     except Exception as e:
