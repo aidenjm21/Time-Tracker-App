@@ -1187,18 +1187,47 @@ def main():
                                     st.rerun()
                             
                             with col2:
-                                # Page selector
-                                page_options = [f"Page {i+1}" for i in range(total_pages)]
-                                selected_page = st.selectbox(
-                                    "Go to page:",
-                                    options=page_options,
-                                    index=st.session_state.current_page,
-                                    key="page_selector"
-                                )
-                                new_page = int(selected_page.split()[1]) - 1
-                                if new_page != st.session_state.current_page:
-                                    st.session_state.current_page = new_page
-                                    st.rerun()
+                                # Create vertical page navigation with smart ellipsis
+                                st.write("**Go to page:**")
+                                
+                                # Calculate which page numbers to show
+                                current_page = st.session_state.current_page
+                                page_numbers = []
+                                
+                                if total_pages <= 7:
+                                    # Show all pages if 7 or fewer
+                                    page_numbers = list(range(1, total_pages + 1))
+                                else:
+                                    # Smart ellipsis logic
+                                    if current_page + 1 <= 4:
+                                        # Show: 1 2 3 4 5 ... 12 13
+                                        page_numbers = list(range(1, 6)) + ['...'] + list(range(total_pages - 1, total_pages + 1))
+                                    elif current_page + 1 >= total_pages - 3:
+                                        # Show: 1 2 ... 9 10 11 12 13
+                                        page_numbers = [1, 2, '...'] + list(range(total_pages - 4, total_pages + 1))
+                                    else:
+                                        # Show: 1 ... 7 8 9 ... 12 13
+                                        page_numbers = [1, '...'] + list(range(current_page, current_page + 4)) + ['...'] + list(range(total_pages - 1, total_pages + 1))
+                                
+                                # Create clickable page numbers in a grid
+                                cols_per_row = 7
+                                for i in range(0, len(page_numbers), cols_per_row):
+                                    row_numbers = page_numbers[i:i + cols_per_row]
+                                    cols = st.columns(len(row_numbers))
+                                    
+                                    for j, page_num in enumerate(row_numbers):
+                                        with cols[j]:
+                                            if page_num == '...':
+                                                st.write("...")
+                                            else:
+                                                if page_num == current_page + 1:
+                                                    # Current page - highlighted
+                                                    st.markdown(f"**{page_num}**")
+                                                else:
+                                                    # Clickable page number
+                                                    if st.button(str(page_num), key=f"page_{page_num}"):
+                                                        st.session_state.current_page = page_num - 1
+                                                        st.rerun()
                             
                             with col3:
                                 if st.button("Next →", disabled=st.session_state.current_page == total_pages - 1):
