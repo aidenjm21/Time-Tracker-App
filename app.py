@@ -881,7 +881,15 @@ def main():
         with col1:
             card_name = st.text_input("Card Name", placeholder="Enter book title", key="manual_card_name", value="" if clear_form else None)
         with col2:
-            board_name = st.text_input("Board", placeholder="Enter board name", key="manual_board_name", value="" if clear_form else None)
+            board_options = [
+                "Accessible Readers", 
+                "Decodable Readers", 
+                "Freedom Readers", 
+                "Graphic Readers", 
+                "Non-Fiction", 
+                "Rapid Readers (Hi-Lo)"
+            ]
+            board_name = st.selectbox("Board", options=board_options, key="manual_board_name", index=0 if clear_form else None)
             
         # Tag field
         existing_tags = get_tags_from_database(engine)
