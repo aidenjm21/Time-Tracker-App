@@ -1707,111 +1707,111 @@ def main():
                                                     else:
                                                         st.error("Failed to remove stage")
 
-                                
-                                # Show count of running timers (refresh buttons now appear under individual timers)
-                                running_timers = [k for k, v in st.session_state.timers.items() if v and book_title in k]
-                                if running_timers:
-                                    st.write(f"{len(running_timers)} timer(s) running")
-                                
-                                # Add stage dropdown
-                                available_stages = get_available_stages_for_book(engine, book_title)
-                                if available_stages:
+                                    
+                                    # Show count of running timers (refresh buttons now appear under individual timers)
+                                    running_timers = [k for k, v in st.session_state.timers.items() if v and book_title in k]
+                                    if running_timers:
+                                        st.write(f"{len(running_timers)} timer(s) running")
+                                    
+                                    # Add stage dropdown
+                                    available_stages = get_available_stages_for_book(engine, book_title)
+                                    if available_stages:
+                                        st.markdown("---")
+                                        col1, col2 = st.columns([3, 1])
+                                        
+                                        with col1:
+                                            selected_stage = st.selectbox(
+                                                "Add stage:",
+                                                options=["Select a stage to add..."] + available_stages,
+                                                key=f"add_stage_{book_title}"
+                                            )
+                                        
+                                        with col2:
+                                            time_estimate = st.number_input(
+                                                "Hours:",
+                                                min_value=0.0,
+                                                step=0.1,
+                                                format="%.1f",
+                                                value=1.0,
+                                                key=f"add_stage_time_{book_title}",
+                                                on_change=None  # Prevent automatic refresh
+                                            )
+                                        
+                                        if selected_stage != "Select a stage to add...":
+                                            # Get the current time estimate from session state
+                                            time_estimate_key = f"add_stage_time_{book_title}"
+                                            current_time_estimate = st.session_state.get(time_estimate_key, 1.0)
+                                            
+                                            # Get book info for board name and tag
+                                            book_info = next((book for book in all_books if book[0] == book_title), None)
+                                            board_name = book_info[1] if book_info else None
+                                            tag = book_info[2] if book_info else None
+                                            
+                                            # Convert hours to seconds for estimate
+                                            estimate_seconds = int(current_time_estimate * 3600)
+                                            
+                                            if add_stage_to_book(engine, book_title, selected_stage, board_name, tag, estimate_seconds):
+                                                st.success(f"Added {selected_stage} to {book_title} with {current_time_estimate} hour estimate")
+                                                st.rerun()
+                                            else:
+                                                st.error("Failed to add stage")
+                                    
+                                    # Archive and Delete buttons at the bottom of each book
                                     st.markdown("---")
-                                    col1, col2 = st.columns([3, 1])
+                                    col1, col2 = st.columns(2)
                                     
                                     with col1:
-                                        selected_stage = st.selectbox(
-                                            "Add stage:",
-                                            options=["Select a stage to add..."] + available_stages,
-                                            key=f"add_stage_{book_title}"
-                                        )
-                                    
-                                    with col2:
-                                        time_estimate = st.number_input(
-                                            "Hours:",
-                                            min_value=0.0,
-                                            step=0.1,
-                                            format="%.1f",
-                                            value=1.0,
-                                            key=f"add_stage_time_{book_title}",
-                                            on_change=None  # Prevent automatic refresh
-                                        )
-                                    
-                                    if selected_stage != "Select a stage to add...":
-                                        # Get the current time estimate from session state
-                                        time_estimate_key = f"add_stage_time_{book_title}"
-                                        current_time_estimate = st.session_state.get(time_estimate_key, 1.0)
-                                        
-                                        # Get book info for board name and tag
-                                        book_info = next((book for book in all_books if book[0] == book_title), None)
-                                        board_name = book_info[1] if book_info else None
-                                        tag = book_info[2] if book_info else None
-                                        
-                                        # Convert hours to seconds for estimate
-                                        estimate_seconds = int(current_time_estimate * 3600)
-                                        
-                                        if add_stage_to_book(engine, book_title, selected_stage, board_name, tag, estimate_seconds):
-                                            st.success(f"Added {selected_stage} to {book_title} with {current_time_estimate} hour estimate")
-                                            st.rerun()
-                                        else:
-                                            st.error("Failed to add stage")
-                                
-                                # Archive and Delete buttons at the bottom of each book
-                                st.markdown("---")
-                                col1, col2 = st.columns(2)
-                                
-                                with col1:
-                                    if st.button(f"Archive '{book_title}'", key=f"archive_{book_title}", help="Move this book to archive"):
-                                        try:
-                                            with engine.connect() as conn:
-                                                # Add archived field to database if it doesn't exist
-                                                conn.execute(text('''
-                                                    UPDATE trello_time_tracking 
-                                                    SET archived = TRUE 
-                                                    WHERE card_name = :card_name
-                                                '''), {'card_name': book_title})
-                                                conn.commit()
-                                            
-                                            # Keep user on the current tab
-                                            st.session_state.active_tab = 0  # Book Progress tab
-                                            st.success(f"'{book_title}' has been archived successfully!")
-                                            st.rerun()
-                                        except Exception as e:
-                                            st.error(f"Error archiving book: {str(e)}")
-                                
-                                with col2:
-                                    if st.button(f"Delete '{book_title}'", key=f"delete_progress_{book_title}", help="Permanently delete this book and all its data", type="secondary"):
-                                        # Add confirmation using session state
-                                        confirm_key = f"confirm_delete_progress_{book_title}"
-                                        if confirm_key not in st.session_state:
-                                            st.session_state[confirm_key] = False
-                                        
-                                        if not st.session_state[confirm_key]:
-                                            st.session_state[confirm_key] = True
-                                            st.warning(f"Click 'Delete {book_title}' again to permanently delete all data for this book.")
-                                            st.rerun()
-                                        else:
+                                        if st.button(f"Archive '{book_title}'", key=f"archive_{book_title}", help="Move this book to archive"):
                                             try:
                                                 with engine.connect() as conn:
+                                                    # Add archived field to database if it doesn't exist
                                                     conn.execute(text('''
-                                                        DELETE FROM trello_time_tracking 
+                                                        UPDATE trello_time_tracking 
+                                                        SET archived = TRUE 
                                                         WHERE card_name = :card_name
                                                     '''), {'card_name': book_title})
                                                     conn.commit()
                                                 
-                                                # Reset confirmation state
-                                                del st.session_state[confirm_key]
-                                                # Keep user on the Book Progress tab
+                                                # Keep user on the current tab
                                                 st.session_state.active_tab = 0  # Book Progress tab
-                                                st.success(f"'{book_title}' has been permanently deleted!")
+                                                st.success(f"'{book_title}' has been archived successfully!")
                                                 st.rerun()
                                             except Exception as e:
-                                                st.error(f"Error deleting book: {str(e)}")
-                                                # Reset confirmation state on error
-                                                if confirm_key in st.session_state:
+                                                st.error(f"Error archiving book: {str(e)}")
+                                    
+                                    with col2:
+                                        if st.button(f"Delete '{book_title}'", key=f"delete_progress_{book_title}", help="Permanently delete this book and all its data", type="secondary"):
+                                            # Add confirmation using session state
+                                            confirm_key = f"confirm_delete_progress_{book_title}"
+                                            if confirm_key not in st.session_state:
+                                                st.session_state[confirm_key] = False
+                                            
+                                            if not st.session_state[confirm_key]:
+                                                st.session_state[confirm_key] = True
+                                                st.warning(f"Click 'Delete {book_title}' again to permanently delete all data for this book.")
+                                                st.rerun()
+                                            else:
+                                                try:
+                                                    with engine.connect() as conn:
+                                                        conn.execute(text('''
+                                                            DELETE FROM trello_time_tracking 
+                                                            WHERE card_name = :card_name
+                                                        '''), {'card_name': book_title})
+                                                        conn.commit()
+                                                    
+                                                    # Reset confirmation state
                                                     del st.session_state[confirm_key]
-                                        
-                                        stage_counter += 1
+                                                    # Keep user on the Book Progress tab
+                                                    st.session_state.active_tab = 0  # Book Progress tab
+                                                    st.success(f"'{book_title}' has been permanently deleted!")
+                                                    st.rerun()
+                                                except Exception as e:
+                                                    st.error(f"Error deleting book: {str(e)}")
+                                                    # Reset confirmation state on error
+                                                    if confirm_key in st.session_state:
+                                                        del st.session_state[confirm_key]
+                                
+                                stage_counter += 1
                     else:
                         if search_query:
                             st.warning(f"No books found matching '{search_query}'")
