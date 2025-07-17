@@ -1124,6 +1124,23 @@ def main():
                         key="completion_search"
                     )
                     
+                    # Add pagination controls
+                    books_per_page = 10  # Show 10 books per page
+                    total_books = len(all_books)
+                    total_pages = (total_books - 1) // books_per_page + 1 if total_books > 0 else 1
+                    
+                    # Initialize pagination state
+                    if 'current_page' not in st.session_state:
+                        st.session_state.current_page = 0
+                    
+                    # Reset to first page if search query changes
+                    if 'last_search_query' not in st.session_state:
+                        st.session_state.last_search_query = ""
+                    
+                    if search_query != st.session_state.last_search_query:
+                        st.session_state.current_page = 0
+                        st.session_state.last_search_query = search_query
+                    
                     # Filter books based on search
                     filtered_df = df_from_db.copy()
                     if search_query:
@@ -1141,194 +1158,203 @@ def main():
                     all_unique_books = sorted(books_with_tasks | books_without_tasks)
                     
                     if len(all_unique_books) > 0:
-                        st.write(f"Found {len(all_unique_books)} books to display")
+                        # Update pagination info based on filtered results
+                        total_books = len(all_unique_books)
+                        total_pages = (total_books - 1) // books_per_page + 1 if total_books > 0 else 1
+                        
+                        # Ensure current page is within bounds
+                        if st.session_state.current_page >= total_pages:
+                            st.session_state.current_page = 0
+                        
+                        # Show pagination info
+                        st.write(f"Found {total_books} books to display | Page {st.session_state.current_page + 1} of {total_pages}")
+                        
+                        # Add pagination controls
+                        if total_pages > 1:
+                            col1, col2, col3 = st.columns([1, 2, 1])
+                            
+                            with col1:
+                                if st.button("← Previous", disabled=st.session_state.current_page == 0):
+                                    st.session_state.current_page -= 1
+                                    st.rerun()
+                            
+                            with col2:
+                                # Page selector
+                                page_options = [f"Page {i+1}" for i in range(total_pages)]
+                                selected_page = st.selectbox(
+                                    "Go to page:",
+                                    options=page_options,
+                                    index=st.session_state.current_page,
+                                    key="page_selector"
+                                )
+                                new_page = int(selected_page.split()[1]) - 1
+                                if new_page != st.session_state.current_page:
+                                    st.session_state.current_page = new_page
+                                    st.rerun()
+                            
+                            with col3:
+                                if st.button("Next →", disabled=st.session_state.current_page == total_pages - 1):
+                                    st.session_state.current_page += 1
+                                    st.rerun()
+                        
+                        # Calculate which books to display on current page
+                        start_idx = st.session_state.current_page * books_per_page
+                        end_idx = start_idx + books_per_page
+                        books_to_display = all_unique_books[start_idx:end_idx]
                         
                         # Initialize session state for expanded books
                         if 'expanded_books' not in st.session_state:
                             st.session_state.expanded_books = []
                         
-                        # Display each book with enhanced visualization
-                        for book_title in all_unique_books:
-                            # Check if book has tasks
-                            if not filtered_df.empty:
-                                book_mask = filtered_df['Card name'] == book_title
-                                book_data = filtered_df[book_mask].copy()
-                            else:
-                                book_data = pd.DataFrame()
-                            
-                            # If book has no tasks, create empty data structure
-                            if book_data.empty:
-                                # Get book info from all_books
-                                book_info = next((book for book in all_books if book[0] == book_title), None)
-                                if book_info:
-                                    # Create minimal book data structure
-                                    book_data = pd.DataFrame({
-                                        'Card name': [book_title],
-                                        'User': ['Not set'],
-                                        'List': ['No tasks assigned'],
-                                        'Time spent (s)': [0],
-                                        'Date started (f)': [None],
-                                        'Card estimate(s)': [0],
-                                        'Board': [book_info[1] if book_info[1] else 'Not set'],
-                                        'Tag': [book_info[2] if book_info[2] else None]
-                                    })
-                            
-                            # Calculate overall progress using stage-based estimates
-                            total_time_spent = book_data['Time spent (s)'].sum()
-                            
-                            # Calculate total estimated time from the database entries
-                            # Sum up all estimates stored in the database for this book
-                            estimated_time = 0
-                            if 'Card estimate(s)' in book_data.columns:
-                                book_estimates = book_data['Card estimate(s)'].fillna(0).sum()
-                                if book_estimates > 0:
-                                    estimated_time = book_estimates
-                            
-                            # If no estimates in database, use reasonable defaults per stage
-                            if estimated_time == 0:
-                                default_stage_estimates = {
-                                    'Editorial R&D': 2 * 3600,        # 2 hours default
-                                    'Editorial Writing': 8 * 3600,    # 8 hours default 
-                                    '1st Edit': 4 * 3600,             # 4 hours default
-                                    '2nd Edit': 2 * 3600,             # 2 hours default
-                                    'Design R&D': 3 * 3600,           # 3 hours default
-                                    'In Design': 6 * 3600,            # 6 hours default
-                                    '1st Proof': 2 * 3600,            # 2 hours default
-                                    '2nd Proof': 1.5 * 3600,          # 1.5 hours default
-                                    'Editorial Sign Off': 0.5 * 3600, # 30 minutes default
-                                    'Design Sign Off': 0.5 * 3600     # 30 minutes default
-                                }
-                                unique_stages = book_data['List'].unique()
-                                estimated_time = sum(default_stage_estimates.get(stage, 3600) for stage in unique_stages)
-                            
-                            # Calculate completion percentage for display
-                            if estimated_time > 0:
-                                completion_percentage = (total_time_spent / estimated_time) * 100
-                                progress_text = f"{format_seconds_to_time(total_time_spent)}/{format_seconds_to_time(estimated_time)} ({completion_percentage:.1f}%)"
-                            else:
-                                completion_percentage = 0
-                                progress_text = f"Total: {format_seconds_to_time(total_time_spent)} (No estimate)"
-                            
-                            # Auto-expand if there are active timers for this book or if it was manually expanded
-                            has_active_timer = any(
-                                st.session_state.timers.get(f"{book_title}_{stage}_{user}", False)
-                                for stage in ["Editorial R&D", "Editorial Writing", "1st Edit", "2nd Edit", "Design R&D", "In Design", "1st Proof", "2nd Proof", "Editorial Sign Off", "Design Sign Off"]
-                                for user in book_data['User'].unique()
-                            )
-                            
-                            # Initialize expanded state if not exists
-                            expanded_key = f"expanded_{book_title}"
-                            if expanded_key not in st.session_state:
-                                st.session_state[expanded_key] = has_active_timer
-                            
-                            # Keep expanded if there are active timers or if user manually expanded
-                            should_expand = has_active_timer or st.session_state.get(expanded_key, False)
-                            
-                            # Check if all tasks are completed
-                            all_tasks_completed = check_all_tasks_completed(engine, book_title)
-                            completion_emoji = "✅ " if all_tasks_completed else ""
-                            
-                            # Create book title with progress percentage
-                            if estimated_time > 0:
-                                if completion_percentage > 100:
-                                    over_percentage = completion_percentage - 100
-                                    book_title_with_progress = f"{completion_emoji}**{book_title}** ({over_percentage:.1f}% over estimate)"
+                        # Add loading spinner for book rendering
+                        with st.spinner(f"Loading books {start_idx + 1}-{min(end_idx, total_books)}..."):
+                            # Display each book with enhanced visualization
+                            for book_title in books_to_display:
+                                # Check if book has tasks
+                                if not filtered_df.empty:
+                                    book_mask = filtered_df['Card name'] == book_title
+                                    book_data = filtered_df[book_mask].copy()
                                 else:
-                                    book_title_with_progress = f"{completion_emoji}**{book_title}** ({completion_percentage:.1f}%)"
-                            else:
-                                book_title_with_progress = f"{completion_emoji}**{book_title}** (No estimate)"
-                            
-                            with st.expander(book_title_with_progress, expanded=should_expand):
-                                # Show progress bar and completion info at the top
-                                progress_bar_html = f"""
-                                <div style="width: 50%; background-color: #f0f0f0; border-radius: 5px; height: 10px; margin: 8px 0;">
-                                    <div style="width: {min(completion_percentage, 100):.1f}%; background-color: #007bff; height: 100%; border-radius: 5px;"></div>
-                                </div>
-                                """
-                                st.markdown(progress_bar_html, unsafe_allow_html=True)
-                                st.markdown(f'<div style="font-size: 14px; color: #666; margin-bottom: 10px;">{progress_text}</div>', unsafe_allow_html=True)
+                                    book_data = pd.DataFrame()
                                 
-                                # Display tag if available
-                                book_tags = book_data['Tag'].dropna().unique()
-                                if len(book_tags) > 0 and book_tags[0]:
-                                    tag_display = book_tags[0]
-                                    st.markdown(f'<div style="font-size: 14px; color: #888; margin-bottom: 10px;"><strong>Tag:</strong> {tag_display}</div>', unsafe_allow_html=True)
+                                # If book has no tasks, create empty data structure
+                                if book_data.empty:
+                                    # Get book info from all_books
+                                    book_info = next((book for book in all_books if book[0] == book_title), None)
+                                    if book_info:
+                                        # Create minimal book data structure
+                                        book_data = pd.DataFrame({
+                                            'Card name': [book_title],
+                                            'User': ['Not set'],
+                                            'List': ['No tasks assigned'],
+                                            'Time spent (s)': [0],
+                                            'Date started (f)': [None],
+                                            'Card estimate(s)': [0],
+                                            'Board': [book_info[1] if book_info[1] else 'Not set'],
+                                            'Tag': [book_info[2] if book_info[2] else None]
+                                        })
                                 
-                                st.markdown("---")
+                                # Calculate overall progress using stage-based estimates
+                                total_time_spent = book_data['Time spent (s)'].sum()
                                 
-                                # Define the order of stages to match the actual data entry form
-                                stage_order = [
-                                    'Editorial R&D', 'Editorial Writing', '1st Edit', '2nd Edit',
-                                    'Design R&D', 'In Design', '1st Proof', '2nd Proof', 
-                                    'Editorial Sign Off', 'Design Sign Off'
-                                ]
+                                # Calculate total estimated time from the database entries
+                                # Sum up all estimates stored in the database for this book
+                                estimated_time = 0
+                                if 'Card estimate(s)' in book_data.columns:
+                                    book_estimates = book_data['Card estimate(s)'].fillna(0).sum()
+                                    if book_estimates > 0:
+                                        estimated_time = book_estimates
                                 
-                                # Group by stage/list and aggregate by user
-                                stages_grouped = book_data.groupby('List')
+                                # If no estimates in database, use reasonable defaults per stage
+                                if estimated_time == 0:
+                                    default_stage_estimates = {
+                                        'Editorial R&D': 2 * 3600,        # 2 hours default
+                                        'Editorial Writing': 8 * 3600,    # 8 hours default 
+                                        '1st Edit': 4 * 3600,             # 4 hours default
+                                        '2nd Edit': 2 * 3600,             # 2 hours default
+                                        'Design R&D': 3 * 3600,           # 3 hours default
+                                        'In Design': 6 * 3600,            # 6 hours default
+                                        '1st Proof': 2 * 3600,            # 2 hours default
+                                        '2nd Proof': 1.5 * 3600,          # 1.5 hours default
+                                        'Editorial Sign Off': 0.5 * 3600, # 30 minutes default
+                                        'Design Sign Off': 0.5 * 3600     # 30 minutes default
+                                    }
+                                    unique_stages = book_data['List'].unique()
+                                    estimated_time = sum(default_stage_estimates.get(stage, 3600) for stage in unique_stages)
                                 
-                                # Display stages in accordion style (each stage as its own expander)
-                                stage_counter = 0
-                                for stage_name in stage_order:
-                                    if stage_name in stages_grouped.groups:
-                                        stage_data = stages_grouped.get_group(stage_name)
-                                        
-                                        # Check if this stage has any active timers
-                                        stage_has_active_timer = any(
-                                            st.session_state.timers.get(f"{book_title}_{stage_name}_{user}", False)
-                                            for user in stage_data['User'].unique()
-                                        )
-                                        
-                                        # Initialize stage expanded state
-                                        stage_expanded_key = f"stage_expanded_{book_title}_{stage_name}"
-                                        if stage_expanded_key not in st.session_state:
-                                            st.session_state[stage_expanded_key] = stage_has_active_timer
-                                        
-                                        # Keep expanded if there are active timers
-                                        should_expand_stage = stage_has_active_timer or st.session_state.get(stage_expanded_key, False)
-                                        
-                                        # Aggregate time by user for this stage
-                                        user_aggregated = stage_data.groupby('User')['Time spent (s)'].sum().reset_index()
-                                        
-                                        # Create a summary for the expander title showing all users and their progress
-                                        stage_summary_parts = []
-                                        for idx, user_task in user_aggregated.iterrows():
-                                            user_name = user_task['User']
-                                            actual_time = user_task['Time spent (s)']
+                                # Calculate completion percentage for display
+                                if estimated_time > 0:
+                                    completion_percentage = (total_time_spent / estimated_time) * 100
+                                    progress_text = f"{format_seconds_to_time(total_time_spent)}/{format_seconds_to_time(estimated_time)} ({completion_percentage:.1f}%)"
+                                else:
+                                    completion_percentage = 0
+                                    progress_text = f"Total: {format_seconds_to_time(total_time_spent)} (No estimate)"
+                                
+                                # Auto-expand if there are active timers for this book or if it was manually expanded
+                                has_active_timer = any(
+                                    st.session_state.timers.get(f"{book_title}_{stage}_{user}", False)
+                                    for stage in ["Editorial R&D", "Editorial Writing", "1st Edit", "2nd Edit", "Design R&D", "In Design", "1st Proof", "2nd Proof", "Editorial Sign Off", "Design Sign Off"]
+                                    for user in book_data['User'].unique()
+                                )
+                                
+                                # Initialize expanded state if not exists
+                                expanded_key = f"expanded_{book_title}"
+                                if expanded_key not in st.session_state:
+                                    st.session_state[expanded_key] = has_active_timer
+                                
+                                # Keep expanded if there are active timers or if user manually expanded
+                                should_expand = has_active_timer or st.session_state.get(expanded_key, False)
+                                
+                                # Check if all tasks are completed
+                                all_tasks_completed = check_all_tasks_completed(engine, book_title)
+                                completion_emoji = "✅ " if all_tasks_completed else ""
+                                
+                                # Create book title with progress percentage
+                                if estimated_time > 0:
+                                    if completion_percentage > 100:
+                                        over_percentage = completion_percentage - 100
+                                        book_title_with_progress = f"{completion_emoji}**{book_title}** ({over_percentage:.1f}% over estimate)"
+                                    else:
+                                        book_title_with_progress = f"{completion_emoji}**{book_title}** ({completion_percentage:.1f}%)"
+                                else:
+                                    book_title_with_progress = f"{completion_emoji}**{book_title}** (No estimate)"
+                                
+                                with st.expander(book_title_with_progress, expanded=should_expand):
+                                    # Show progress bar and completion info at the top
+                                    progress_bar_html = f"""
+                                    <div style="width: 50%; background-color: #f0f0f0; border-radius: 5px; height: 10px; margin: 8px 0;">
+                                        <div style="width: {min(completion_percentage, 100):.1f}%; background-color: #007bff; height: 100%; border-radius: 5px;"></div>
+                                    </div>
+                                    """
+                                    st.markdown(progress_bar_html, unsafe_allow_html=True)
+                                    st.markdown(f'<div style="font-size: 14px; color: #666; margin-bottom: 10px;">{progress_text}</div>', unsafe_allow_html=True)
+                                    
+                                    # Display tag if available
+                                    book_tags = book_data['Tag'].dropna().unique()
+                                    if len(book_tags) > 0 and book_tags[0]:
+                                        tag_display = book_tags[0]
+                                        st.markdown(f'<div style="font-size: 14px; color: #888; margin-bottom: 10px;"><strong>Tag:</strong> {tag_display}</div>', unsafe_allow_html=True)
+                                    
+                                    st.markdown("---")
+                                    
+                                    # Define the order of stages to match the actual data entry form
+                                    stage_order = [
+                                        'Editorial R&D', 'Editorial Writing', '1st Edit', '2nd Edit',
+                                        'Design R&D', 'In Design', '1st Proof', '2nd Proof', 
+                                        'Editorial Sign Off', 'Design Sign Off'
+                                    ]
+                                    
+                                    # Group by stage/list and aggregate by user
+                                    stages_grouped = book_data.groupby('List')
+                                    
+                                    # Display stages in accordion style (each stage as its own expander)
+                                    stage_counter = 0
+                                    for stage_name in stage_order:
+                                        if stage_name in stages_grouped.groups:
+                                            stage_data = stages_grouped.get_group(stage_name)
                                             
-                                            # Get estimated time from the database for this specific user/stage combination
-                                            user_stage_data = stage_data[stage_data['User'] == user_name]
-                                            estimated_time_for_user = 3600  # Default 1 hour
+                                            # Check if this stage has any active timers
+                                            stage_has_active_timer = any(
+                                                st.session_state.timers.get(f"{book_title}_{stage_name}_{user}", False)
+                                                for user in stage_data['User'].unique()
+                                            )
                                             
-                                            if not user_stage_data.empty and 'Card estimate(s)' in user_stage_data.columns:
-                                                # Find the first record that has a non-null, non-zero estimate
-                                                estimates = user_stage_data['Card estimate(s)'].dropna()
-                                                non_zero_estimates = estimates[estimates > 0]
-                                                if not non_zero_estimates.empty:
-                                                    estimated_time_for_user = non_zero_estimates.iloc[0]
+                                            # Initialize stage expanded state
+                                            stage_expanded_key = f"stage_expanded_{book_title}_{stage_name}"
+                                            if stage_expanded_key not in st.session_state:
+                                                st.session_state[stage_expanded_key] = stage_has_active_timer
                                             
-                                            # Check if task is completed
-                                            is_completed = get_task_completion(engine, book_title, user_name, stage_name)
-                                            completion_emoji = "✅ " if is_completed else ""
+                                            # Keep expanded if there are active timers
+                                            should_expand_stage = stage_has_active_timer or st.session_state.get(stage_expanded_key, False)
                                             
-                                            # Format times for display
-                                            actual_time_str = format_seconds_to_time(actual_time)
-                                            estimated_time_str = format_seconds_to_time(estimated_time_for_user)
-                                            user_display = user_name if user_name and user_name != "Not set" else "Unassigned"
+                                            # Aggregate time by user for this stage
+                                            user_aggregated = stage_data.groupby('User')['Time spent (s)'].sum().reset_index()
                                             
-                                            stage_summary_parts.append(f"{completion_emoji}{user_display} | {actual_time_str}/{estimated_time_str}")
-                                        
-                                        # Create expander title with stage name and user summaries
-                                        if stage_summary_parts:
-                                            expander_title = f"**{stage_name}** | " + " | ".join(stage_summary_parts)
-                                        else:
-                                            expander_title = stage_name
-                                        
-                                        with st.expander(expander_title, expanded=should_expand_stage):
-                                            # Show one task per user for this stage
+                                            # Create a summary for the expander title showing all users and their progress
+                                            stage_summary_parts = []
                                             for idx, user_task in user_aggregated.iterrows():
                                                 user_name = user_task['User']
                                                 actual_time = user_task['Time spent (s)']
-                                                task_key = f"{book_title}_{stage_name}_{user_name}"
                                                 
                                                 # Get estimated time from the database for this specific user/stage combination
                                                 user_stage_data = stage_data[stage_data['User'] == user_name]
@@ -1341,55 +1367,90 @@ def main():
                                                     if not non_zero_estimates.empty:
                                                         estimated_time_for_user = non_zero_estimates.iloc[0]
                                                 
-                                                # Create columns for task info and timer
-                                                col1, col2, col3 = st.columns([4, 1, 3])
+                                                # Check if task is completed
+                                                is_completed = get_task_completion(engine, book_title, user_name, stage_name)
+                                                completion_emoji = "✅ " if is_completed else ""
                                                 
-                                                with col1:
-                                                    # User assignment dropdown
-                                                    current_user = user_name if user_name else "Not set"
+                                                # Format times for display
+                                                actual_time_str = format_seconds_to_time(actual_time)
+                                                estimated_time_str = format_seconds_to_time(estimated_time_for_user)
+                                                user_display = user_name if user_name and user_name != "Not set" else "Unassigned"
+                                                
+                                                stage_summary_parts.append(f"{completion_emoji}{user_display} | {actual_time_str}/{estimated_time_str}")
+                                            
+                                            # Create expander title with stage name and user summaries
+                                            if stage_summary_parts:
+                                                expander_title = f"**{stage_name}** | " + " | ".join(stage_summary_parts)
+                                            else:
+                                                expander_title = stage_name
+                                            
+                                            with st.expander(expander_title, expanded=should_expand_stage):
+                                                # Show one task per user for this stage
+                                                for idx, user_task in user_aggregated.iterrows():
+                                                    user_name = user_task['User']
+                                                    actual_time = user_task['Time spent (s)']
+                                                    task_key = f"{book_title}_{stage_name}_{user_name}"
                                                     
-                                                    # Determine user options based on stage type
-                                                    if stage_name in ["Editorial R&D", "Editorial Writing", "1st Edit", "2nd Edit", "1st Proof", "2nd Proof", "Editorial Sign Off"]:
-                                                        user_options = ["Not set", "Bethany Latham", "Charis Mather", "Noah Leatherland", "Rebecca Phillips-Bartlett"]
-                                                    else:  # Design stages
-                                                        user_options = ["Not set", "Amelia Harris", "Amy Li", "Drue Rintoul", "Jasmine Pointer", "Ker Ker Lee", "Rob Delph"]
+                                                    # Get estimated time from the database for this specific user/stage combination
+                                                    user_stage_data = stage_data[stage_data['User'] == user_name]
+                                                    estimated_time_for_user = 3600  # Default 1 hour
                                                     
-                                                    # Find current user index
-                                                    try:
-                                                        current_index = user_options.index(current_user)
-                                                    except ValueError:
-                                                        current_index = 0  # Default to "Not set"
+                                                    if not user_stage_data.empty and 'Card estimate(s)' in user_stage_data.columns:
+                                                        # Find the first record that has a non-null, non-zero estimate
+                                                        estimates = user_stage_data['Card estimate(s)'].dropna()
+                                                        non_zero_estimates = estimates[estimates > 0]
+                                                        if not non_zero_estimates.empty:
+                                                            estimated_time_for_user = non_zero_estimates.iloc[0]
                                                     
-                                                    new_user = st.selectbox(
-                                                        f"User for {stage_name}:",
-                                                        user_options,
-                                                        index=current_index,
-                                                        key=f"reassign_{book_title}_{stage_name}_{user_name}"
-                                                    )
+                                                    # Create columns for task info and timer
+                                                    col1, col2, col3 = st.columns([4, 1, 3])
                                                     
-                                                    # Handle user reassignment
-                                                    if new_user != current_user:
+                                                    with col1:
+                                                        # User assignment dropdown
+                                                        current_user = user_name if user_name else "Not set"
+                                                        
+                                                        # Determine user options based on stage type
+                                                        if stage_name in ["Editorial R&D", "Editorial Writing", "1st Edit", "2nd Edit", "1st Proof", "2nd Proof", "Editorial Sign Off"]:
+                                                            user_options = ["Not set", "Bethany Latham", "Charis Mather", "Noah Leatherland", "Rebecca Phillips-Bartlett"]
+                                                        else:  # Design stages
+                                                            user_options = ["Not set", "Amelia Harris", "Amy Li", "Drue Rintoul", "Jasmine Pointer", "Ker Ker Lee", "Rob Delph"]
+                                                        
+                                                        # Find current user index
                                                         try:
-                                                            with engine.connect() as conn:
-                                                                # Update user assignment in database
-                                                                new_user_value = new_user if new_user != "Not set" else None
-                                                                conn.execute(text('''
-                                                                    UPDATE trello_time_tracking 
-                                                                    SET user_name = :new_user
-                                                                    WHERE card_name = :card_name 
-                                                                    AND list_name = :list_name 
-                                                                    AND user_name = :old_user
-                                                                '''), {
-                                                                    'new_user': new_user_value,
-                                                                    'card_name': book_title,
+                                                            current_index = user_options.index(current_user)
+                                                        except ValueError:
+                                                            current_index = 0  # Default to "Not set"
+                                                        
+                                                        new_user = st.selectbox(
+                                                            f"User for {stage_name}:",
+                                                            user_options,
+                                                            index=current_index,
+                                                            key=f"reassign_{book_title}_{stage_name}_{user_name}"
+                                                        )
+                                                        
+                                                        # Handle user reassignment
+                                                        if new_user != current_user:
+                                                            try:
+                                                                with engine.connect() as conn:
+                                                                    # Update user assignment in database
+                                                                    new_user_value = new_user if new_user != "Not set" else None
+                                                                    conn.execute(text('''
+                                                                        UPDATE trello_time_tracking 
+                                                                        SET user_name = :new_user
+                                                                        WHERE card_name = :card_name 
+                                                                        AND list_name = :list_name 
+                                                                        AND user_name = :old_user
+                                                                    '''), {
+                                                                        'new_user': new_user_value,
+                                                                        'card_name': book_title,
                                                                     'list_name': stage_name,
                                                                     'old_user': user_name
                                                                 })
                                                                 conn.commit()
-                                                            st.success(f"User reassigned to {new_user}")
-                                                            st.rerun()
-                                                        except Exception as e:
-                                                            st.error(f"Error reassigning user: {str(e)}")
+                                                                st.success(f"User reassigned to {new_user}")
+                                                                st.rerun()
+                                                            except Exception as e:
+                                                                st.error(f"Error reassigning user: {str(e)}")
                                                     
                                                     st.write(f"**Progress:** {format_seconds_to_time(actual_time)}/{format_seconds_to_time(estimated_time_for_user)}")
                                                     

@@ -156,6 +156,8 @@ Changelog:
 - July 11, 2025. Fixed Board field to display actual form values instead of defaulting to "Manual Entry"
 - July 11, 2025. Updated Reporting filtered results to show all books and stages regardless of time spent for complete project visibility
 - July 11, 2025. Added completion percentage column to Reporting filtered results showing task progress relative to time estimates
+- July 11, 2025. Added pagination to Book Progress tab (10 books per page) with navigation controls to improve performance with large datasets
+- July 11, 2025. Enhanced tab switching with automatic refresh and added loading spinners for better user experience
 ```
 
 ## User Preferences
