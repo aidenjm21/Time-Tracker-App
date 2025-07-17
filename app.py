@@ -1179,7 +1179,7 @@ def main():
                         
                         # Add pagination controls
                         if total_pages > 1:
-                            col1, col2, col3 = st.columns([1, 2, 1])
+                            col1, col2, col3 = st.columns([1, 1, 1])
                             
                             with col1:
                                 if st.button("← Previous", disabled=st.session_state.current_page == 0):
@@ -1187,72 +1187,8 @@ def main():
                                     st.rerun()
                             
                             with col2:
-                                # Create horizontal page navigation with smart ellipsis
-                                st.write("**Go to page:**")
-                                
-                                # Calculate which page numbers to show
-                                current_page = st.session_state.current_page
-                                page_numbers = []
-                                
-                                if total_pages <= 7:
-                                    # Show all pages if 7 or fewer
-                                    page_numbers = list(range(1, total_pages + 1))
-                                else:
-                                    # Smart ellipsis logic
-                                    if current_page + 1 <= 4:
-                                        # Show: 1 2 3 4 5 ... 12 13
-                                        page_numbers = list(range(1, 6)) + ['...'] + list(range(total_pages - 1, total_pages + 1))
-                                    elif current_page + 1 >= total_pages - 3:
-                                        # Show: 1 2 ... 9 10 11 12 13
-                                        page_numbers = [1, 2, '...'] + list(range(total_pages - 4, total_pages + 1))
-                                    else:
-                                        # Show: 1 ... 7 8 9 ... 12 13
-                                        page_numbers = [1, '...'] + list(range(current_page, current_page + 4)) + ['...'] + list(range(total_pages - 1, total_pages + 1))
-                                
-                                # Create horizontal page navigation with styled buttons
-                                # First add CSS to style the buttons to look like red links
-                                st.markdown("""
-                                <style>
-                                .page-button button {
-                                    background-color: transparent !important;
-                                    border: none !important;
-                                    color: red !important;
-                                    padding: 0 !important;
-                                    font-weight: normal !important;
-                                    text-decoration: none !important;
-                                    cursor: pointer !important;
-                                    min-height: 0 !important;
-                                }
-                                .page-button button:hover {
-                                    background-color: transparent !important;
-                                    color: darkred !important;
-                                    text-decoration: underline !important;
-                                }
-                                .page-button button:focus {
-                                    background-color: transparent !important;
-                                    color: darkred !important;
-                                    box-shadow: none !important;
-                                }
-                                </style>
-                                """, unsafe_allow_html=True)
-                                
-                                # Create horizontal layout with proper spacing
-                                cols = st.columns(len(page_numbers))
-                                for i, page_num in enumerate(page_numbers):
-                                    with cols[i]:
-                                        if page_num == '...':
-                                            st.markdown('<div style="text-align: center; color: #666;">...</div>', unsafe_allow_html=True)
-                                        else:
-                                            if page_num == current_page + 1:
-                                                # Current page - bold and black
-                                                st.markdown(f'<div style="text-align: center; font-weight: bold; color: black;">{page_num}</div>', unsafe_allow_html=True)
-                                            else:
-                                                # Create a clickable link-style button
-                                                st.markdown('<div class="page-button" style="text-align: center;">', unsafe_allow_html=True)
-                                                if st.button(str(page_num), key=f"page_{page_num}"):
-                                                    st.session_state.current_page = page_num - 1
-                                                    st.rerun()
-                                                st.markdown('</div>', unsafe_allow_html=True)
+                                # Empty column for spacing
+                                st.write("")
                             
                             with col3:
                                 if st.button("Next →", disabled=st.session_state.current_page == total_pages - 1):
