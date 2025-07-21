@@ -1127,85 +1127,45 @@ def main():
                     # Add search bar for book titles
                     search_query = st.text_input(
                         "Search books by title:",
-                        placeholder="Enter book title to filter results...",
+                        placeholder="Enter book title to search (showing up to 10 results)...",
                         help="Search for specific books by typing part of the title",
                         key="completion_search"
                     )
                     
-                    # Add pagination controls
-                    books_per_page = 10  # Show 10 books per page
-                    total_books = len(all_books)
-                    total_pages = (total_books - 1) // books_per_page + 1 if total_books > 0 else 1
-                    
-                    # Initialize pagination state
-                    if 'current_page' not in st.session_state:
-                        st.session_state.current_page = 0
-                    
-                    # Reset to first page if search query changes
-                    if 'last_search_query' not in st.session_state:
-                        st.session_state.last_search_query = ""
-                    
-                    if search_query != st.session_state.last_search_query:
-                        st.session_state.current_page = 0
-                        st.session_state.last_search_query = search_query
-                    
-                    # Filter books based on search
+                    # Initialize filtered_df
                     filtered_df = df_from_db.copy()
+                    
+                    # Filter books based on search and limit to 10 results
                     if search_query:
+                        # Filter database books
                         mask = filtered_df['Card name'].str.contains(search_query, case=False, na=False)
                         filtered_df = filtered_df[mask]
-                    
-                    # Get unique books from both sources and sort alphabetically
-                    books_with_tasks = set(filtered_df['Card name'].unique()) if not filtered_df.empty else set()
-                    books_without_tasks = set(book[0] for book in all_books if book[0] not in books_with_tasks)
-                    
-                    # Filter books without tasks based on search query
-                    if search_query:
+                        
+                        # Get unique books from both sources
+                        books_with_tasks = set(filtered_df['Card name'].unique()) if not filtered_df.empty else set()
+                        books_without_tasks = set(book[0] for book in all_books if book[0] not in books_with_tasks)
+                        
+                        # Filter books without tasks based on search query
                         books_without_tasks = {book for book in books_without_tasks if search_query.lower() in book.lower()}
+                        
+                        # Combine and sort, then limit to 10
+                        all_matching_books = sorted(books_with_tasks | books_without_tasks)
+                        books_to_display = all_matching_books[:10]  # Limit to 10 results
+                        
+                        if len(books_to_display) > 0:
+                            if len(all_matching_books) > 10:
+                                st.write(f"Showing first 10 of {len(all_matching_books)} matching books")
+                            else:
+                                st.write(f"Found {len(books_to_display)} matching books")
+                        else:
+                            st.warning(f"No books found matching '{search_query}'")
+                            books_to_display = []
+                    else:
+                        st.info("Enter a search term to find and display books (up to 10 results)")
+                        books_to_display = []
                     
-                    all_unique_books = sorted(books_with_tasks | books_without_tasks)
-                    
-                    if len(all_unique_books) > 0:
-                        # Update pagination info based on filtered results
-                        total_books = len(all_unique_books)
-                        total_pages = (total_books - 1) // books_per_page + 1 if total_books > 0 else 1
-                        
-                        # Ensure current page is within bounds
-                        if st.session_state.current_page >= total_pages:
-                            st.session_state.current_page = 0
-                        
-                        # Show pagination info
-                        st.write(f"Found {total_books} books to display | Page {st.session_state.current_page + 1} of {total_pages}")
-                        
-                        # Add pagination controls
-                        if total_pages > 1:
-                            col1, col2, col3 = st.columns([1, 1, 1])
-                            
-                            with col1:
-                                if st.button("← Previous", disabled=st.session_state.current_page == 0):
-                                    st.session_state.current_page -= 1
-                                    st.rerun()
-                            
-                            with col2:
-                                # Empty column for spacing
-                                st.write("")
-                            
-                            with col3:
-                                if st.button("Next →", disabled=st.session_state.current_page == total_pages - 1):
-                                    st.session_state.current_page += 1
-                                    st.rerun()
-                        
-                        # Calculate which books to display on current page
-                        start_idx = st.session_state.current_page * books_per_page
-                        end_idx = start_idx + books_per_page
-                        books_to_display = all_unique_books[start_idx:end_idx]
-                        
-                        # Initialize session state for expanded books
-                        if 'expanded_books' not in st.session_state:
-                            st.session_state.expanded_books = []
-                        
-                        # Add loading spinner for book rendering
-                        with st.spinner(f"Loading books {start_idx + 1}-{min(end_idx, total_books)}..."):
+                    # Only display books if we have search results
+                    if books_to_display:
                             # Display each book with enhanced visualization
                             for book_title in books_to_display:
                                 # Check if book has tasks
