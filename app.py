@@ -1124,20 +1124,38 @@ def main():
                 )
                 
                 if not df_from_db.empty:
-                    # Add search bar for book titles
-                    search_query = st.text_input(
-                        "Search books by title:",
-                        placeholder="Enter book title to search (showing up to 10 results)...",
-                        help="Search for specific books by typing part of the title",
-                        key="completion_search"
-                    )
+                    # Add search bar and show all button
+                    col1, col2 = st.columns([3, 1])
+                    
+                    with col1:
+                        search_query = st.text_input(
+                            "Search books by title:",
+                            placeholder="Enter book title to search...",
+                            help="Search for specific books by typing part of the title",
+                            key="completion_search"
+                        )
+                    
+                    with col2:
+                        show_all = st.button("Show All", help="Display all books (may be slow with many books)")
                     
                     # Initialize filtered_df
                     filtered_df = df_from_db.copy()
                     
-                    # Filter books based on search and limit to 10 results
-                    if search_query:
-                        # Filter database books
+                    # Determine what to display based on search or show all
+                    if show_all:
+                        # Show all books
+                        books_with_tasks = set(filtered_df['Card name'].unique()) if not filtered_df.empty else set()
+                        books_without_tasks = set(book[0] for book in all_books if book[0] not in books_with_tasks)
+                        
+                        all_books_sorted = sorted(books_with_tasks | books_without_tasks)
+                        books_to_display = all_books_sorted
+                        
+                        st.write(f"Showing all {len(books_to_display)} books")
+                        if len(books_to_display) > 20:
+                            st.warning("Large number of books may take time to load")
+                        
+                    elif search_query:
+                        # Filter books based on search and limit to 10 results
                         mask = filtered_df['Card name'].str.contains(search_query, case=False, na=False)
                         filtered_df = filtered_df[mask]
                         
@@ -1161,7 +1179,7 @@ def main():
                             st.warning(f"No books found matching '{search_query}'")
                             books_to_display = []
                     else:
-                        st.info("Enter a search term to find and display books (up to 10 results)")
+                        st.info("Enter a search term to find books (up to 10 results) or click 'Show All' to display all books")
                         books_to_display = []
                     
                     # Only display books if we have search results
