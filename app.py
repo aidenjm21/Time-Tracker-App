@@ -1411,7 +1411,12 @@ def main():
                                             else:
                                                 expander_title = stage_name
                                             
-                                            with st.expander(expander_title, expanded=stage_has_active_timer):
+                                            # Check if stage should be expanded (either has active timer or was manually expanded)
+                                            stage_expanded_key = f"stage_expanded_{book_title}_{stage_name}"
+                                            if stage_expanded_key not in st.session_state:
+                                                st.session_state[stage_expanded_key] = stage_has_active_timer
+                                            
+                                            with st.expander(expander_title, expanded=st.session_state[stage_expanded_key]):
                                                 # Show one task per user for this stage
                                                 for idx, user_task in user_aggregated.iterrows():
                                                     user_name = user_task['User']
@@ -1600,6 +1605,10 @@ def main():
                                                             # Preserve expanded state before rerun
                                                             expanded_key = f"expanded_{book_title}"
                                                             st.session_state[expanded_key] = True
+                                                            
+                                                            # Also preserve stage expanded state
+                                                            stage_expanded_key = f"stage_expanded_{book_title}_{stage_name}"
+                                                            st.session_state[stage_expanded_key] = True
                                                             
                                                             # Start timer and save to persistent storage
                                                             # Ensure we're using BST (UTC+1) consistently
