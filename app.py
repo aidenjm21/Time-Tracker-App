@@ -1105,23 +1105,39 @@ def main():
                             elapsed = current_time - start_time
                             elapsed_str = str(elapsed).split('.')[0]  # Remove microseconds
                             
-                            # Display timer info with copy to clipboard button
-                            col1, col2 = st.columns([6, 1])
-                            with col1:
-                                st.write(f"**{book_title}** - {stage_name} ({user_name}) - Running for {elapsed_str}")
-                            with col2:
-                                if st.button("📋", key=f"copy_{task_key}", help="Copy book name to clipboard"):
-                                    st.session_state[f"copied_{task_key}"] = True
-                                    # Create JavaScript to copy to clipboard
-                                    st.markdown(f"""
-                                    <script>
-                                    navigator.clipboard.writeText('{book_title}').then(function() {{
-                                        console.log('Copied to clipboard: {book_title}');
-                                    }});
-                                    </script>
-                                    """, unsafe_allow_html=True)
-                                    st.success(f"Copied '{book_title}' to clipboard!")
-                                    st.rerun()
+                            # Display timer info with hover clipboard icon
+                            unique_id = f"timer_{task_key.replace(' ', '_').replace('-', '_')}"
+                            st.markdown(f"""
+                            <div id="{unique_id}" style="position: relative; display: inline-block; width: 100%;">
+                                <span><strong>{book_title}</strong> - {stage_name} ({user_name}) - Running for {elapsed_str}</span>
+                                <span class="copy-icon" style="
+                                    opacity: 0;
+                                    transition: opacity 0.2s;
+                                    margin-left: 10px;
+                                    cursor: pointer;
+                                    color: #666;
+                                " onclick="copyToClipboard('{book_title}', '{unique_id}')">📋</span>
+                            </div>
+                            <style>
+                            #{unique_id}:hover .copy-icon {{
+                                opacity: 1;
+                            }}
+                            </style>
+                            <script>
+                            function copyToClipboard(text, elementId) {{
+                                navigator.clipboard.writeText(text).then(function() {{
+                                    console.log('Copied to clipboard: ' + text);
+                                    // Show brief feedback
+                                    const element = document.getElementById(elementId);
+                                    const originalText = element.innerHTML;
+                                    element.innerHTML = originalText.replace('📋', '✓');
+                                    setTimeout(function() {{
+                                        element.innerHTML = originalText;
+                                    }}, 1000);
+                                }});
+                            }}
+                            </script>
+                            """, unsafe_allow_html=True)
         
         # Initialize session state for timers
         if 'timers' not in st.session_state:
