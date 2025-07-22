@@ -1134,25 +1134,39 @@ def main():
                             elapsed_str = str(elapsed).split('.')[0]  # Remove microseconds
                             
                             # Display timer info with always visible clipboard icon
+                            # Escape book title for JavaScript
+                            book_title_escaped = book_title.replace("'", "\\'").replace('"', '\\"')
                             unique_id = f"timer_{task_key.replace(' ', '_').replace('-', '_')}"
                             st.markdown(f"""
                             <div style="position: relative; display: inline-block; width: 100%;">
-                                <span id="{unique_id}_text"><strong>{book_title}</strong> - {stage_name} ({user_name}) - Running for {elapsed_str}</span>
-                                <span class="timer-copy-icon" style="
-                                    opacity: 1;
+                                <span><strong>{book_title}</strong> - {stage_name} ({user_name}) - Running for {elapsed_str}</span>
+                                <button type="button" style="
+                                    background: none;
+                                    border: none;
                                     margin-left: 10px;
                                     cursor: pointer;
                                     color: #666;
                                     font-size: 16px;
                                     vertical-align: middle;
-                                " onclick="copyTimerBookName('{book_title}')">🔗</span>
+                                    padding: 2px;
+                                " onclick="copyBookName_{unique_id}()" title="Copy book name: {book_title}">🔗</button>
                             </div>
                             <script>
-                            function copyTimerBookName(bookName) {{
-                                navigator.clipboard.writeText(bookName).then(function() {{
-                                    console.log('Copied book name to clipboard: ' + bookName);
-                                }});
-                            }}
+                            window.copyBookName_{unique_id} = function() {{
+                                const bookName = '{book_title_escaped}';
+                                if (navigator.clipboard && navigator.clipboard.writeText) {{
+                                    navigator.clipboard.writeText(bookName).then(function() {{
+                                        console.log('Copied book name to clipboard: ' + bookName);
+                                        alert('Copied: ' + bookName);
+                                    }}).catch(function(err) {{
+                                        console.error('Failed to copy: ', err);
+                                        prompt('Copy this book name manually:', bookName);
+                                    }});
+                                }} else {{
+                                    // Fallback for older browsers
+                                    prompt('Copy this book name manually:', bookName);
+                                }}
+                            }};
                             </script>
                             """, unsafe_allow_html=True)
         
