@@ -1476,9 +1476,11 @@ def main():
                                                     
                                                     st.write(f"**Progress:** {format_seconds_to_time(actual_time)}/{format_seconds_to_time(estimated_time_for_user)}")
                                                     
-                                                    # Progress bar
+                                                    # Progress bar (ensure value is between 0 and 1)
                                                     progress_percentage = (actual_time / estimated_time_for_user) if estimated_time_for_user > 0 else 0
-                                                    st.progress(min(progress_percentage, 1.0))
+                                                    # Clamp progress value to valid range [0.0, 1.0]
+                                                    progress_value = max(0.0, min(progress_percentage, 1.0))
+                                                    st.progress(progress_value)
                                                     
                                                     if progress_percentage > 1.0:
                                                         st.write(f"{(progress_percentage - 1) * 100:.1f}% over estimate")
