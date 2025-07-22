@@ -108,12 +108,22 @@ def get_users_from_database(_engine):
         return []
 
 def get_tags_from_database(_engine):
-    """Get list of unique tags from database"""
+    """Get list of unique individual tags from database, splitting comma-separated values"""
     try:
         with _engine.connect() as conn:
             result = conn.execute(text("SELECT DISTINCT tag FROM trello_time_tracking WHERE tag IS NOT NULL AND tag != '' ORDER BY tag"))
-            tags = [row[0] for row in result]
-            return tags
+            all_tag_strings = [row[0] for row in result]
+            
+            # Split comma-separated tags and create unique set
+            individual_tags = set()
+            for tag_string in all_tag_strings:
+                if tag_string:
+                    # Split by comma and strip whitespace
+                    tags_in_string = [tag.strip() for tag in tag_string.split(',')]
+                    individual_tags.update(tags_in_string)
+            
+            # Return sorted list of individual tags
+            return sorted(list(individual_tags))
     except Exception as e:
         st.error(f"Error fetching tags: {str(e)}")
         return []
