@@ -1134,7 +1134,8 @@ def main():
                         )
                     
                     with col2:
-                        show_all = st.button("Show All", help="Display all books (may be slow with many books)")
+                        st.markdown("<div style='height: 38px;'></div>", unsafe_allow_html=True)
+                        show_all = st.button("Show All")
                     
                     # Initialize filtered_df
                     filtered_df = df_from_db.copy()
