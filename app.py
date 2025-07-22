@@ -1105,13 +1105,23 @@ def main():
                             elapsed = current_time - start_time
                             elapsed_str = str(elapsed).split('.')[0]  # Remove microseconds
                             
-                            # Create a clickable link that sets the search query and navigates to Book Progress
-                            if st.button(f"**{book_title}** - {stage_name} ({user_name}) - Running for {elapsed_str}", key=f"goto_{task_key}"):
-                                # Set the search query in session state
-                                st.session_state.completion_search = book_title
-                                # Navigate to Book Progress tab (it should already be active)
-                                st.session_state.active_tab = 0  # Book Progress tab
-                                st.rerun()
+                            # Display timer info with copy to clipboard button
+                            col1, col2 = st.columns([6, 1])
+                            with col1:
+                                st.write(f"**{book_title}** - {stage_name} ({user_name}) - Running for {elapsed_str}")
+                            with col2:
+                                if st.button("📋", key=f"copy_{task_key}", help="Copy book name to clipboard"):
+                                    st.session_state[f"copied_{task_key}"] = True
+                                    # Create JavaScript to copy to clipboard
+                                    st.markdown(f"""
+                                    <script>
+                                    navigator.clipboard.writeText('{book_title}').then(function() {{
+                                        console.log('Copied to clipboard: {book_title}');
+                                    }});
+                                    </script>
+                                    """, unsafe_allow_html=True)
+                                    st.success(f"Copied '{book_title}' to clipboard!")
+                                    st.rerun()
         
         # Initialize session state for timers
         if 'timers' not in st.session_state:
