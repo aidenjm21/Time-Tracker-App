@@ -1326,7 +1326,12 @@ def main():
                                 else:
                                     book_title_with_progress = f"{completion_emoji}**{book_title}** (No estimate)"
                                 
-                                with st.expander(book_title_with_progress, expanded=has_active_timer):
+                                # Check if book should be expanded (either has active timer or was manually expanded)
+                                expanded_key = f"expanded_{book_title}"
+                                if expanded_key not in st.session_state:
+                                    st.session_state[expanded_key] = has_active_timer
+                                
+                                with st.expander(book_title_with_progress, expanded=st.session_state[expanded_key]):
                                     # Show progress bar and completion info at the top
                                     progress_bar_html = f"""
                                     <div style="width: 50%; background-color: #f0f0f0; border-radius: 5px; height: 10px; margin: 8px 0;">
@@ -1592,6 +1597,10 @@ def main():
                                                                     st.error(f"Error saving time: {str(e)}")
                                                     else:
                                                         if st.button("Start", key=f"start_{task_key}"):
+                                                            # Preserve expanded state before rerun
+                                                            expanded_key = f"expanded_{book_title}"
+                                                            st.session_state[expanded_key] = True
+                                                            
                                                             # Start timer and save to persistent storage
                                                             # Ensure we're using BST (UTC+1) consistently
                                                             utc_time = datetime.utcnow()
