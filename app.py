@@ -1175,14 +1175,9 @@ def main():
                         if len(books_to_display) == 0:
                             books_to_display = []
                     else:
-                        # Default: Show all books (no search query)
-                        books_with_tasks = set(filtered_df['Card name'].unique()) if not filtered_df.empty else set()
-                        books_without_tasks = set(book[0] for book in all_books if book[0] not in books_with_tasks)
-                        
-                        all_books_sorted = sorted(books_with_tasks | books_without_tasks)
-                        books_to_display = all_books_sorted
+                        books_to_display = []
                     
-                    # Display books (all books by default, or filtered results if searching)
+                    # Only display books if we have search results
                     if books_to_display:
                             # Display each book with enhanced visualization
                             for book_title in books_to_display:
