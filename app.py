@@ -1082,7 +1082,7 @@ def main():
         # Display active timers at the top
         active_timer_count = sum(1 for running in st.session_state.timers.values() if running)
         if active_timer_count > 0:
-            st.info(f"⏱️ {active_timer_count} timer(s) currently running - these will persist even if you refresh the page or close the tab")
+            st.info(f"{active_timer_count} timer(s) currently running - these will persist even if you refresh the page or close the tab")
             
             # Show details of active timers
             with st.expander("View Active Timers", expanded=False):
@@ -1105,7 +1105,13 @@ def main():
                             elapsed = current_time - start_time
                             elapsed_str = str(elapsed).split('.')[0]  # Remove microseconds
                             
-                            st.write(f"📚 **{book_title}** - {stage_name} ({user_name}) - Running for {elapsed_str}")
+                            # Create a clickable link that sets the search query and navigates to Book Progress
+                            if st.button(f"**{book_title}** - {stage_name} ({user_name}) - Running for {elapsed_str}", key=f"goto_{task_key}"):
+                                # Set the search query in session state
+                                st.session_state.completion_search = book_title
+                                # Navigate to Book Progress tab (it should already be active)
+                                st.session_state.active_tab = 0  # Book Progress tab
+                                st.rerun()
         
         # Initialize session state for timers
         if 'timers' not in st.session_state:
