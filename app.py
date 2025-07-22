@@ -1241,24 +1241,18 @@ def main():
                                     completion_percentage = 0
                                     progress_text = f"Total: {format_seconds_to_time(total_time_spent)} (No estimate)"
                                 
-                                # Auto-expand if there are active timers for this book or if it was manually expanded
+                                # Check for active timers more efficiently
                                 has_active_timer = any(
-                                    st.session_state.timers.get(f"{book_title}_{stage}_{user}", False)
-                                    for stage in ["Editorial R&D", "Editorial Writing", "1st Edit", "2nd Edit", "Design R&D", "In Design", "1st Proof", "2nd Proof", "Editorial Sign Off", "Design Sign Off"]
-                                    for user in book_data['User'].unique()
+                                    timer_key.startswith(f"{book_title}_") and active 
+                                    for timer_key, active in st.session_state.timers.items()
                                 )
                                 
-                                # Initialize expanded state if not exists
-                                expanded_key = f"expanded_{book_title}"
-                                if expanded_key not in st.session_state:
-                                    st.session_state[expanded_key] = has_active_timer
-                                
-                                # Keep expanded if there are active timers or if user manually expanded
-                                should_expand = has_active_timer or st.session_state.get(expanded_key, False)
-                                
-                                # Check if all tasks are completed
-                                all_tasks_completed = check_all_tasks_completed(engine, book_title)
-                                completion_emoji = "✅ " if all_tasks_completed else ""
+                                # Check if all tasks are completed (only if book has tasks)
+                                all_tasks_completed = False
+                                completion_emoji = ""
+                                if not book_data.empty and book_data['List'].iloc[0] != 'No tasks assigned':
+                                    all_tasks_completed = check_all_tasks_completed(engine, book_title)
+                                    completion_emoji = "✅ " if all_tasks_completed else ""
                                 
                                 # Create book title with progress percentage
                                 if estimated_time > 0:
@@ -1270,7 +1264,7 @@ def main():
                                 else:
                                     book_title_with_progress = f"{completion_emoji}**{book_title}** (No estimate)"
                                 
-                                with st.expander(book_title_with_progress, expanded=should_expand):
+                                with st.expander(book_title_with_progress, expanded=has_active_timer):
                                     # Show progress bar and completion info at the top
                                     progress_bar_html = f"""
                                     <div style="width: 50%; background-color: #f0f0f0; border-radius: 5px; height: 10px; margin: 8px 0;">
@@ -1308,19 +1302,11 @@ def main():
                                         if stage_name in stages_grouped.groups:
                                             stage_data = stages_grouped.get_group(stage_name)
                                             
-                                            # Check if this stage has any active timers
+                                            # Check if this stage has any active timers (efficient lookup)
                                             stage_has_active_timer = any(
-                                                st.session_state.timers.get(f"{book_title}_{stage_name}_{user}", False)
-                                                for user in stage_data['User'].unique()
+                                                timer_key.startswith(f"{book_title}_{stage_name}_") and active 
+                                                for timer_key, active in st.session_state.timers.items()
                                             )
-                                            
-                                            # Initialize stage expanded state
-                                            stage_expanded_key = f"stage_expanded_{book_title}_{stage_name}"
-                                            if stage_expanded_key not in st.session_state:
-                                                st.session_state[stage_expanded_key] = stage_has_active_timer
-                                            
-                                            # Keep expanded if there are active timers
-                                            should_expand_stage = stage_has_active_timer or st.session_state.get(stage_expanded_key, False)
                                             
                                             # Aggregate time by user for this stage
                                             user_aggregated = stage_data.groupby('User')['Time spent (s)'].sum().reset_index()
@@ -1342,9 +1328,8 @@ def main():
                                                     if not non_zero_estimates.empty:
                                                         estimated_time_for_user = non_zero_estimates.iloc[0]
                                                 
-                                                # Check if task is completed
-                                                is_completed = get_task_completion(engine, book_title, user_name, stage_name)
-                                                completion_emoji = "✅ " if is_completed else ""
+                                                # Check if task is completed (simplified for performance)
+                                                completion_emoji = ""
                                                 
                                                 # Format times for display
                                                 actual_time_str = format_seconds_to_time(actual_time)
@@ -1359,7 +1344,7 @@ def main():
                                             else:
                                                 expander_title = stage_name
                                             
-                                            with st.expander(expander_title, expanded=should_expand_stage):
+                                            with st.expander(expander_title, expanded=stage_has_active_timer):
                                                 # Show one task per user for this stage
                                                 for idx, user_task in user_aggregated.iterrows():
                                                     user_name = user_task['User']
@@ -1440,16 +1425,20 @@ def main():
                                                     else:
                                                         st.write(f"{progress_percentage * 100:.1f}% complete")
                                                     
-                                                    # Completion checkbox
-                                                    is_completed = get_task_completion(engine, book_title, user_name, stage_name)
+                                                    # Completion checkbox (optimized)
+                                                    completion_key = f"complete_{book_title}_{stage_name}_{user_name}"
+                                                    if completion_key not in st.session_state:
+                                                        st.session_state[completion_key] = get_task_completion(engine, book_title, user_name, stage_name)
+                                                    
                                                     new_completion_status = st.checkbox(
                                                         "Completed",
-                                                        value=is_completed,
-                                                        key=f"complete_{book_title}_{stage_name}_{user_name}"
+                                                        value=st.session_state[completion_key],
+                                                        key=completion_key
                                                     )
                                                     
                                                     # Update completion status if changed
-                                                    if new_completion_status != is_completed:
+                                                    if new_completion_status != st.session_state[completion_key]:
+                                                        st.session_state[completion_key] = new_completion_status
                                                         update_task_completion(engine, book_title, user_name, stage_name, new_completion_status)
                                                         st.rerun()
                                             
