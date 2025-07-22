@@ -1124,51 +1124,40 @@ def main():
                             user_name = parts[-1]
                             
                             start_time = st.session_state.timer_start_times[task_key]
-                            # Ensure timezone-aware datetime for calculations
+                            # Ensure timezone-aware datetime for calculations and validate start time
                             if start_time.tzinfo is None:
                                 start_time = start_time.replace(tzinfo=BST)
                             
                             # Calculate current elapsed time using consistent UTC-based approach
                             current_time = datetime.utcnow().replace(tzinfo=timezone.utc).astimezone(BST)
                             elapsed = current_time - start_time
-                            elapsed_str = str(elapsed).split('.')[0]  # Remove microseconds
                             
-                            # Display timer info with always visible clipboard icon
-                            # Escape book title for JavaScript
-                            book_title_escaped = book_title.replace("'", "\\'").replace('"', '\\"')
-                            unique_id = f"timer_{task_key.replace(' ', '_').replace('-', '_')}"
-                            st.markdown(f"""
-                            <div style="position: relative; display: inline-block; width: 100%;">
-                                <span><strong>{book_title}</strong> - {stage_name} ({user_name}) - Running for {elapsed_str}</span>
-                                <button type="button" style="
-                                    background: none;
-                                    border: none;
-                                    margin-left: 10px;
-                                    cursor: pointer;
-                                    color: #666;
-                                    font-size: 16px;
-                                    vertical-align: middle;
-                                    padding: 2px;
-                                " onclick="copyBookName_{unique_id}()" title="Copy book name: {book_title}">🔗</button>
-                            </div>
-                            <script>
-                            window.copyBookName_{unique_id} = function() {{
-                                const bookName = '{book_title_escaped}';
-                                if (navigator.clipboard && navigator.clipboard.writeText) {{
-                                    navigator.clipboard.writeText(bookName).then(function() {{
-                                        console.log('Copied book name to clipboard: ' + bookName);
-                                        alert('Copied: ' + bookName);
-                                    }}).catch(function(err) {{
-                                        console.error('Failed to copy: ', err);
-                                        prompt('Copy this book name manually:', bookName);
-                                    }});
-                                }} else {{
-                                    // Fallback for older browsers
-                                    prompt('Copy this book name manually:', bookName);
-                                }}
-                            }};
-                            </script>
-                            """, unsafe_allow_html=True)
+                            # Check for negative time and fix if needed
+                            if elapsed.total_seconds() < 0:
+                                # Reset start time to current time if we have negative elapsed
+                                st.session_state.timer_start_times[task_key] = current_time
+                                elapsed = timedelta(seconds=0)
+                                elapsed_str = "0:00:00"
+                                
+                                # Update database with corrected start time
+                                try:
+                                    with engine.connect() as conn:
+                                        conn.execute(text('''
+                                            UPDATE active_timers 
+                                            SET start_time = :start_time 
+                                            WHERE timer_key = :timer_key
+                                        '''), {
+                                            'start_time': current_time,
+                                            'timer_key': task_key
+                                        })
+                                        conn.commit()
+                                except Exception as e:
+                                    st.error(f"Error updating timer start time: {str(e)}")
+                            else:
+                                elapsed_str = str(elapsed).split('.')[0]  # Remove microseconds
+                            
+                            # Display timer info without clipboard icon
+                            st.write(f"**{book_title}** - {stage_name} ({user_name}) - Running for {elapsed_str}")
         
         # Initialize session state for timers
         if 'timers' not in st.session_state:
@@ -1622,7 +1611,30 @@ def main():
                                                         # Use UTC time and convert to BST for consistent calculation
                                                         current_time = datetime.utcnow().replace(tzinfo=timezone.utc).astimezone(BST)
                                                         elapsed = current_time - start_time
-                                                        elapsed_str = str(elapsed).split('.')[0]  # Remove microseconds
+                                                        
+                                                        # Check for negative time and fix if needed
+                                                        if elapsed.total_seconds() < 0:
+                                                            # Reset start time to current time if we have negative elapsed
+                                                            st.session_state.timer_start_times[task_key] = current_time
+                                                            elapsed = timedelta(seconds=0)
+                                                            elapsed_str = "0:00:00"
+                                                            
+                                                            # Update database with corrected start time
+                                                            try:
+                                                                with engine.connect() as conn:
+                                                                    conn.execute(text('''
+                                                                        UPDATE active_timers 
+                                                                        SET start_time = :start_time 
+                                                                        WHERE timer_key = :timer_key
+                                                                    '''), {
+                                                                        'start_time': current_time,
+                                                                        'timer_key': task_key
+                                                                    })
+                                                                    conn.commit()
+                                                            except Exception as e:
+                                                                st.error(f"Error updating timer start time: {str(e)}")
+                                                        else:
+                                                            elapsed_str = str(elapsed).split('.')[0]  # Remove microseconds
                                                         
                                                         st.write(f"**Recording** ({elapsed_str})")
                                                         
