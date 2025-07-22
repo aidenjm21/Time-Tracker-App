@@ -1076,7 +1076,35 @@ def main():
             st.success(st.session_state.book_created_message)
     
     elif selected_tab == "Book Progress":
-        st.header("Book Completion Progress")
+        # Header with hover clipboard functionality
+        st.markdown("""
+        <div style="position: relative; display: inline-block;">
+            <h1 style="display: inline-block; margin: 0;" id="book-completion-progress">Book Completion Progress</h1>
+            <span class="header-copy-icon" style="
+                opacity: 0;
+                transition: opacity 0.2s;
+                margin-left: 10px;
+                cursor: pointer;
+                color: #666;
+                font-size: 20px;
+                vertical-align: middle;
+            " onclick="copyHeaderLink()">🔗</span>
+        </div>
+        <style>
+        #book-completion-progress:hover + .header-copy-icon,
+        .header-copy-icon:hover {
+            opacity: 1;
+        }
+        </style>
+        <script>
+        function copyHeaderLink() {
+            const url = window.location.origin + window.location.pathname + '#book-completion-progress';
+            navigator.clipboard.writeText(url).then(function() {
+                console.log('Copied header link to clipboard');
+            });
+        }
+        </script>
+        """, unsafe_allow_html=True)
         st.markdown("Visual progress tracking for all books with individual task timers.")
         
         # Display active timers at the top
@@ -1105,35 +1133,31 @@ def main():
                             elapsed = current_time - start_time
                             elapsed_str = str(elapsed).split('.')[0]  # Remove microseconds
                             
-                            # Display timer info with hover clipboard icon
+                            # Display timer info with hover clipboard icon (same style as header)
                             unique_id = f"timer_{task_key.replace(' ', '_').replace('-', '_')}"
                             st.markdown(f"""
-                            <div id="{unique_id}" style="position: relative; display: inline-block; width: 100%;">
-                                <span><strong>{book_title}</strong> - {stage_name} ({user_name}) - Running for {elapsed_str}</span>
-                                <span class="copy-icon" style="
+                            <div style="position: relative; display: inline-block; width: 100%;">
+                                <span id="{unique_id}_text"><strong>{book_title}</strong> - {stage_name} ({user_name}) - Running for {elapsed_str}</span>
+                                <span class="timer-copy-icon" style="
                                     opacity: 0;
                                     transition: opacity 0.2s;
                                     margin-left: 10px;
                                     cursor: pointer;
                                     color: #666;
-                                " onclick="copyToClipboard('{book_title}', '{unique_id}')">📋</span>
+                                    font-size: 16px;
+                                    vertical-align: middle;
+                                " onclick="copyTimerBookName('{book_title}')">🔗</span>
                             </div>
                             <style>
-                            #{unique_id}:hover .copy-icon {{
+                            #{unique_id}_text:hover + .timer-copy-icon,
+                            .timer-copy-icon:hover {{
                                 opacity: 1;
                             }}
                             </style>
                             <script>
-                            function copyToClipboard(text, elementId) {{
-                                navigator.clipboard.writeText(text).then(function() {{
-                                    console.log('Copied to clipboard: ' + text);
-                                    // Show brief feedback
-                                    const element = document.getElementById(elementId);
-                                    const originalText = element.innerHTML;
-                                    element.innerHTML = originalText.replace('📋', '✓');
-                                    setTimeout(function() {{
-                                        element.innerHTML = originalText;
-                                    }}, 1000);
+                            function copyTimerBookName(bookName) {{
+                                navigator.clipboard.writeText(bookName).then(function() {{
+                                    console.log('Copied book name to clipboard: ' + bookName);
                                 }});
                             }}
                             </script>
