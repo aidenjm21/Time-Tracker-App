@@ -1443,34 +1443,47 @@ def main():
                                                         except ValueError:
                                                             current_index = 0  # Default to "Not set"
                                                         
+                                                        # Use a stable key that doesn't depend on user_name to avoid state conflicts
+                                                        selectbox_key = f"reassign_{book_title}_{stage_name}"
+                                                        
                                                         new_user = st.selectbox(
                                                             f"User for {stage_name}:",
                                                             user_options,
                                                             index=current_index,
-                                                            key=f"reassign_{book_title}_{stage_name}_{user_name}"
+                                                            key=selectbox_key
                                                         )
                                                         
-                                                        # Handle user reassignment
+                                                        # Handle user reassignment with improved state management
                                                         if new_user != current_user:
                                                             try:
                                                                 with engine.connect() as conn:
                                                                     # Update user assignment in database
                                                                     new_user_value = new_user if new_user != "Not set" else None
+                                                                    old_user_value = user_name if user_name != "Not set" else None
+                                                                    
                                                                     conn.execute(text('''
                                                                         UPDATE trello_time_tracking 
                                                                         SET user_name = :new_user
                                                                         WHERE card_name = :card_name 
                                                                         AND list_name = :list_name 
-                                                                        AND user_name = :old_user
+                                                                        AND COALESCE(user_name, '') = COALESCE(:old_user, '')
                                                                     '''), {
                                                                         'new_user': new_user_value,
                                                                         'card_name': book_title,
-                                                                    'list_name': stage_name,
-                                                                    'old_user': user_name
-                                                                })
-                                                                conn.commit()
-                                                                st.success(f"User reassigned to {new_user}")
-                                                                st.rerun()
+                                                                        'list_name': stage_name,
+                                                                        'old_user': old_user_value
+                                                                    })
+                                                                    conn.commit()
+                                                                    
+                                                                    # Clear relevant session state to force refresh
+                                                                    keys_to_clear = [k for k in st.session_state.keys() 
+                                                                                    if book_title in k and stage_name in k]
+                                                                    for key in keys_to_clear:
+                                                                        if key.startswith(('complete_', 'timer_')):
+                                                                            del st.session_state[key]
+                                                                    
+                                                                    st.success(f"User reassigned from {current_user} to {new_user}")
+                                                                    st.rerun()
                                                             except Exception as e:
                                                                 st.error(f"Error reassigning user: {str(e)}")
                                                     
