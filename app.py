@@ -1105,7 +1105,6 @@ def main():
                 total_records = result.scalar()
                 
             if total_records and total_records > 0:
-                st.info(f"Showing completion progress for books from {total_records} database records.")
                 
                 # Get all books including those without tasks
                 all_books = get_all_books(engine)
@@ -1131,7 +1130,6 @@ def main():
                         search_query = st.text_input(
                             "Search books by title:",
                             placeholder="Enter book title to search...",
-                            help="Search for specific books by typing part of the title",
                             key="completion_search"
                         )
                     
@@ -1150,9 +1148,7 @@ def main():
                         all_books_sorted = sorted(books_with_tasks | books_without_tasks)
                         books_to_display = all_books_sorted
                         
-                        st.write(f"Showing all {len(books_to_display)} books")
-                        if len(books_to_display) > 20:
-                            st.warning("Large number of books may take time to load")
+
                         
                     elif search_query:
                         # Filter books based on search and limit to 10 results
@@ -1170,16 +1166,9 @@ def main():
                         all_matching_books = sorted(books_with_tasks | books_without_tasks)
                         books_to_display = all_matching_books[:10]  # Limit to 10 results
                         
-                        if len(books_to_display) > 0:
-                            if len(all_matching_books) > 10:
-                                st.write(f"Showing first 10 of {len(all_matching_books)} matching books")
-                            else:
-                                st.write(f"Found {len(books_to_display)} matching books")
-                        else:
-                            st.warning(f"No books found matching '{search_query}'")
+                        if len(books_to_display) == 0:
                             books_to_display = []
                     else:
-                        st.info("Enter a search term to find books (up to 10 results) or click 'Show All' to display all books")
                         books_to_display = []
                     
                     # Only display books if we have search results
@@ -1789,14 +1778,11 @@ def main():
                                 
                                 stage_counter += 1
                     else:
-                        if search_query:
-                            st.warning(f"No books found matching '{search_query}'")
-                        else:
-                            st.warning("No book completion data available")
+                        pass
                 else:
-                    st.warning("No data available in database")
+                    pass
             else:
-                st.info("No data available. Please add entries in the 'Data Entry' tab.")
+                pass
                 
         except Exception as e:
             st.error(f"Error accessing database: {str(e)}")
