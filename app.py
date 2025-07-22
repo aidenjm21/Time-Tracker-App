@@ -438,8 +438,11 @@ def get_filtered_tasks_from_database(_engine, user_name=None, book_name=None, bo
             params['board_name'] = board_name
             
         if tag_name and tag_name != "All Tags":
-            query += ' AND tag = :tag_name'
+            query += ' AND (tag = :tag_name OR tag LIKE :tag_name_pattern1 OR tag LIKE :tag_name_pattern2 OR tag LIKE :tag_name_pattern3)'
             params['tag_name'] = tag_name
+            params['tag_name_pattern1'] = f'{tag_name},%'  # Tag at start
+            params['tag_name_pattern2'] = f'%, {tag_name},%'  # Tag in middle  
+            params['tag_name_pattern3'] = f'%, {tag_name}'  # Tag at end
         
         query += '''
                 GROUP BY card_name, list_name, COALESCE(user_name, 'Not set'), board_name, tag
@@ -891,19 +894,17 @@ def main():
             ]
             board_name = st.selectbox("Board", options=board_options, key="manual_board_name", index=0 if clear_form else None)
             
-        # Tag field
+        # Tag field - Multi-select
         existing_tags = get_tags_from_database(engine)
-        tag_options = [""] + existing_tags  # Empty option for no tag
         
-        # Create tag input - allow selecting existing or adding new
+        # Create tag input - allow selecting multiple existing or adding new
         col1, col2 = st.columns([3, 1])
         with col1:
-            selected_tag = st.selectbox(
-                "Tag (optional)",
-                tag_options,
+            selected_tags = st.multiselect(
+                "Tags (optional)",
+                existing_tags,
                 key="manual_tag_select",
-                help="Select an existing tag or choose 'Add New' to create a new tag",
-                index=0 if clear_form else None
+                placeholder="Choose an option"
             )
         with col2:
             add_new_tag = st.checkbox("Add New", key="manual_add_new_tag", value=False if clear_form else None)
@@ -911,9 +912,13 @@ def main():
         # If user wants to add new tag, show text input
         if add_new_tag:
             new_tag = st.text_input("New Tag", placeholder="Enter new tag name", key="manual_new_tag", value="" if clear_form else None)
-            final_tag = new_tag.strip() if new_tag else None
-        else:
-            final_tag = selected_tag if selected_tag else None
+            if new_tag and new_tag.strip():
+                new_tag_clean = new_tag.strip()
+                if new_tag_clean not in selected_tags:
+                    selected_tags.append(new_tag_clean)
+        
+        # Join multiple tags with commas for storage
+        final_tag = ", ".join(selected_tags) if selected_tags else None
             
         st.subheader("Task Assignment & Estimates")
         st.markdown("*Assign users to stages and set time estimates. All tasks start with 0 actual time - use the Book Completion tab to track actual work time.*")
@@ -1278,8 +1283,12 @@ def main():
                                     # Display tag if available
                                     book_tags = book_data['Tag'].dropna().unique()
                                     if len(book_tags) > 0 and book_tags[0]:
+                                        # Handle multiple tags (comma-separated)
                                         tag_display = book_tags[0]
-                                        st.markdown(f'<div style="font-size: 14px; color: #888; margin-bottom: 10px;"><strong>Tag:</strong> {tag_display}</div>', unsafe_allow_html=True)
+                                        # If there are commas, it means multiple tags
+                                        if ',' in tag_display:
+                                            tag_display = tag_display.replace(',', ', ')  # Ensure proper spacing
+                                        st.markdown(f'<div style="font-size: 14px; color: #888; margin-bottom: 10px;"><strong>Tags:</strong> {tag_display}</div>', unsafe_allow_html=True)
                                     
                                     st.markdown("---")
                                     
