@@ -1133,14 +1133,13 @@ def main():
                             elapsed = current_time - start_time
                             elapsed_str = str(elapsed).split('.')[0]  # Remove microseconds
                             
-                            # Display timer info with hover clipboard icon (same style as header)
+                            # Display timer info with always visible clipboard icon
                             unique_id = f"timer_{task_key.replace(' ', '_').replace('-', '_')}"
                             st.markdown(f"""
                             <div style="position: relative; display: inline-block; width: 100%;">
                                 <span id="{unique_id}_text"><strong>{book_title}</strong> - {stage_name} ({user_name}) - Running for {elapsed_str}</span>
                                 <span class="timer-copy-icon" style="
-                                    opacity: 0;
-                                    transition: opacity 0.2s;
+                                    opacity: 1;
                                     margin-left: 10px;
                                     cursor: pointer;
                                     color: #666;
@@ -1148,12 +1147,6 @@ def main():
                                     vertical-align: middle;
                                 " onclick="copyTimerBookName('{book_title}')">🔗</span>
                             </div>
-                            <style>
-                            #{unique_id}_text:hover + .timer-copy-icon,
-                            .timer-copy-icon:hover {{
-                                opacity: 1;
-                            }}
-                            </style>
                             <script>
                             function copyTimerBookName(bookName) {{
                                 navigator.clipboard.writeText(bookName).then(function() {{
