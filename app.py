@@ -1277,24 +1277,32 @@ def main():
         if active_timer_count > 0:
             st.info(f"{active_timer_count} timer(s) currently running - these will persist even if you refresh the page or close the tab")
             
-            # Show details of active timers
-            with st.expander("View Active Timers", expanded=False):
-                for task_key, is_running in st.session_state.timers.items():
-                    if is_running and task_key in st.session_state.timer_start_times:
-                        # Extract book, stage, and user from task_key
-                        parts = task_key.split('_')
-                        if len(parts) >= 3:
-                            book_title = '_'.join(parts[:-2])
-                            stage_name = parts[-2]
-                            user_name = parts[-1]
-                            
-                            start_time = st.session_state.timer_start_times[task_key]
-                            # Ensure timezone-aware datetime for calculations and validate start time
-                            if start_time.tzinfo is None:
-                                start_time = start_time.replace(tzinfo=BST)
-                            
-                            # Calculate current elapsed time using consistent UTC-based approach
-                            current_time = datetime.utcnow().replace(tzinfo=timezone.utc).astimezone(BST)
+            # Show active timers as visible block (not in dropdown)
+            st.markdown("### Active Timers")
+            for task_key, is_running in st.session_state.timers.items():
+                if is_running and task_key in st.session_state.timer_start_times:
+                    # Extract book, stage, and user from task_key
+                    parts = task_key.split('_')
+                    if len(parts) >= 3:
+                        book_title = '_'.join(parts[:-2])
+                        stage_name = parts[-2]
+                        user_name = parts[-1]
+                        
+                        start_time = st.session_state.timer_start_times[task_key]
+                        # Ensure timezone-aware datetime for calculations and validate start time
+                        if start_time.tzinfo is None:
+                            start_time = start_time.replace(tzinfo=BST)
+                        
+                        # Calculate current elapsed time using consistent UTC-based approach
+                        current_time = datetime.utcnow().replace(tzinfo=timezone.utc).astimezone(BST)
+                        
+                        # Handle pause states for display
+                        if task_key in st.session_state.timer_paused and st.session_state.timer_paused[task_key]:
+                            # If paused, show accumulated time only
+                            total_seconds = st.session_state.timer_accumulated_time.get(task_key, 0)
+                            status = "PAUSED"
+                        else:
+                            # If running, add current session to accumulated time
                             elapsed = current_time - start_time
                             
                             # Check for negative time and fix if needed
@@ -1302,7 +1310,7 @@ def main():
                                 # Reset start time to current time if we have negative elapsed
                                 st.session_state.timer_start_times[task_key] = current_time
                                 elapsed = timedelta(seconds=0)
-                                elapsed_str = "0:00:00"
+                                total_seconds = st.session_state.timer_accumulated_time.get(task_key, 0)
                                 
                                 # Update database with corrected start time
                                 try:
@@ -1319,10 +1327,22 @@ def main():
                                 except Exception as e:
                                     st.error(f"Error updating timer start time: {str(e)}")
                             else:
-                                elapsed_str = str(elapsed).split('.')[0]  # Remove microseconds
+                                accumulated_time = st.session_state.timer_accumulated_time.get(task_key, 0)
+                                current_session = int(elapsed.total_seconds())
+                                total_seconds = accumulated_time + current_session
                             
-                            # Display timer info without clipboard icon
-                            st.write(f"**{book_title}** - {stage_name} ({user_name}) - Running for {elapsed_str}")
+                            status = "RUNNING"
+                        
+                        # Format time as hh:mm:ss
+                        hours = total_seconds // 3600
+                        minutes = (total_seconds % 3600) // 60
+                        seconds = total_seconds % 60
+                        elapsed_str = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+                        
+                        # Display timer info with status
+                        st.write(f"🕐 **{book_title}** - {stage_name} ({user_name}) - {status} for {elapsed_str}")
+            
+            st.markdown("---")
         
         # Initialize session state for timers
         if 'timers' not in st.session_state:
