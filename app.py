@@ -1395,12 +1395,17 @@ def main():
                 )
                 
                 if not df_from_db.empty:
+                    # Calculate total books for search title
+                    books_with_tasks = set(df_from_db['Card name'].unique()) if not df_from_db.empty else set()
+                    books_without_tasks = set(book[0] for book in all_books if book[0] not in books_with_tasks)
+                    total_books = len(books_with_tasks | books_without_tasks)
+                    
                     # Add search bar and show all button
                     col1, col2 = st.columns([3, 1])
                     
                     with col1:
                         search_query = st.text_input(
-                            "Search books by title:",
+                            f"Search books by title ({total_books}):",
                             placeholder="Enter book title to search...",
                             key="completion_search"
                         )
