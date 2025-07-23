@@ -158,6 +158,9 @@ Changelog:
 - July 11, 2025. Added completion percentage column to Reporting filtered results showing task progress relative to time estimates
 - July 11, 2025. Added pagination to Book Progress tab (10 books per page) with navigation controls to improve performance with large datasets
 - July 11, 2025. Enhanced tab switching with automatic refresh and added loading spinners for better user experience
+- July 23, 2025. Fixed completion emoji issue on book cards: completion status now updates immediately when checkboxes are changed
+- July 23, 2025. Added comprehensive database retry logic to handle PostgreSQL SSL connection errors
+- July 23, 2025. Added maximum time validation (100 hours) for manual time entry to prevent database integer overflow errors
 ```
 
 ## User Preferences

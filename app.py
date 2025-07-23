@@ -2035,7 +2035,7 @@ def main():
                                                 # Create a form to handle Enter key properly
                                                 with st.form(key=f"time_form_{task_key}"):
                                                     manual_time = st.text_input(
-                                                        "Add time (hh:mm:ss):", 
+                                                        "Add time (hh:mm:ss) - Max 100:00:00:", 
                                                         placeholder="01:30:00"
                                                     )
                                                     
@@ -2063,54 +2063,67 @@ def main():
                                                                 hours = int(time_parts[0])
                                                                 minutes = int(time_parts[1])
                                                                 seconds = int(time_parts[2])
-                                                                total_seconds = hours * 3600 + minutes * 60 + seconds
                                                                 
-                                                                if total_seconds > 0:
-                                                                    # Add manual time to database
-                                                                    try:
-                                                                        # Get board name from original data
-                                                                        user_original_data = stage_data[stage_data['User'] == user_name].iloc[0]
-                                                                        board_name = user_original_data['Board']
-                                                                        # Get existing tag from original data
-                                                                        existing_tag = user_original_data.get('Tag', None) if 'Tag' in user_original_data else None
-                                                                        
-                                                                        # Preserve expanded state before rerun
-                                                                        expanded_key = f"expanded_{book_title}"
-                                                                        st.session_state[expanded_key] = True
-                                                                        
-                                                                        # Preserve stage expanded state
-                                                                        stage_expanded_key = f"stage_expanded_{book_title}_{stage_name}"
-                                                                        st.session_state[stage_expanded_key] = True
-                                                                        
-                                                                        with engine.connect() as conn:
-                                                                            conn.execute(text('''
-                                                                                INSERT INTO trello_time_tracking 
-                                                                                (card_name, user_name, list_name, time_spent_seconds, board_name, created_at, tag)
-                                                                                VALUES (:card_name, :user_name, :list_name, :time_spent_seconds, :board_name, :created_at, :tag)
-                                                                            '''), {
-                                                                                'card_name': book_title,
-                                                                                'user_name': user_name,
-                                                                                'list_name': stage_name,
-                                                                                'time_spent_seconds': total_seconds,
-                                                                                'board_name': board_name,
-                                                                                'created_at': datetime.now(BST),
-                                                                                'tag': existing_tag
-                                                                            })
-                                                                            conn.commit()
-                                                                        
-                                                                        # Store success message in session state for display
-                                                                        success_msg_key = f"manual_time_success_{task_key}"
-                                                                        st.session_state[success_msg_key] = f"Added {manual_time} to progress"
-                                                                        
-                                                                        # Only refresh after a delay to batch updates
-                                                                        if 'pending_refresh' not in st.session_state:
-                                                                            st.session_state.pending_refresh = True
-                                                                            st.rerun()
-                                                                        
-                                                                    except Exception as e:
-                                                                        st.error(f"Error saving time: {str(e)}")
+                                                                # Validate individual components
+                                                                if hours > 100:
+                                                                    st.error(f"Maximum hours allowed is 100. You entered {hours} hours.")
+                                                                elif minutes >= 60:
+                                                                    st.error(f"Minutes must be less than 60. You entered {minutes} minutes.")
+                                                                elif seconds >= 60:
+                                                                    st.error(f"Seconds must be less than 60. You entered {seconds} seconds.")
                                                                 else:
-                                                                    st.error("Time must be greater than 00:00:00")
+                                                                    total_seconds = hours * 3600 + minutes * 60 + seconds
+                                                                    
+                                                                    # Validate maximum time (100 hours = 360,000 seconds)
+                                                                    max_seconds = 100 * 3600  # 360,000 seconds
+                                                                    if total_seconds > max_seconds:
+                                                                        st.error(f"Maximum time allowed is 100:00:00. You entered {manual_time}")
+                                                                    elif total_seconds > 0:
+                                                                        # Add manual time to database
+                                                                        try:
+                                                                            # Get board name from original data
+                                                                            user_original_data = stage_data[stage_data['User'] == user_name].iloc[0]
+                                                                            board_name = user_original_data['Board']
+                                                                            # Get existing tag from original data
+                                                                            existing_tag = user_original_data.get('Tag', None) if 'Tag' in user_original_data else None
+                                                                            
+                                                                            # Preserve expanded state before rerun
+                                                                            expanded_key = f"expanded_{book_title}"
+                                                                            st.session_state[expanded_key] = True
+                                                                            
+                                                                            # Preserve stage expanded state
+                                                                            stage_expanded_key = f"stage_expanded_{book_title}_{stage_name}"
+                                                                            st.session_state[stage_expanded_key] = True
+                                                                            
+                                                                            with engine.connect() as conn:
+                                                                                conn.execute(text('''
+                                                                                    INSERT INTO trello_time_tracking 
+                                                                                    (card_name, user_name, list_name, time_spent_seconds, board_name, created_at, tag)
+                                                                                    VALUES (:card_name, :user_name, :list_name, :time_spent_seconds, :board_name, :created_at, :tag)
+                                                                                '''), {
+                                                                                    'card_name': book_title,
+                                                                                    'user_name': user_name,
+                                                                                    'list_name': stage_name,
+                                                                                    'time_spent_seconds': total_seconds,
+                                                                                    'board_name': board_name,
+                                                                                    'created_at': datetime.now(BST),
+                                                                                    'tag': existing_tag
+                                                                                })
+                                                                                conn.commit()
+                                                                            
+                                                                            # Store success message in session state for display
+                                                                            success_msg_key = f"manual_time_success_{task_key}"
+                                                                            st.session_state[success_msg_key] = f"Added {manual_time} to progress"
+                                                                            
+                                                                            # Only refresh after a delay to batch updates
+                                                                            if 'pending_refresh' not in st.session_state:
+                                                                                st.session_state.pending_refresh = True
+                                                                                st.rerun()
+                                                                            
+                                                                        except Exception as e:
+                                                                            st.error(f"Error saving time: {str(e)}")
+                                                                    else:
+                                                                        st.error("Time must be greater than 00:00:00")
                                                             else:
                                                                 st.error("Please use format hh:mm:ss (e.g., 01:30:00)")
                                                         except ValueError:
