@@ -169,6 +169,8 @@ Changelog:
 - July 23, 2025. Enhanced timer persistence system with comprehensive database storage: added accumulated_seconds and is_paused columns to active_timers table, timers now fully preserve pause/resume states and accumulated time across page refreshes, added continuous database sync to prevent timer resets, implemented background timer state updates to keep database current
 - July 23, 2025. Fixed critical multi-user timer race condition causing exponential time growth: removed problematic background update function that was accumulating time incorrectly when multiple users accessed the app, improved timer loading logic to properly handle accumulated time vs current session time, fixed pause/resume calculations to prevent time duplication
 - July 23, 2025. Fixed unique constraint violation error when stopping timers: implemented ON CONFLICT DO UPDATE logic to handle duplicate entries that occur when timers record identical time durations on the same date, preventing database errors during timer stops
+- July 23, 2025. Fixed timer display showing 00:00:00: corrected timer loading logic to properly calculate accumulated time for running timers restored from database
+- July 23, 2025. Enhanced timer stop robustness: improved error handling to clear timer states immediately on stop button click, preventing need for double-clicks and ensuring proper cleanup even when database errors occur
 ```
 
 ## User Preferences

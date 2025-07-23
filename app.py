@@ -2112,8 +2112,12 @@ def main():
                                                                 stage_expanded_key = f"stage_expanded_{book_title}_{stage_name}"
                                                                 st.session_state[stage_expanded_key] = True
                                                                 
+                                                                # Always clear timer states first to prevent double-processing
+                                                                st.session_state.timers[task_key] = False
+                                                                timer_start_time = st.session_state.timer_start_times.get(task_key)
+                                                                
                                                                 # Save to database only if time > 0
-                                                                if final_time > 0:
+                                                                if final_time > 0 and timer_start_time:
                                                                     try:
                                                                         user_original_data = stage_data[stage_data['User'] == user_name].iloc[0]
                                                                         board_name = user_original_data['Board']
@@ -2138,8 +2142,8 @@ def main():
                                                                                 'user_name': user_name,
                                                                                 'list_name': stage_name,
                                                                                 'time_spent_seconds': final_time,
-                                                                                'date_started': st.session_state.timer_start_times[task_key].date(),
-                                                                                'session_start_time': st.session_state.timer_start_times[task_key],
+                                                                                'date_started': timer_start_time.date(),
+                                                                                'session_start_time': timer_start_time,
                                                                                 'board_name': board_name,
                                                                                 'tag': existing_tag
                                                                             })
@@ -2153,10 +2157,26 @@ def main():
                                                                         success_msg_key = f"timer_success_{task_key}"
                                                                         st.session_state[success_msg_key] = f"Added {elapsed_str} to {book_title} - {stage_name}"
                                                                     except Exception as e:
-                                                                        st.error(f"Error saving time: {str(e)}")
+                                                                        st.error(f"Error saving timer data: {str(e)}")
+                                                                        # Still try to clean up active timer from database on error
+                                                                        try:
+                                                                            with engine.connect() as conn:
+                                                                                conn.execute(text('DELETE FROM active_timers WHERE timer_key = :timer_key'), 
+                                                                                           {'timer_key': task_key})
+                                                                                conn.commit()
+                                                                        except:
+                                                                            pass  # Ignore cleanup errors
+                                                                else:
+                                                                    # Even if no time to save, clean up active timer
+                                                                    try:
+                                                                        with engine.connect() as conn:
+                                                                            conn.execute(text('DELETE FROM active_timers WHERE timer_key = :timer_key'), 
+                                                                                       {'timer_key': task_key})
+                                                                            conn.commit()
+                                                                    except:
+                                                                        pass  # Ignore cleanup errors
                                                                 
-                                                                # Clear timer states
-                                                                st.session_state.timers[task_key] = False
+                                                                # Always clear timer states regardless of database success/failure
                                                                 if task_key in st.session_state.timer_start_times:
                                                                     del st.session_state.timer_start_times[task_key]
                                                                 if task_key in st.session_state.timer_paused:
