@@ -2023,17 +2023,7 @@ def main():
                                                         except ValueError:
                                                             st.error("Please enter valid numbers in hh:mm:ss format")
                                                 
-                                                # Add Remove stage button with right alignment and reduced spacing
-                                                st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
-                                                col_remove_left, col_remove_right = st.columns([3, 1])
-                                                with col_remove_right:
-                                                    if st.button("Remove stage", key=f"remove_{book_title}_{stage_name}_{user_name}", type="secondary"):
-                                                        # Single click delete
-                                                        if delete_task_stage(engine, book_title, user_name, stage_name):
-                                                            st.success(f"Removed {stage_name} for {user_name}")
-                                                            st.rerun()
-                                                        else:
-                                                            st.error("Failed to remove stage")
+
                                                 
                                                 # Display timer success message at bottom if exists
                                                 success_msg_key = f"timer_success_{task_key}"
@@ -2090,6 +2080,45 @@ def main():
                                                 st.rerun()
                                             else:
                                                 st.error("Failed to add stage")
+                                    
+                                    # Remove stage section at the bottom left of each book
+                                    if stages_grouped.groups:  # Only show if book has stages
+                                        st.markdown("---")
+                                        remove_col1, remove_col2, remove_col3 = st.columns([2, 1, 1])
+                                        
+                                        with remove_col1:
+                                            # Get all current stages for this book
+                                            current_stages_with_users = []
+                                            for stage_name in stage_order:
+                                                if stage_name in stages_grouped.groups:
+                                                    stage_data = stages_grouped.get_group(stage_name)
+                                                    user_aggregated = stage_data.groupby('User')['Time spent (s)'].sum().reset_index()
+                                                    for idx, user_task in user_aggregated.iterrows():
+                                                        user_name = user_task['User']
+                                                        user_display = user_name if user_name and user_name != "Not set" else "Unassigned"
+                                                        current_stages_with_users.append(f"{stage_name} ({user_display})")
+                                            
+                                            if current_stages_with_users:
+                                                selected_remove_stage = st.selectbox(
+                                                    "Remove stage:",
+                                                    options=["Select stage to remove..."] + current_stages_with_users,
+                                                    key=f"remove_stage_select_{book_title}"
+                                                )
+                                                
+                                                if selected_remove_stage != "Select stage to remove...":
+                                                    # Parse the selection to get stage name and user
+                                                    stage_user_match = selected_remove_stage.split(" (")
+                                                    remove_stage_name = stage_user_match[0]
+                                                    remove_user_name = stage_user_match[1].rstrip(")")
+                                                    if remove_user_name == "Unassigned":
+                                                        remove_user_name = "Not set"
+                                                    
+                                                    if st.button("Remove", key=f"remove_confirm_{book_title}_{remove_stage_name}_{remove_user_name}", type="secondary"):
+                                                        if delete_task_stage(engine, book_title, remove_user_name, remove_stage_name):
+                                                            st.success(f"Removed {remove_stage_name} for {remove_user_name}")
+                                                            st.rerun()
+                                                        else:
+                                                            st.error("Failed to remove stage")
                                     
                                     # Archive and Delete buttons at the bottom of each book
                                     st.markdown("---")
