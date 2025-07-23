@@ -1715,21 +1715,23 @@ def main():
                                                                 # Time information
                                                                 st.write(f"Time: {time_spent_formatted} / {estimated_formatted}")
                                                                 
-                                                                # Completion checkbox
+                                                                # Completion checkbox - always get fresh status from database
                                                                 completion_key = f"complete_{book_title}_{stage_name}_{user_name}"
-                                                                if completion_key not in st.session_state:
-                                                                    st.session_state[completion_key] = get_task_completion(engine, book_title, user_name, stage_name)
+                                                                current_completion_status = get_task_completion(engine, book_title, user_name, stage_name)
+                                                                
+                                                                # Update session state with database value
+                                                                st.session_state[completion_key] = current_completion_status
                                                                 
                                                                 new_completion_status = st.checkbox(
                                                                     "Completed",
-                                                                    value=st.session_state[completion_key],
-                                                                    key=completion_key
+                                                                    value=current_completion_status,
+                                                                    key=f"checkbox_{completion_key}"
                                                                 )
                                                                 
                                                                 # Update completion status if changed
-                                                                if new_completion_status != st.session_state[completion_key]:
-                                                                    st.session_state[completion_key] = new_completion_status
+                                                                if new_completion_status != current_completion_status:
                                                                     update_task_completion(engine, book_title, user_name, stage_name, new_completion_status)
+                                                                    # Force refresh to show changes
                                                                     st.rerun()
                                                             else:
                                                                 st.write("No time estimate set")
