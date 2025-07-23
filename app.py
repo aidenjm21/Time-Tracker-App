@@ -1703,100 +1703,10 @@ def main():
                                                 if task_key not in st.session_state.timers:
                                                     st.session_state.timers[task_key] = False
                                                 
-                                                # Create columns for button and timer with better spacing
-                                                btn_col, timer_col = st.columns([1, 2])
-                                                
-                                                with btn_col:
-                                                    if st.session_state.timers[task_key]:
-                                                        if st.button("Stop", key=f"stop_{task_key}"):
-                                                            # Store scroll position before stopping timer
-                                                            st.markdown("""
-                                                            <script>
-                                                            sessionStorage.setItem('scrollPosition', window.pageYOffset);
-                                                            </script>
-                                                            """, unsafe_allow_html=True)
-                                                            
-                                                            # Keep the book card and stage expanded after stopping timer
-                                                            expanded_key = f"expanded_{book_title}"
-                                                            st.session_state[expanded_key] = True
-                                                            
-                                                            # Also keep the stage expanded
-                                                            stage_expanded_key = f"stage_expanded_{book_title}_{stage_name}"
-                                                            st.session_state[stage_expanded_key] = True
-                                                            
-                                                            # Stop timer and add time to database
-                                                            if task_key in st.session_state.timer_start_times:
-                                                                # Use consistent UTC-based calculation
-                                                                current_time = datetime.utcnow().replace(tzinfo=timezone.utc).astimezone(BST)
-                                                                elapsed = current_time - st.session_state.timer_start_times[task_key]
-                                                                elapsed_seconds = int(elapsed.total_seconds())
-                                                                
-                                                                # Add elapsed time to database
-                                                                try:
-                                                                    # Get board name from original data
-                                                                    user_original_data = stage_data[stage_data['User'] == user_name].iloc[0]
-                                                                    board_name = user_original_data['Board']
-                                                                    # Get existing tag from original data
-                                                                    existing_tag = user_original_data.get('Tag', None) if 'Tag' in user_original_data else None
-                                                                    
-                                                                    with engine.connect() as conn:
-                                                                        conn.execute(text('''
-                                                                            INSERT INTO trello_time_tracking 
-                                                                            (card_name, user_name, list_name, time_spent_seconds, board_name, created_at, session_start_time, tag)
-                                                                            VALUES (:card_name, :user_name, :list_name, :time_spent_seconds, :board_name, :created_at, :session_start_time, :tag)
-                                                                        '''), {
-                                                                            'card_name': book_title,
-                                                                            'user_name': user_name if user_name != "Not set" else None,
-                                                                            'list_name': stage_name,
-                                                                            'time_spent_seconds': elapsed_seconds,
-                                                                            'board_name': board_name,
-                                                                            'created_at': datetime.now(BST),
-                                                                            'session_start_time': st.session_state.timer_start_times[task_key],
-                                                                            'tag': existing_tag
-                                                                        })
-                                                                        conn.commit()
-                                                                    
-                                                                    # Remove from persistent storage
-                                                                    remove_active_timer(engine, task_key)
-                                                                    
-                                                                    st.session_state.timers[task_key] = False
-                                                                    del st.session_state.timer_start_times[task_key]
-                                                                    st.rerun()
-                                                                    
-                                                                except Exception as e:
-                                                                    st.error(f"Error saving time: {str(e)}")
-                                                    else:
-                                                        if st.button("Start", key=f"start_{task_key}"):
-                                                            # Preserve expanded state before rerun
-                                                            expanded_key = f"expanded_{book_title}"
-                                                            st.session_state[expanded_key] = True
-                                                            
-                                                            # Also preserve stage expanded state
-                                                            stage_expanded_key = f"stage_expanded_{book_title}_{stage_name}"
-                                                            st.session_state[stage_expanded_key] = True
-                                                            
-                                                            # Start timer and save to persistent storage
-                                                            # Ensure we're using BST (UTC+1) consistently
-                                                            utc_time = datetime.utcnow()
-                                                            start_time = utc_time.replace(tzinfo=timezone.utc).astimezone(BST)
-                                                            st.session_state.timers[task_key] = True
-                                                            st.session_state.timer_start_times[task_key] = start_time
-                                                            
-                                                            # Save to persistent storage
-                                                            user_original_data = stage_data[stage_data['User'] == user_name].iloc[0]
-                                                            board_name = user_original_data['Board']
-                                                            
-                                                            save_active_timer(
-                                                                engine, task_key, book_title, 
-                                                                user_name if user_name != "Not set" else None,
-                                                                stage_name, board_name, start_time
-                                                            )
-                                                            
-                                                            st.rerun()
-                                                
-                                                with timer_col:
-                                                    # Show timer info when timer is running
-                                                    if st.session_state.timers[task_key] and task_key in st.session_state.timer_start_times:
+                                                # Timer controls and display
+                                                if st.session_state.timers[task_key]:
+                                                    # Timer is active - show pause/resume controls
+                                                    if task_key in st.session_state.timer_start_times:
                                                         # Initialize pause state if not exists
                                                         if task_key not in st.session_state.timer_paused:
                                                             st.session_state.timer_paused[task_key] = False
@@ -1948,6 +1858,38 @@ def main():
                                                         """, unsafe_allow_html=True)
                                                     else:
                                                         st.write("")
+                                                else:
+                                                    # Timer is not active - show Start button
+                                                    if st.button("Start", key=f"start_{task_key}"):
+                                                        # Preserve expanded state before rerun
+                                                        expanded_key = f"expanded_{book_title}"
+                                                        st.session_state[expanded_key] = True
+                                                        
+                                                        # Also preserve stage expanded state
+                                                        stage_expanded_key = f"stage_expanded_{book_title}_{stage_name}"
+                                                        st.session_state[stage_expanded_key] = True
+                                                        
+                                                        # Start timer and save to persistent storage
+                                                        utc_time = datetime.utcnow()
+                                                        start_time = utc_time.replace(tzinfo=timezone.utc).astimezone(BST)
+                                                        st.session_state.timers[task_key] = True
+                                                        st.session_state.timer_start_times[task_key] = start_time
+                                                        
+                                                        # Initialize pause states
+                                                        st.session_state.timer_paused[task_key] = False
+                                                        st.session_state.timer_accumulated_time[task_key] = 0
+                                                        
+                                                        # Save to persistent storage
+                                                        user_original_data = stage_data[stage_data['User'] == user_name].iloc[0]
+                                                        board_name = user_original_data['Board']
+                                                        
+                                                        save_active_timer(
+                                                            engine, task_key, book_title, 
+                                                            user_name if user_name != "Not set" else None,
+                                                            stage_name, board_name, start_time
+                                                        )
+                                                        
+                                                        st.rerun()
                                                 
                                                 # Manual time entry section
                                                 st.write("**Manual Entry:**")
