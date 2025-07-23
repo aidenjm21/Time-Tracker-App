@@ -6,6 +6,7 @@ from collections import Counter
 import io
 import os
 import re
+import time
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import IntegrityError
 
@@ -1343,7 +1344,7 @@ def main():
                         st.write(f"**{book_title}** - {stage_name} ({user_name}) - {status} for {elapsed_str}")
             
             # Add refresh button for active timers
-            if st.button("🔄 Refresh Active Timers", key="refresh_active_timers"):
+            if st.button("Refresh Active Timers", key="refresh_active_timers"):
                 st.rerun()
             
             st.markdown("---")
@@ -1354,12 +1355,27 @@ def main():
         if 'timer_start_times' not in st.session_state:
             st.session_state.timer_start_times = {}
         
-        # Check if we have data from database
+        # Check if we have data from database with SSL connection retry
+        total_records = 0
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                with engine.connect() as conn:
+                    result = conn.execute(text("SELECT COUNT(*) FROM trello_time_tracking"))
+                    total_records = result.scalar()
+                    break  # Success, exit retry loop
+            except Exception as e:
+                if attempt < max_retries - 1:
+                    # Try to recreate engine connection
+                    time.sleep(0.5)  # Brief pause before retry
+                    continue
+                else:
+                    # Final attempt failed, show error but continue
+                    st.error(f"Database connection issue (attempt {attempt + 1}): {str(e)[:100]}...")
+                    total_records = 0
+                    break
+        
         try:
-            with engine.connect() as conn:
-                result = conn.execute(text("SELECT COUNT(*) FROM trello_time_tracking"))
-                total_records = result.scalar()
-                
             if total_records and total_records > 0:
                 
                 # Get all books including those without tasks
@@ -2111,13 +2127,7 @@ def main():
                                                         del st.session_state[confirm_key]
                                 
                                 stage_counter += 1
-                    else:
-                        pass
-                else:
-                    pass
-            else:
-                pass
-                
+        
         except Exception as e:
             st.error(f"Error accessing database: {str(e)}")
     
