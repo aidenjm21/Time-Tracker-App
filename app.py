@@ -2116,12 +2116,19 @@ def main():
                                                                         existing_tag = user_original_data.get('Tag', None) if 'Tag' in user_original_data else None
                                                                         
                                                                         with engine.connect() as conn:
+                                                                            # Use ON CONFLICT to handle duplicate entries by updating existing records
                                                                             conn.execute(text('''
                                                                                 INSERT INTO trello_time_tracking 
                                                                                 (card_name, user_name, list_name, time_spent_seconds, 
                                                                                  date_started, session_start_time, board_name, tag)
                                                                                 VALUES (:card_name, :user_name, :list_name, :time_spent_seconds, 
                                                                                        :date_started, :session_start_time, :board_name, :tag)
+                                                                                ON CONFLICT (card_name, user_name, list_name, date_started, time_spent_seconds) 
+                                                                                DO UPDATE SET 
+                                                                                    session_start_time = EXCLUDED.session_start_time,
+                                                                                    board_name = EXCLUDED.board_name,
+                                                                                    tag = EXCLUDED.tag,
+                                                                                    created_at = CURRENT_TIMESTAMP
                                                                             '''), {
                                                                                 'card_name': book_title,
                                                                                 'user_name': user_name,
