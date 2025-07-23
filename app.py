@@ -159,6 +159,10 @@ def emergency_stop_all_timers(engine):
             st.session_state.timers = {}
         if 'timer_start_times' not in st.session_state:
             st.session_state.timer_start_times = {}
+        if 'timer_paused' not in st.session_state:
+            st.session_state.timer_paused = {}
+        if 'timer_accumulated_time' not in st.session_state:
+            st.session_state.timer_accumulated_time = {}
         
         saved_timers = 0
         current_time = datetime.now(BST)
@@ -174,12 +178,24 @@ def emergency_stop_all_timers(engine):
                         list_name = parts[-2]
                         user_name = parts[-1]
                         
-                        # Calculate elapsed time
+                        # Calculate elapsed time including pause states
                         start_time = st.session_state.timer_start_times[timer_key]
                         if start_time.tzinfo is None:
                             start_time = start_time.replace(tzinfo=BST)
                         
-                        elapsed_seconds = int((current_time - start_time).total_seconds())
+                        # Get accumulated time from pause/resume cycles
+                        accumulated_time = st.session_state.timer_accumulated_time.get(timer_key, 0)
+                        
+                        # Check if timer is currently paused
+                        is_paused = st.session_state.timer_paused.get(timer_key, False)
+                        
+                        if is_paused:
+                            # If paused, only count accumulated time
+                            elapsed_seconds = accumulated_time
+                        else:
+                            # If running, add current session to accumulated time
+                            current_session = int((current_time - start_time).total_seconds())
+                            elapsed_seconds = accumulated_time + current_session
                         
                         # Only save if significant time elapsed
                         if elapsed_seconds > 0:
@@ -980,6 +996,10 @@ def main():
         st.session_state.timers = {}
     if 'timer_start_times' not in st.session_state:
         st.session_state.timer_start_times = {}
+    if 'timer_paused' not in st.session_state:
+        st.session_state.timer_paused = {}
+    if 'timer_accumulated_time' not in st.session_state:
+        st.session_state.timer_accumulated_time = {}
     
     # Recover any emergency saved times from previous session
     recover_emergency_saved_times(engine)
@@ -1775,8 +1795,14 @@ def main():
                                                             st.rerun()
                                                 
                                                 with timer_col:
-                                                    # Show "Recording" text when timer is running
+                                                    # Show timer info when timer is running
                                                     if st.session_state.timers[task_key] and task_key in st.session_state.timer_start_times:
+                                                        # Initialize pause state if not exists
+                                                        if task_key not in st.session_state.timer_paused:
+                                                            st.session_state.timer_paused[task_key] = False
+                                                        if task_key not in st.session_state.timer_accumulated_time:
+                                                            st.session_state.timer_accumulated_time[task_key] = 0
+                                                        
                                                         start_time = st.session_state.timer_start_times[task_key]
                                                         # Ensure timezone-aware datetime for calculations
                                                         if start_time.tzinfo is None:
@@ -1785,62 +1811,133 @@ def main():
                                                             # Convert to BST if it's in a different timezone
                                                             start_time = start_time.astimezone(BST)
                                                         
-                                                        # Calculate and display current elapsed time
-                                                        # Use UTC time and convert to BST for consistent calculation
+                                                        # Calculate elapsed time
                                                         current_time = datetime.utcnow().replace(tzinfo=timezone.utc).astimezone(BST)
-                                                        elapsed = current_time - start_time
                                                         
-                                                        # Check for negative time and fix if needed
-                                                        if elapsed.total_seconds() < 0:
-                                                            # Reset start time to current time if we have negative elapsed
-                                                            st.session_state.timer_start_times[task_key] = current_time
-                                                            elapsed = timedelta(seconds=0)
-                                                            elapsed_str = "0:00:00"
-                                                            
-                                                            # Update database with corrected start time
-                                                            try:
-                                                                with engine.connect() as conn:
-                                                                    conn.execute(text('''
-                                                                        UPDATE active_timers 
-                                                                        SET start_time = :start_time 
-                                                                        WHERE timer_key = :timer_key
-                                                                    '''), {
-                                                                        'start_time': current_time,
-                                                                        'timer_key': task_key
-                                                                    })
-                                                                    conn.commit()
-                                                            except Exception as e:
-                                                                st.error(f"Error updating timer start time: {str(e)}")
+                                                        if st.session_state.timer_paused[task_key]:
+                                                            # If paused, show accumulated time only
+                                                            total_seconds = st.session_state.timer_accumulated_time[task_key]
                                                         else:
-                                                            elapsed_str = str(elapsed).split('.')[0]  # Remove microseconds
+                                                            # If running, add current session time to accumulated time
+                                                            current_session = current_time - start_time
+                                                            
+                                                            # Check for negative time and fix if needed
+                                                            if current_session.total_seconds() < 0:
+                                                                # Reset start time to current time if we have negative elapsed
+                                                                st.session_state.timer_start_times[task_key] = current_time
+                                                                current_session = timedelta(seconds=0)
+                                                                
+                                                                # Update database with corrected start time
+                                                                try:
+                                                                    with engine.connect() as conn:
+                                                                        conn.execute(text('''
+                                                                            UPDATE active_timers 
+                                                                            SET start_time = :start_time 
+                                                                            WHERE timer_key = :timer_key
+                                                                        '''), {
+                                                                            'start_time': current_time,
+                                                                            'timer_key': task_key
+                                                                        })
+                                                                        conn.commit()
+                                                                except Exception as e:
+                                                                    st.error(f"Error updating timer start time: {str(e)}")
+                                                            
+                                                            total_seconds = st.session_state.timer_accumulated_time[task_key] + int(current_session.total_seconds())
                                                         
-                                                        st.write(f"**Recording** ({elapsed_str})")
+                                                        # Format time as hh:mm:ss
+                                                        hours = total_seconds // 3600
+                                                        minutes = (total_seconds % 3600) // 60
+                                                        seconds = total_seconds % 60
+                                                        elapsed_str = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
                                                         
-                                                        # Add refresh button with scroll position preservation
-                                                        refresh_key = f"refresh_timer_{task_key}"
-                                                        if st.button("refresh", key=refresh_key, type="primary", help="Refresh timer display"):
-                                                            # Store scroll position before refresh
-                                                            st.markdown("""
-                                                            <script>
-                                                            // Store scroll position before page refresh
-                                                            sessionStorage.setItem('scrollPosition', window.pageYOffset);
-                                                            </script>
-                                                            """, unsafe_allow_html=True)
-                                                            st.rerun()
+                                                        # Display recording status with layout: Recording (hh:mm:ss) -> (Stop Button)
+                                                        timer_row1_col1, timer_row1_col2 = st.columns([3, 1])
+                                                        with timer_row1_col1:
+                                                            status = "Recording (Paused)" if st.session_state.timer_paused[task_key] else "Recording"
+                                                            st.write(f"**{status}** ({elapsed_str})")
                                                         
-                                                        # Restore scroll position after refresh
-                                                        st.markdown("""
-                                                        <script>
-                                                        // Restore scroll position after page refresh
-                                                        window.addEventListener('load', function() {
-                                                            const scrollPos = sessionStorage.getItem('scrollPosition');
-                                                            if (scrollPos) {
-                                                                window.scrollTo(0, parseInt(scrollPos));
-                                                                sessionStorage.removeItem('scrollPosition');
-                                                            }
-                                                        });
-                                                        </script>
-                                                        """, unsafe_allow_html=True)
+                                                        with timer_row1_col2:
+                                                            if st.button("Stop", key=f"stop_{task_key}"):
+                                                                # Calculate final total time including current session
+                                                                if not st.session_state.timer_paused[task_key]:
+                                                                    current_session = current_time - start_time
+                                                                    final_time = st.session_state.timer_accumulated_time[task_key] + int(current_session.total_seconds())
+                                                                else:
+                                                                    final_time = st.session_state.timer_accumulated_time[task_key]
+                                                                
+                                                                # Keep expanded states
+                                                                expanded_key = f"expanded_{book_title}"
+                                                                st.session_state[expanded_key] = True
+                                                                stage_expanded_key = f"stage_expanded_{book_title}_{stage_name}"
+                                                                st.session_state[stage_expanded_key] = True
+                                                                
+                                                                # Save to database only if time > 0
+                                                                if final_time > 0:
+                                                                    try:
+                                                                        user_original_data = stage_data[stage_data['User'] == user_name].iloc[0]
+                                                                        board_name = user_original_data['Board']
+                                                                        existing_tag = user_original_data.get('Tag', None) if 'Tag' in user_original_data else None
+                                                                        
+                                                                        with engine.connect() as conn:
+                                                                            conn.execute(text('''
+                                                                                INSERT INTO trello_time_tracking 
+                                                                                (card_name, user_name, list_name, time_spent_seconds, 
+                                                                                 date_started, session_start_time, board_name, tag)
+                                                                                VALUES (:card_name, :user_name, :list_name, :time_spent_seconds, 
+                                                                                       :date_started, :session_start_time, :board_name, :tag)
+                                                                            '''), {
+                                                                                'card_name': book_title,
+                                                                                'user_name': user_name,
+                                                                                'list_name': stage_name,
+                                                                                'time_spent_seconds': final_time,
+                                                                                'date_started': st.session_state.timer_start_times[task_key].date(),
+                                                                                'session_start_time': st.session_state.timer_start_times[task_key],
+                                                                                'board_name': board_name,
+                                                                                'tag': existing_tag
+                                                                            })
+                                                                            
+                                                                            # Remove from active timers
+                                                                            conn.execute(text('DELETE FROM active_timers WHERE timer_key = :timer_key'), 
+                                                                                       {'timer_key': task_key})
+                                                                            conn.commit()
+                                                                            
+                                                                        st.success(f"Added {elapsed_str} to {book_title} - {stage_name}")
+                                                                    except Exception as e:
+                                                                        st.error(f"Error saving time: {str(e)}")
+                                                                
+                                                                # Clear timer states
+                                                                st.session_state.timers[task_key] = False
+                                                                if task_key in st.session_state.timer_start_times:
+                                                                    del st.session_state.timer_start_times[task_key]
+                                                                if task_key in st.session_state.timer_paused:
+                                                                    del st.session_state.timer_paused[task_key]
+                                                                if task_key in st.session_state.timer_accumulated_time:
+                                                                    del st.session_state.timer_accumulated_time[task_key]
+                                                                    
+                                                                st.rerun()
+                                                        
+                                                        # Display layout: (Pause/Resume Button) -> (Refresh Button)
+                                                        timer_row2_col1, timer_row2_col2 = st.columns([1, 1])
+                                                        
+                                                        with timer_row2_col1:
+                                                            pause_resume_text = "Resume" if st.session_state.timer_paused[task_key] else "Pause"
+                                                            if st.button(pause_resume_text, key=f"pause_resume_{task_key}"):
+                                                                if st.session_state.timer_paused[task_key]:
+                                                                    # Resume: set new start time and unpause
+                                                                    st.session_state.timer_paused[task_key] = False
+                                                                    st.session_state.timer_start_times[task_key] = current_time
+                                                                else:
+                                                                    # Pause: accumulate current session time and pause
+                                                                    current_session = current_time - start_time
+                                                                    st.session_state.timer_accumulated_time[task_key] += int(current_session.total_seconds())
+                                                                    st.session_state.timer_paused[task_key] = True
+                                                                
+                                                                st.rerun()
+                                                        
+                                                        with timer_row2_col2:
+                                                            refresh_key = f"refresh_timer_{task_key}"
+                                                            if st.button("Refresh", key=refresh_key, help="Refresh timer display"):
+                                                                st.rerun()
                                                         
                                                         # Add JavaScript for localStorage persistence
                                                         st.markdown(f"""
