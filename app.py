@@ -1376,6 +1376,10 @@ def main():
                     break
         
         try:
+            # Clear pending refresh state at start of render
+            if 'pending_refresh' in st.session_state:
+                del st.session_state.pending_refresh
+            
             if total_records and total_records > 0:
                 
                 # Get all books including those without tasks
@@ -1731,8 +1735,11 @@ def main():
                                                                 # Update completion status if changed
                                                                 if new_completion_status != current_completion_status:
                                                                     update_task_completion(engine, book_title, user_name, stage_name, new_completion_status)
-                                                                    # Force refresh to show changes
-                                                                    st.rerun()
+                                                                    # Update session state but avoid full refresh
+                                                                    st.session_state[completion_key] = new_completion_status
+                                                                    # Show immediate feedback without refresh
+                                                                    status_text = "✅ Marked as completed" if new_completion_status else "❌ Marked as incomplete" 
+                                                                    st.success(status_text)
                                                             else:
                                                                 st.write("No time estimate set")
                                                         
@@ -1765,8 +1772,14 @@ def main():
                                                                         if key.startswith(('complete_', 'timer_')):
                                                                             del st.session_state[key]
                                                                     
-                                                                    st.success(f"User reassigned from {current_user} to {new_user}")
-                                                                    st.rerun()
+                                                                    # Store success message instead of immediate refresh
+                                                                    success_key = f"reassign_success_{book_title}_{stage_name}"
+                                                                    st.session_state[success_key] = f"User reassigned from {current_user} to {new_user}"
+                                                                    
+                                                                    # Batch refresh to avoid multiple reloads
+                                                                    if 'pending_refresh' not in st.session_state:
+                                                                        st.session_state.pending_refresh = True
+                                                                        st.rerun()
                                                             except Exception as e:
                                                                 st.error(f"Error reassigning user: {str(e)}")
                                                     
@@ -2040,8 +2053,14 @@ def main():
                                                                             })
                                                                             conn.commit()
                                                                         
-                                                                        st.success(f"Added {manual_time} to progress")
-                                                                        st.rerun()
+                                                                        # Store success message in session state for display
+                                                                        success_msg_key = f"manual_time_success_{task_key}"
+                                                                        st.session_state[success_msg_key] = f"Added {manual_time} to progress"
+                                                                        
+                                                                        # Only refresh after a delay to batch updates
+                                                                        if 'pending_refresh' not in st.session_state:
+                                                                            st.session_state.pending_refresh = True
+                                                                            st.rerun()
                                                                         
                                                                     except Exception as e:
                                                                         st.error(f"Error saving time: {str(e)}")
@@ -2054,12 +2073,24 @@ def main():
                                                 
 
                                                 
-                                                # Display timer success message at bottom if exists
-                                                success_msg_key = f"timer_success_{task_key}"
-                                                if success_msg_key in st.session_state:
-                                                    st.success(st.session_state[success_msg_key])
-                                                    # Clear the message after displaying
-                                                    del st.session_state[success_msg_key]
+                                                # Display various success messages
+                                                # Timer success message
+                                                timer_success_key = f"timer_success_{task_key}"
+                                                if timer_success_key in st.session_state:
+                                                    st.success(st.session_state[timer_success_key])
+                                                    del st.session_state[timer_success_key]
+                                                
+                                                # Manual time success message
+                                                manual_success_key = f"manual_time_success_{task_key}"
+                                                if manual_success_key in st.session_state:
+                                                    st.success(st.session_state[manual_success_key])
+                                                    del st.session_state[manual_success_key]
+                                                
+                                                # User reassignment success message
+                                                reassign_success_key = f"reassign_success_{book_title}_{stage_name}"
+                                                if reassign_success_key in st.session_state:
+                                                    st.success(st.session_state[reassign_success_key])
+                                                    del st.session_state[reassign_success_key]
 
                                     
                                     # Show count of running timers (refresh buttons now appear under individual timers)
