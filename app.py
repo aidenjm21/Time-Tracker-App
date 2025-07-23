@@ -1761,7 +1761,7 @@ def main():
                                                         elapsed_str = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
                                                         
                                                         # Display recording status with layout: Recording (hh:mm:ss) -> (Stop Button)
-                                                        timer_row1_col1, timer_row1_col2 = st.columns([3, 1])
+                                                        timer_row1_col1, timer_row1_col2 = st.columns([2, 1])
                                                         with timer_row1_col1:
                                                             status = "Recording (Paused)" if st.session_state.timer_paused[task_key] else "Recording"
                                                             st.write(f"**{status}** ({elapsed_str})")
