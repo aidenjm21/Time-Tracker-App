@@ -1517,6 +1517,13 @@ def main():
                                 else:
                                     book_data = pd.DataFrame()
                                 
+                                # Debug: Let's see what we have
+                                st.write(f"DEBUG: Book '{book_title}' - book_data shape: {book_data.shape}")
+                                if not book_data.empty:
+                                    st.write(f"DEBUG: Book tasks found: {book_data['List'].unique()}")
+                                else:
+                                    st.write(f"DEBUG: Book data is empty for '{book_title}'")
+                                
                                 # If book has no tasks, create empty data structure
                                 if book_data.empty:
                                     # Get book info from all_books
