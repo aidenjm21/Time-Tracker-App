@@ -173,6 +173,7 @@ Changelog:
 - July 23, 2025. Enhanced timer stop robustness: improved error handling to clear timer states immediately on stop button click, preventing need for double-clicks and ensuring proper cleanup even when database errors occur
 - July 23, 2025. Fixed critical KeyError in timer operations: added proper key existence checks using .get() method to prevent crashes when accessing timer states that don't exist due to user reassignments or stage changes
 - July 23, 2025. Fixed timer stop requiring double-click to show updated totals: added major_update_needed flag to trigger immediate display refresh after successful timer stop, ensuring time totals update on first click
+- July 23, 2025. Replaced Show All button with overview table: removed Show All/Hide All toggle functionality and added "All Books Overview" table below book cards displaying Book Name and Board columns for complete project visibility
 ```
 
 ## User Preferences
