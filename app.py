@@ -151,6 +151,131 @@ def get_boards_from_database(_engine):
         return []
 
 
+def emergency_stop_all_timers(engine):
+    """Emergency function to stop all active timers and save progress when database connection fails"""
+    try:
+        # Initialize session state if needed
+        if 'timers' not in st.session_state:
+            st.session_state.timers = {}
+        if 'timer_start_times' not in st.session_state:
+            st.session_state.timer_start_times = {}
+        
+        saved_timers = 0
+        current_time = datetime.now(BST)
+        
+        # Process any active timers from session state
+        for timer_key, is_active in st.session_state.timers.items():
+            if is_active and timer_key in st.session_state.timer_start_times:
+                try:
+                    # Parse timer key to extract details
+                    parts = timer_key.split('_')
+                    if len(parts) >= 3:
+                        card_name = '_'.join(parts[:-2])  # Reconstruct card name
+                        list_name = parts[-2]
+                        user_name = parts[-1]
+                        
+                        # Calculate elapsed time
+                        start_time = st.session_state.timer_start_times[timer_key]
+                        if start_time.tzinfo is None:
+                            start_time = start_time.replace(tzinfo=BST)
+                        
+                        elapsed_seconds = int((current_time - start_time).total_seconds())
+                        
+                        # Only save if significant time elapsed
+                        if elapsed_seconds > 0:
+                            # Try to save to database with retry logic
+                            for attempt in range(3):
+                                try:
+                                    with engine.connect() as conn:
+                                        # Save the time entry
+                                        conn.execute(text('''
+                                            INSERT INTO trello_time_tracking 
+                                            (card_name, user_name, list_name, time_spent_seconds, 
+                                             date_started, session_start_time, board_name)
+                                            VALUES (:card_name, :user_name, :list_name, :time_spent_seconds, 
+                                                   :date_started, :session_start_time, :board_name)
+                                        '''), {
+                                            'card_name': card_name,
+                                            'user_name': user_name,
+                                            'list_name': list_name,
+                                            'time_spent_seconds': elapsed_seconds,
+                                            'date_started': start_time.date(),
+                                            'session_start_time': start_time,
+                                            'board_name': 'Manual Entry'
+                                        })
+                                        
+                                        # Remove from active timers table
+                                        conn.execute(text('DELETE FROM active_timers WHERE timer_key = :timer_key'), 
+                                                   {'timer_key': timer_key})
+                                        conn.commit()
+                                        saved_timers += 1
+                                        break
+                                except Exception:
+                                    if attempt == 2:  # Last attempt failed
+                                        # Store in session state as backup
+                                        if 'emergency_saved_times' not in st.session_state:
+                                            st.session_state.emergency_saved_times = []
+                                        st.session_state.emergency_saved_times.append({
+                                            'card_name': card_name,
+                                            'user_name': user_name,
+                                            'list_name': list_name,
+                                            'elapsed_seconds': elapsed_seconds,
+                                            'start_time': start_time
+                                        })
+                                    continue
+                
+                except Exception as e:
+                    continue  # Skip this timer if parsing fails
+        
+        if saved_timers > 0:
+            st.success(f"Successfully saved {saved_timers} active timer(s) before stopping.")
+        
+        # Try to clear active timers table if possible
+        try:
+            with engine.connect() as conn:
+                conn.execute(text('DELETE FROM active_timers'))
+                conn.commit()
+        except Exception:
+            pass  # Database might be completely unavailable
+            
+    except Exception as e:
+        st.error(f"Emergency timer save failed: {str(e)}")
+
+
+def recover_emergency_saved_times(engine):
+    """Recover and save any emergency saved times from previous session"""
+    if 'emergency_saved_times' in st.session_state and st.session_state.emergency_saved_times:
+        saved_count = 0
+        for saved_time in st.session_state.emergency_saved_times:
+            try:
+                with engine.connect() as conn:
+                    conn.execute(text('''
+                        INSERT INTO trello_time_tracking 
+                        (card_name, user_name, list_name, time_spent_seconds, 
+                         date_started, session_start_time, board_name)
+                        VALUES (:card_name, :user_name, :list_name, :time_spent_seconds, 
+                               :date_started, :session_start_time, :board_name)
+                    '''), {
+                        'card_name': saved_time['card_name'],
+                        'user_name': saved_time['user_name'],
+                        'list_name': saved_time['list_name'],
+                        'time_spent_seconds': saved_time['elapsed_seconds'],
+                        'date_started': saved_time['start_time'].date(),
+                        'session_start_time': saved_time['start_time'],
+                        'board_name': 'Manual Entry'
+                    })
+                    conn.commit()
+                    saved_count += 1
+            except Exception:
+                continue  # Skip if unable to save
+        
+        if saved_count > 0:
+            st.success(f"Recovered {saved_count} emergency saved timer(s) from previous session.")
+        
+        # Clear the emergency saved times
+        st.session_state.emergency_saved_times = []
+
+
 def load_active_timers(engine):
     """Load active timers from database and restore session state"""
     try:
@@ -196,8 +321,25 @@ def load_active_timers(engine):
             
             return active_timers
     except Exception as e:
-        st.error(f"Error loading active timers: {str(e)}")
-        return []
+        error_msg = str(e)
+        
+        # Check if this is an SSL connection error indicating app restart
+        if "SSL connection has been closed unexpectedly" in error_msg or "connection" in error_msg.lower():
+            st.warning("App restarted - automatically stopping all active timers and saving progress...")
+            
+            # Try to recover and save any active timers from session state
+            emergency_stop_all_timers(engine)
+            
+            # Clear session state timers since they've been saved
+            if 'timers' in st.session_state:
+                st.session_state.timers = {}
+            if 'timer_start_times' in st.session_state:
+                st.session_state.timer_start_times = {}
+                
+            return []
+        else:
+            st.error(f"Error loading active timers: {error_msg}")
+            return []
 
 
 def save_active_timer(engine, timer_key, card_name, user_name, list_name, board_name, start_time):
@@ -838,6 +980,9 @@ def main():
         st.session_state.timers = {}
     if 'timer_start_times' not in st.session_state:
         st.session_state.timer_start_times = {}
+    
+    # Recover any emergency saved times from previous session
+    recover_emergency_saved_times(engine)
     
     # Load and restore active timers from database
     if 'timers_loaded' not in st.session_state:
