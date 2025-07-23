@@ -1162,34 +1162,8 @@ def main():
     </style>
     """, unsafe_allow_html=True)
     
-    # Add logout button in the top right
-    col1, col2 = st.columns([4, 1])
-    with col1:
-        st.title("Book Production Time Tracking")
-        st.markdown("Track time spent on different stages of book production with detailed stage-specific analysis.")
-    with col2:
-        st.markdown("<div style='height: 20px;'></div>", unsafe_allow_html=True)
-        # Create logout options
-        logout_col1, logout_col2 = st.columns(2)
-        with logout_col1:
-            if st.button("Logout", type="secondary", help="Logout but keep 24-hour authentication"):
-                st.session_state.logged_in = False
-                st.rerun()
-        with logout_col2:
-            if st.button("Full Logout", type="secondary", help="Logout and clear 24-hour authentication"):
-                # Clear IP authentication
-                try:
-                    with engine.connect() as conn:
-                        conn.execute(text('''
-                            DELETE FROM authenticated_ips 
-                            WHERE ip_address = :ip_address
-                        '''), {'ip_address': client_ip})
-                        conn.commit()
-                except Exception as e:
-                    print(f"Error clearing IP authentication: {e}")
-                
-                st.session_state.logged_in = False
-                st.rerun()
+    st.title("Book Production Time Tracking")
+    st.markdown("Track time spent on different stages of book production with detailed stage-specific analysis.")
     
     # Database already initialized earlier for IP authentication
     
