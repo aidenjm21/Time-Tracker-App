@@ -465,11 +465,15 @@ def load_active_timers(engine):
                     st.session_state.timer_accumulated_time[timer_key] = accumulated_seconds
                     st.session_state.timer_start_times[timer_key] = start_time
                 else:
-                    # If running, we need to reset the start time to now and set accumulated time
-                    # The accumulated_seconds from DB represents the total time so far
-                    # We reset start time to current time for new session calculation
+                    # If running, calculate how much time has elapsed since the original start
+                    # and put that in accumulated_time, then reset start_time to now
                     current_time = datetime.now(BST)
-                    st.session_state.timer_accumulated_time[timer_key] = accumulated_seconds
+                    elapsed_since_start = int((current_time - start_time).total_seconds())
+                    
+                    # The total time is accumulated_seconds + elapsed_since_start
+                    # But we want to display correctly, so we set accumulated to the total
+                    # and start_time to now for the next session calculation
+                    st.session_state.timer_accumulated_time[timer_key] = accumulated_seconds + max(0, elapsed_since_start)
                     st.session_state.timer_start_times[timer_key] = current_time
                 
                 active_timers.append({
