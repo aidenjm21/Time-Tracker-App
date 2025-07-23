@@ -1273,6 +1273,12 @@ def main():
         """, unsafe_allow_html=True)
         st.markdown("Visual progress tracking for all books with individual task timers.")
         
+        # Debug toggle for completion status
+        if st.checkbox("Debug completion status", value=st.session_state.get('debug_completion', False)):
+            st.session_state['debug_completion'] = True
+        else:
+            st.session_state['debug_completion'] = False
+        
         # Display active timers at the top
         active_timer_count = sum(1 for running in st.session_state.timers.values() if running)
         if active_timer_count > 0:
@@ -1545,8 +1551,13 @@ def main():
                                 all_tasks_completed = False
                                 completion_emoji = ""
                                 if not book_data.empty and book_data['List'].iloc[0] != 'No tasks assigned':
+                                    # Force refresh completion status from database
                                     all_tasks_completed = check_all_tasks_completed(engine, book_title)
                                     completion_emoji = "✅ " if all_tasks_completed else ""
+                                    
+                                    # Debug: Show completion status
+                                    if st.session_state.get('debug_completion', False):
+                                        st.write(f"Book: {book_title}, All completed: {all_tasks_completed}")
                                 
                                 # Create book title with progress percentage
                                 if estimated_time > 0:
@@ -1740,6 +1751,9 @@ def main():
                                                                     # Show immediate feedback without refresh
                                                                     status_text = "✅ Marked as completed" if new_completion_status else "❌ Marked as incomplete" 
                                                                     st.success(status_text)
+                                                                    
+                                                                    # Force refresh to update book-level completion emoji
+                                                                    st.rerun()
                                                             else:
                                                                 st.write("No time estimate set")
                                                         
