@@ -1781,10 +1781,13 @@ def main():
                                                                     if completion_cache_key in st.session_state:
                                                                         del st.session_state[completion_cache_key]
                                                                     
-                                                                    # Show immediate feedback and refresh to update book-level completion
+                                                                    # Store success message for display without immediate refresh
+                                                                    success_msg_key = f"completion_success_{task_key}"
                                                                     status_text = "✅ Marked as completed" if new_completion_status else "❌ Marked as incomplete" 
-                                                                    st.success(status_text)
-                                                                    st.rerun()
+                                                                    st.session_state[success_msg_key] = status_text
+                                                                    
+                                                                    # Set flag for delayed refresh to update book-level completion
+                                                                    st.session_state['completion_changed'] = True
                                                             else:
                                                                 st.write("No time estimate set")
                                                         
@@ -2035,7 +2038,7 @@ def main():
                                                 # Create a form to handle Enter key properly
                                                 with st.form(key=f"time_form_{task_key}"):
                                                     manual_time = st.text_input(
-                                                        "Add time (hh:mm:ss) - Max 100:00:00:", 
+                                                        "Add time (hh:mm:ss):", 
                                                         placeholder="01:30:00"
                                                     )
                                                     
@@ -2151,6 +2154,12 @@ def main():
                                                 if manual_success_key in st.session_state:
                                                     st.success(st.session_state[manual_success_key])
                                                     del st.session_state[manual_success_key]
+                                                
+                                                # Completion status success message
+                                                completion_success_key = f"completion_success_{task_key}"
+                                                if completion_success_key in st.session_state:
+                                                    st.success(st.session_state[completion_success_key])
+                                                    del st.session_state[completion_success_key]
                                                 
                                                 # User reassignment success message
                                                 reassign_success_key = f"reassign_success_{book_title}_{stage_name}"
@@ -2330,6 +2339,11 @@ def main():
         
         except Exception as e:
             st.error(f"Error accessing database: {str(e)}")
+        
+        # Handle delayed refresh for book-level completion updates
+        if st.session_state.get('completion_changed', False):
+            del st.session_state['completion_changed']
+            st.rerun()
     
     elif selected_tab == "Reporting":
         st.header("Reporting")
