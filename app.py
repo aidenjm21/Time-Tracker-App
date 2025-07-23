@@ -2574,6 +2574,13 @@ def main():
         
         except Exception as e:
             st.error(f"Error accessing database: {str(e)}")
+            # Add simplified debug info
+            try:
+                import traceback
+                error_details = traceback.format_exc().split('\n')[-3:-1]  # Get last 2 lines
+                st.error(f"Location: {' '.join(error_details)}")
+            except:
+                pass  # Ignore debug errors
         
         # Only refresh if absolutely necessary (major structural changes)
         refresh_needed = any([
