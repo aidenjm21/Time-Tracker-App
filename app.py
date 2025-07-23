@@ -61,6 +61,17 @@ def init_database():
                 ADD COLUMN IF NOT EXISTS tag VARCHAR(255)
             '''))
             
+            # Create authenticated_ips table for 24-hour login persistence
+            conn.execute(text('''
+                CREATE TABLE IF NOT EXISTS authenticated_ips (
+                    id SERIAL PRIMARY KEY,
+                    ip_address VARCHAR(45) NOT NULL UNIQUE,
+                    login_time TIMESTAMPTZ NOT NULL,
+                    expires_at TIMESTAMPTZ NOT NULL,
+                    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+                )
+            '''))
+            
             # Create active timers table for persistent timer storage
             conn.execute(text('''
                 CREATE TABLE IF NOT EXISTS active_timers (
@@ -94,6 +105,80 @@ def init_database():
     except Exception as e:
         st.error(f"Database initialisation failed: {str(e)}")
         return None
+
+def get_client_ip():
+    """Get client IP address from Streamlit context"""
+    try:
+        # Try to get real IP from headers (for reverse proxy setups)
+        if hasattr(st, 'context') and hasattr(st.context, 'headers'):
+            headers = st.context.headers
+            # Check common proxy headers
+            for header in ['X-Forwarded-For', 'X-Real-IP', 'CF-Connecting-IP']:
+                if header in headers:
+                    ip = headers[header].split(',')[0].strip()
+                    if ip:
+                        return ip
+        
+        # Fallback to session info if available
+        if hasattr(st, 'session_state') and hasattr(st.session_state, '_session_info'):
+            session_info = st.session_state._session_info
+            if hasattr(session_info, 'client_ip'):
+                return session_info.client_ip
+        
+        # Return a placeholder - in production this would be the actual IP
+        return "127.0.0.1"  # localhost fallback
+    except:
+        return "127.0.0.1"
+
+def is_ip_authenticated(engine, ip_address):
+    """Check if IP address has valid authentication within 24 hours"""
+    try:
+        with engine.connect() as conn:
+            # Clean up expired entries first
+            conn.execute(text('''
+                DELETE FROM authenticated_ips 
+                WHERE expires_at < NOW()
+            '''))
+            
+            # Check if IP has valid authentication
+            result = conn.execute(text('''
+                SELECT COUNT(*) FROM authenticated_ips 
+                WHERE ip_address = :ip_address AND expires_at > NOW()
+            '''), {'ip_address': ip_address})
+            
+            conn.commit()
+            return result.scalar() > 0
+    except Exception as e:
+        print(f"Error checking IP authentication: {e}")
+        return False
+
+def authenticate_ip(engine, ip_address):
+    """Store IP authentication for 24 hours"""
+    try:
+        with engine.connect() as conn:
+            # Calculate expiration time (24 hours from now)
+            current_time = datetime.utcnow().replace(tzinfo=timezone.utc)
+            expires_at = current_time + timedelta(hours=24)
+            
+            # Insert or update IP authentication
+            conn.execute(text('''
+                INSERT INTO authenticated_ips (ip_address, login_time, expires_at)
+                VALUES (:ip_address, :login_time, :expires_at)
+                ON CONFLICT (ip_address) 
+                DO UPDATE SET 
+                    login_time = EXCLUDED.login_time,
+                    expires_at = EXCLUDED.expires_at
+            '''), {
+                'ip_address': ip_address,
+                'login_time': current_time,
+                'expires_at': expires_at
+            })
+            
+            conn.commit()
+            return True
+    except Exception as e:
+        print(f"Error authenticating IP: {e}")
+        return False
 
 
 
@@ -995,9 +1080,19 @@ def process_user_task_breakdown(df):
 
 
 def main():
+    # Initialise database first to check IP authentication
+    engine = init_database()
+    if not engine:
+        st.error("Could not connect to database. Please check your configuration.")
+        return
+    
+    # Get client IP address
+    client_ip = get_client_ip()
+    
     # Initialize login session state
     if 'logged_in' not in st.session_state:
-        st.session_state.logged_in = False
+        # Check if IP is already authenticated
+        st.session_state.logged_in = is_ip_authenticated(engine, client_ip)
     
     # Login screen
     if not st.session_state.logged_in:
@@ -1023,9 +1118,15 @@ def main():
             
             if st.button("Login", type="primary", use_container_width=True):
                 if password == "testpassword1":
-                    st.session_state.logged_in = True
-                    st.success("Login successful! Redirecting...")
-                    st.rerun()
+                    # Store IP authentication for 24 hours
+                    if authenticate_ip(engine, client_ip):
+                        st.session_state.logged_in = True
+                        st.success("Login successful! You won't need to login again for 24 hours from this device.")
+                        st.rerun()
+                    else:
+                        st.session_state.logged_in = True  # Still allow login even if IP storage fails
+                        st.success("Login successful! Redirecting...")
+                        st.rerun()
                 else:
                     st.error("Incorrect password. Please try again.")
             
@@ -1068,15 +1169,29 @@ def main():
         st.markdown("Track time spent on different stages of book production with detailed stage-specific analysis.")
     with col2:
         st.markdown("<div style='height: 20px;'></div>", unsafe_allow_html=True)
-        if st.button("Logout", type="secondary"):
-            st.session_state.logged_in = False
-            st.rerun()
+        # Create logout options
+        logout_col1, logout_col2 = st.columns(2)
+        with logout_col1:
+            if st.button("Logout", type="secondary", help="Logout but keep 24-hour authentication"):
+                st.session_state.logged_in = False
+                st.rerun()
+        with logout_col2:
+            if st.button("Full Logout", type="secondary", help="Logout and clear 24-hour authentication"):
+                # Clear IP authentication
+                try:
+                    with engine.connect() as conn:
+                        conn.execute(text('''
+                            DELETE FROM authenticated_ips 
+                            WHERE ip_address = :ip_address
+                        '''), {'ip_address': client_ip})
+                        conn.commit()
+                except Exception as e:
+                    print(f"Error clearing IP authentication: {e}")
+                
+                st.session_state.logged_in = False
+                st.rerun()
     
-    # Initialise database
-    engine = init_database()
-    if not engine:
-        st.error("Could not connect to database. Please check your configuration.")
-        return
+    # Database already initialized earlier for IP authentication
     
     # Initialize session state for active tab
     if 'active_tab' not in st.session_state:
