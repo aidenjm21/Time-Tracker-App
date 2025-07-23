@@ -2087,6 +2087,13 @@ def main():
                                                                             # Get existing tag from original data
                                                                             existing_tag = user_original_data.get('Tag', None) if 'Tag' in user_original_data else None
                                                                             
+                                                                            # Get current completion status to preserve it
+                                                                            completion_key = f"complete_{book_title}_{stage_name}_{user_name}"
+                                                                            current_completion = get_task_completion(engine, book_title, user_name, stage_name)
+                                                                            # Also check session state in case it was just changed
+                                                                            if completion_key in st.session_state:
+                                                                                current_completion = st.session_state[completion_key]
+                                                                            
                                                                             # Preserve expanded state before rerun
                                                                             expanded_key = f"expanded_{book_title}"
                                                                             st.session_state[expanded_key] = True
@@ -2098,8 +2105,8 @@ def main():
                                                                             with engine.connect() as conn:
                                                                                 conn.execute(text('''
                                                                                     INSERT INTO trello_time_tracking 
-                                                                                    (card_name, user_name, list_name, time_spent_seconds, board_name, created_at, tag)
-                                                                                    VALUES (:card_name, :user_name, :list_name, :time_spent_seconds, :board_name, :created_at, :tag)
+                                                                                    (card_name, user_name, list_name, time_spent_seconds, board_name, created_at, tag, completed)
+                                                                                    VALUES (:card_name, :user_name, :list_name, :time_spent_seconds, :board_name, :created_at, :tag, :completed)
                                                                                 '''), {
                                                                                     'card_name': book_title,
                                                                                     'user_name': user_name,
@@ -2107,7 +2114,8 @@ def main():
                                                                                     'time_spent_seconds': total_seconds,
                                                                                     'board_name': board_name,
                                                                                     'created_at': datetime.now(BST),
-                                                                                    'tag': existing_tag
+                                                                                    'tag': existing_tag,
+                                                                                    'completed': current_completion
                                                                                 })
                                                                                 conn.commit()
                                                                             
