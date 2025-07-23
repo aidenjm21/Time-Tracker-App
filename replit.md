@@ -161,6 +161,9 @@ Changelog:
 - July 23, 2025. Fixed completion emoji issue on book cards: completion status now updates immediately when checkboxes are changed
 - July 23, 2025. Added comprehensive database retry logic to handle PostgreSQL SSL connection errors
 - July 23, 2025. Added maximum time validation (100 hours) for manual time entry to prevent database integer overflow errors
+- July 23, 2025. Optimized refresh system by removing unnecessary st.rerun() calls from timer operations, manual time additions, and completion status changes - only major structural changes now trigger full page refreshes
+- July 23, 2025. Fixed search functionality for book titles containing special characters (parentheses, etc.) by adding regex escaping
+- July 23, 2025. Added basic login system with password protection (password: testpassword1) - users must authenticate before accessing the application
 ```
 
 ## User Preferences
