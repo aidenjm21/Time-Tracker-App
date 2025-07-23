@@ -441,25 +441,37 @@ def check_all_tasks_completed(engine, card_name):
     """Check if all tasks for a book are completed"""
     try:
         with engine.connect() as conn:
-            # Get all tasks for this book
+            # Get all tasks for this book - need to check each user/stage combination
             result = conn.execute(text("""
-                SELECT DISTINCT list_name, COALESCE(user_name, 'Not set') as user_name, 
-                       COALESCE(completed, false) as completed
+                SELECT list_name, COALESCE(user_name, 'Not set') as user_name, 
+                       BOOL_AND(COALESCE(completed, false)) as all_completed
                 FROM trello_time_tracking 
                 WHERE card_name = :card_name 
                 AND archived = FALSE
+                GROUP BY list_name, COALESCE(user_name, 'Not set')
             """), {
                 'card_name': card_name
             })
             
-            tasks = result.fetchall()
-            if not tasks:
+            task_groups = result.fetchall()
+            if not task_groups:
                 return False
             
-            # Check if all tasks are completed
-            for task in tasks:
-                if not task[2]:  # completed column
+            # Debug: Show what we found
+            if st.session_state.get('debug_completion', False):
+                st.write(f"Task groups found for {card_name}:")
+                for task_group in task_groups:
+                    st.write(f"  - {task_group[0]} ({task_group[1]}): {task_group[2]}")
+            
+            # Check if all task groups are completed
+            for task_group in task_groups:
+                if not task_group[2]:  # all_completed column
+                    if st.session_state.get('debug_completion', False):
+                        st.write(f"❌ {task_group[0]} ({task_group[1]}) is NOT completed")
                     return False
+            
+            if st.session_state.get('debug_completion', False):
+                st.write(f"✅ All task groups completed for {card_name}")
             
             return True
     except Exception as e:
