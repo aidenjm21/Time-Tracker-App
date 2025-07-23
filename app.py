@@ -2084,12 +2084,37 @@ def main():
                                         if st.button(f"Archive '{book_title}'", key=f"archive_{book_title}", help="Move this book to archive"):
                                             try:
                                                 with engine.connect() as conn:
-                                                    # Add archived field to database if it doesn't exist
-                                                    conn.execute(text('''
-                                                        UPDATE trello_time_tracking 
-                                                        SET archived = TRUE 
+                                                    # Check if book has time tracking records
+                                                    result = conn.execute(text('''
+                                                        SELECT COUNT(*) FROM trello_time_tracking 
                                                         WHERE card_name = :card_name
                                                     '''), {'card_name': book_title})
+                                                    record_count = result.scalar()
+                                                    
+                                                    if record_count > 0:
+                                                        # Archive existing time tracking records
+                                                        conn.execute(text('''
+                                                            UPDATE trello_time_tracking 
+                                                            SET archived = TRUE 
+                                                            WHERE card_name = :card_name
+                                                        '''), {'card_name': book_title})
+                                                    else:
+                                                        # Create a placeholder archived record for books without tasks
+                                                        conn.execute(text('''
+                                                            INSERT INTO trello_time_tracking 
+                                                            (card_name, user_name, list_name, time_spent_seconds, 
+                                                             card_estimate_seconds, board_name, archived, created_at)
+                                                            VALUES (:card_name, 'Not set', 'No tasks assigned', 0, 
+                                                                   0, 'Manual Entry', TRUE, NOW())
+                                                        '''), {'card_name': book_title})
+                                                    
+                                                    # Archive the book in books table
+                                                    conn.execute(text('''
+                                                        UPDATE books 
+                                                        SET archived = TRUE 
+                                                        WHERE name = :book_name
+                                                    '''), {'book_name': book_title})
+                                                    
                                                     conn.commit()
                                                 
                                                 # Keep user on the current tab
