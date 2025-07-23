@@ -2112,7 +2112,7 @@ def main():
                                                     conn.execute(text('''
                                                         UPDATE books 
                                                         SET archived = TRUE 
-                                                        WHERE name = :book_name
+                                                        WHERE card_name = :book_name
                                                     '''), {'book_name': book_title})
                                                     
                                                     conn.commit()
