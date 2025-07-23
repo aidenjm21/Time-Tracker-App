@@ -1487,7 +1487,10 @@ def main():
                         
                     elif search_query:
                         # Filter books based on search and limit to 10 results
-                        mask = filtered_df['Card name'].str.contains(search_query, case=False, na=False)
+                        # Escape special regex characters in search query
+                        import re
+                        escaped_query = re.escape(search_query)
+                        mask = filtered_df['Card name'].str.contains(escaped_query, case=False, na=False)
                         filtered_df = filtered_df[mask]
                         
                         # Get unique books from both sources
@@ -1518,11 +1521,11 @@ def main():
                                     book_data = pd.DataFrame()
                                 
                                 # Debug: Let's see what we have
-                                st.write(f"DEBUG: Book '{book_title}' - book_data shape: {book_data.shape}")
-                                if not book_data.empty:
-                                    st.write(f"DEBUG: Book tasks found: {book_data['List'].unique()}")
-                                else:
-                                    st.write(f"DEBUG: Book data is empty for '{book_title}'")
+                                # st.write(f"DEBUG: Book '{book_title}' - book_data shape: {book_data.shape}")
+                                # if not book_data.empty:
+                                #     st.write(f"DEBUG: Book tasks found: {book_data['List'].unique()}")
+                                # else:
+                                #     st.write(f"DEBUG: Book data is empty for '{book_title}'")
                                 
                                 # If book has no tasks, create empty data structure
                                 if book_data.empty:
