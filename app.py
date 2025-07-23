@@ -1632,7 +1632,7 @@ def main():
                                                 estimated_time_str = format_seconds_to_time(estimated_time_for_user)
                                                 user_display = user_name if user_name and user_name != "Not set" else "Unassigned"
                                                 
-                                                stage_summary_parts.append(f"{completion_emoji}{user_display} | {actual_time_str}/{estimated_time_str}")
+                                                stage_summary_parts.append(f"{user_display} | {actual_time_str}/{estimated_time_str} {completion_emoji}".rstrip())
                                             
                                             # Create expander title with stage name and user summaries
                                             if stage_summary_parts:
