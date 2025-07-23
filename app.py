@@ -1268,8 +1268,6 @@ def main():
                     
                     # Set flag to clear form on next render instead of modifying session state directly
                     st.session_state.clear_form = True
-                    
-                    st.rerun()
                         
                 except Exception as e:
                     st.error(f"Error adding manual entry: {str(e)}")
@@ -1786,7 +1784,7 @@ def main():
                                                                     status_text = "✅ Marked as completed" if new_completion_status else "❌ Marked as incomplete" 
                                                                     st.session_state[success_msg_key] = status_text
                                                                     
-                                                                    # Set flag for delayed refresh to update book-level completion
+                                                                    # Set flag for book-level completion update
                                                                     st.session_state['completion_changed'] = True
                                                             else:
                                                                 st.write("No time estimate set")
@@ -1824,10 +1822,8 @@ def main():
                                                                     success_key = f"reassign_success_{book_title}_{stage_name}"
                                                                     st.session_state[success_key] = f"User reassigned from {current_user} to {new_user}"
                                                                     
-                                                                    # Batch refresh to avoid multiple reloads
-                                                                    if 'pending_refresh' not in st.session_state:
-                                                                        st.session_state.pending_refresh = True
-                                                                        st.rerun()
+                                                                    # Set flag for major structural change
+                                                                    st.session_state['major_update_needed'] = True
                                                             except Exception as e:
                                                                 st.error(f"Error reassigning user: {str(e)}")
                                                     
@@ -1964,8 +1960,6 @@ def main():
                                                                     del st.session_state.timer_paused[task_key]
                                                                 if task_key in st.session_state.timer_accumulated_time:
                                                                     del st.session_state.timer_accumulated_time[task_key]
-                                                                    
-                                                                st.rerun()
                                                         
                                                         # Display layout: (Pause/Resume Button) -> (Refresh Button)
                                                         timer_row2_col1, timer_row2_col2 = st.columns([1, 1])
@@ -1982,13 +1976,12 @@ def main():
                                                                     current_session = current_time - start_time
                                                                     st.session_state.timer_accumulated_time[task_key] += int(current_session.total_seconds())
                                                                     st.session_state.timer_paused[task_key] = True
-                                                                
-                                                                st.rerun()
                                                         
                                                         with timer_row2_col2:
                                                             refresh_key = f"refresh_timer_{task_key}"
                                                             if st.button("Refresh", key=refresh_key, help="Refresh timer display"):
-                                                                st.rerun()
+                                                                # Timer refresh will happen naturally on next interaction
+                                                                pass
                                                         
                                                         # Add JavaScript for localStorage persistence
                                                         st.markdown(f"""
@@ -2126,11 +2119,6 @@ def main():
                                                                             success_msg_key = f"manual_time_success_{task_key}"
                                                                             st.session_state[success_msg_key] = f"Added {manual_time} to progress"
                                                                             
-                                                                            # Only refresh after a delay to batch updates
-                                                                            if 'pending_refresh' not in st.session_state:
-                                                                                st.session_state.pending_refresh = True
-                                                                                st.rerun()
-                                                                            
                                                                         except Exception as e:
                                                                             st.error(f"Error saving time: {str(e)}")
                                                                     else:
@@ -2212,7 +2200,8 @@ def main():
                                             
                                             if add_stage_to_book(engine, book_title, selected_stage, board_name, tag, estimate_seconds):
                                                 st.success(f"Added {selected_stage} to {book_title} with {current_time_estimate} hour estimate")
-                                                st.rerun()
+                                                # Set flag for major structural change that needs refresh
+                                                st.session_state['major_update_needed'] = True
                                             else:
                                                 st.error("Failed to add stage")
                                     
@@ -2251,7 +2240,7 @@ def main():
                                                     if st.button("Remove", key=f"remove_confirm_{book_title}_{remove_stage_name}_{remove_user_name}", type="secondary"):
                                                         if delete_task_stage(engine, book_title, remove_user_name, remove_stage_name):
                                                             st.success(f"Removed {remove_stage_name} for {remove_user_name}")
-                                                            st.rerun()
+                                                            st.session_state['major_update_needed'] = True
                                                         else:
                                                             st.error("Failed to remove stage")
                                     
@@ -2299,7 +2288,7 @@ def main():
                                                 # Keep user on the current tab
                                                 st.session_state.active_tab = 0  # Book Progress tab
                                                 st.success(f"'{book_title}' has been archived successfully!")
-                                                st.rerun()
+                                                st.session_state['major_update_needed'] = True
                                             except Exception as e:
                                                 st.error(f"Error archiving book: {str(e)}")
                                     
@@ -2313,7 +2302,6 @@ def main():
                                             if not st.session_state[confirm_key]:
                                                 st.session_state[confirm_key] = True
                                                 st.warning(f"Click 'Delete {book_title}' again to permanently delete all data for this book.")
-                                                st.rerun()
                                             else:
                                                 try:
                                                     with engine.connect() as conn:
@@ -2328,7 +2316,7 @@ def main():
                                                     # Keep user on the Book Progress tab
                                                     st.session_state.active_tab = 0  # Book Progress tab
                                                     st.success(f"'{book_title}' has been permanently deleted!")
-                                                    st.rerun()
+                                                    st.session_state['major_update_needed'] = True
                                                 except Exception as e:
                                                     st.error(f"Error deleting book: {str(e)}")
                                                     # Reset confirmation state on error
@@ -2340,9 +2328,17 @@ def main():
         except Exception as e:
             st.error(f"Error accessing database: {str(e)}")
         
-        # Handle delayed refresh for book-level completion updates
-        if st.session_state.get('completion_changed', False):
-            del st.session_state['completion_changed']
+        # Only refresh if absolutely necessary (major structural changes)
+        refresh_needed = any([
+            st.session_state.get('completion_changed', False),
+            st.session_state.get('major_update_needed', False)
+        ])
+        
+        if refresh_needed:
+            # Clear all refresh flags
+            for flag in ['completion_changed', 'major_update_needed']:
+                if flag in st.session_state:
+                    del st.session_state[flag]
             st.rerun()
     
     elif selected_tab == "Reporting":
