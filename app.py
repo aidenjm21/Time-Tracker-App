@@ -1673,6 +1673,51 @@ def main():
                                                             key=selectbox_key
                                                         )
                                                         
+                                                        # Display progress information directly under user dropdown
+                                                        if user_name and user_name != "Not set":
+                                                            # Calculate progress percentage and display progress bar
+                                                            time_spent = total_time_spent_user.get(user_name, 0)
+                                                            estimated_time_for_user = get_task_estimate(engine, book_title, user_name, stage_name)
+                                                            
+                                                            if estimated_time_for_user and estimated_time_for_user > 0:
+                                                                progress_percentage = time_spent / estimated_time_for_user
+                                                                time_spent_formatted = format_seconds_to_time(time_spent)
+                                                                estimated_formatted = format_seconds_to_time(estimated_time_for_user)
+                                                                
+                                                                # Progress bar
+                                                                progress_value = max(0.0, min(progress_percentage, 1.0))
+                                                                st.progress(progress_value)
+                                                                
+                                                                # Progress text
+                                                                if progress_percentage > 1.0:
+                                                                    st.write(f"{(progress_percentage - 1) * 100:.1f}% over estimate")
+                                                                elif progress_percentage == 1.0:
+                                                                    st.write("COMPLETE: 100%")
+                                                                else:
+                                                                    st.write(f"{progress_percentage * 100:.1f}% complete")
+                                                                
+                                                                # Time information
+                                                                st.write(f"Time: {time_spent_formatted} / {estimated_formatted}")
+                                                                
+                                                                # Completion checkbox
+                                                                completion_key = f"complete_{book_title}_{stage_name}_{user_name}"
+                                                                if completion_key not in st.session_state:
+                                                                    st.session_state[completion_key] = get_task_completion(engine, book_title, user_name, stage_name)
+                                                                
+                                                                new_completion_status = st.checkbox(
+                                                                    "Completed",
+                                                                    value=st.session_state[completion_key],
+                                                                    key=completion_key
+                                                                )
+                                                                
+                                                                # Update completion status if changed
+                                                                if new_completion_status != st.session_state[completion_key]:
+                                                                    st.session_state[completion_key] = new_completion_status
+                                                                    update_task_completion(engine, book_title, user_name, stage_name, new_completion_status)
+                                                                    st.rerun()
+                                                            else:
+                                                                st.write("No time estimate set")
+                                                        
                                                         # Handle user reassignment with improved state management
                                                         if new_user != current_user:
                                                             try:
@@ -1707,37 +1752,7 @@ def main():
                                                             except Exception as e:
                                                                 st.error(f"Error reassigning user: {str(e)}")
                                                     
-                                                    st.write(f"**Progress:** {format_seconds_to_time(actual_time)}/{format_seconds_to_time(estimated_time_for_user)}")
-                                                    
-                                                    # Progress bar (ensure value is between 0 and 1)
-                                                    progress_percentage = (actual_time / estimated_time_for_user) if estimated_time_for_user > 0 else 0
-                                                    # Clamp progress value to valid range [0.0, 1.0]
-                                                    progress_value = max(0.0, min(progress_percentage, 1.0))
-                                                    st.progress(progress_value)
-                                                    
-                                                    if progress_percentage > 1.0:
-                                                        st.write(f"{(progress_percentage - 1) * 100:.1f}% over estimate")
-                                                    elif progress_percentage == 1.0:
-                                                        st.write("COMPLETE: 100%")
-                                                    else:
-                                                        st.write(f"{progress_percentage * 100:.1f}% complete")
-                                                    
-                                                    # Completion checkbox (optimized)
-                                                    completion_key = f"complete_{book_title}_{stage_name}_{user_name}"
-                                                    if completion_key not in st.session_state:
-                                                        st.session_state[completion_key] = get_task_completion(engine, book_title, user_name, stage_name)
-                                                    
-                                                    new_completion_status = st.checkbox(
-                                                        "Completed",
-                                                        value=st.session_state[completion_key],
-                                                        key=completion_key
-                                                    )
-                                                    
-                                                    # Update completion status if changed
-                                                    if new_completion_status != st.session_state[completion_key]:
-                                                        st.session_state[completion_key] = new_completion_status
-                                                        update_task_completion(engine, book_title, user_name, stage_name, new_completion_status)
-                                                        st.rerun()
+
                                             
                                             with col2:
                                                 # Empty space - timer moved to button column
