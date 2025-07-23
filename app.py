@@ -1601,6 +1601,10 @@ def main():
             if 'pending_refresh' in st.session_state:
                 del st.session_state.pending_refresh
             
+            # Initialize variables to avoid UnboundLocalError
+            df_from_db = None
+            all_books = []
+            
             if total_records and total_records > 0:
                 
                 # Get all books including those without tasks
@@ -2560,14 +2564,11 @@ def main():
             # Create data for the table
             table_data = []
             
-            # Get all books including those without tasks
-            all_books = get_all_books(engine)
-            
             # Create a dictionary to track books and their boards
             book_board_map = {}
             
             # First, add books with tasks from database
-            if not df_from_db.empty:
+            if df_from_db is not None and not df_from_db.empty:
                 for _, row in df_from_db.groupby('Card name').first().iterrows():
                     book_name = row['Card name']
                     board_name = row['Board'] if row['Board'] else 'Not set'
@@ -2588,8 +2589,7 @@ def main():
                 })
             
             if table_data:
-                # Create DataFrame for display
-                import pandas as pd
+                # Create DataFrame for display (pd is already imported at top of file)
                 table_df = pd.DataFrame(table_data)
                 
                 # Display the table
