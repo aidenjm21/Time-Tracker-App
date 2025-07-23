@@ -395,15 +395,17 @@ def remove_active_timer(engine, timer_key):
 
 
 def update_task_completion(engine, card_name, user_name, list_name, completed):
-    """Update task completion status"""
+    """Update task completion status for all matching records"""
     try:
         with engine.connect() as conn:
-            conn.execute(text("""
+            # Update all matching records and get count of affected rows
+            result = conn.execute(text("""
                 UPDATE trello_time_tracking 
                 SET completed = :completed
                 WHERE card_name = :card_name 
                 AND COALESCE(user_name, 'Not set') = :user_name 
                 AND list_name = :list_name
+                AND archived = FALSE
             """), {
                 'completed': completed,
                 'card_name': card_name,
@@ -411,6 +413,12 @@ def update_task_completion(engine, card_name, user_name, list_name, completed):
                 'list_name': list_name
             })
             conn.commit()
+            
+            # Verify the update worked
+            rows_affected = result.rowcount
+            if rows_affected == 0:
+                st.warning(f"No records found to update for {card_name} - {list_name} ({user_name})")
+                
     except Exception as e:
         st.error(f"Error updating task completion: {str(e)}")
 
@@ -457,21 +465,10 @@ def check_all_tasks_completed(engine, card_name):
             if not task_groups:
                 return False
             
-            # Debug: Show what we found
-            if st.session_state.get('debug_completion', False):
-                st.write(f"Task groups found for {card_name}:")
-                for task_group in task_groups:
-                    st.write(f"  - {task_group[0]} ({task_group[1]}): {task_group[2]}")
-            
             # Check if all task groups are completed
             for task_group in task_groups:
                 if not task_group[2]:  # all_completed column
-                    if st.session_state.get('debug_completion', False):
-                        st.write(f"❌ {task_group[0]} ({task_group[1]}) is NOT completed")
                     return False
-            
-            if st.session_state.get('debug_completion', False):
-                st.write(f"✅ All task groups completed for {card_name}")
             
             return True
     except Exception as e:
@@ -1285,12 +1282,6 @@ def main():
         """, unsafe_allow_html=True)
         st.markdown("Visual progress tracking for all books with individual task timers.")
         
-        # Debug toggle for completion status
-        if st.checkbox("Debug completion status", value=st.session_state.get('debug_completion', False)):
-            st.session_state['debug_completion'] = True
-        else:
-            st.session_state['debug_completion'] = False
-        
         # Display active timers at the top
         active_timer_count = sum(1 for running in st.session_state.timers.values() if running)
         if active_timer_count > 0:
@@ -1563,13 +1554,9 @@ def main():
                                 all_tasks_completed = False
                                 completion_emoji = ""
                                 if not book_data.empty and book_data['List'].iloc[0] != 'No tasks assigned':
-                                    # Force refresh completion status from database
+                                    # Check completion status from database
                                     all_tasks_completed = check_all_tasks_completed(engine, book_title)
                                     completion_emoji = "✅ " if all_tasks_completed else ""
-                                    
-                                    # Debug: Show completion status
-                                    if st.session_state.get('debug_completion', False):
-                                        st.write(f"Book: {book_title}, All completed: {all_tasks_completed}")
                                 
                                 # Create book title with progress percentage
                                 if estimated_time > 0:
@@ -1758,13 +1745,17 @@ def main():
                                                                 # Update completion status if changed
                                                                 if new_completion_status != current_completion_status:
                                                                     update_task_completion(engine, book_title, user_name, stage_name, new_completion_status)
-                                                                    # Update session state but avoid full refresh
+                                                                    # Update session state immediately
                                                                     st.session_state[completion_key] = new_completion_status
-                                                                    # Show immediate feedback without refresh
+                                                                    
+                                                                    # Clear any cached completion status to force refresh
+                                                                    completion_cache_key = f"book_completion_{book_title}"
+                                                                    if completion_cache_key in st.session_state:
+                                                                        del st.session_state[completion_cache_key]
+                                                                    
+                                                                    # Show immediate feedback and refresh to update book-level completion
                                                                     status_text = "✅ Marked as completed" if new_completion_status else "❌ Marked as incomplete" 
                                                                     st.success(status_text)
-                                                                    
-                                                                    # Force refresh to update book-level completion emoji
                                                                     st.rerun()
                                                             else:
                                                                 st.write("No time estimate set")
