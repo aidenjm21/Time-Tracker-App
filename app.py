@@ -99,57 +99,85 @@ def init_database():
 
 @st.cache_data(ttl=300)  # Cache for 5 minutes
 def get_users_from_database(_engine):
-    """Get list of unique users from database"""
-    try:
-        with _engine.connect() as conn:
-            result = conn.execute(text('SELECT DISTINCT COALESCE(user_name, \'Not set\') FROM trello_time_tracking ORDER BY COALESCE(user_name, \'Not set\')'))
-            return [row[0] for row in result]
-    except Exception as e:
-        st.error(f"Error fetching users: {str(e)}")
-        return []
+    """Get list of unique users from database with retry logic"""
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            with _engine.connect() as conn:
+                result = conn.execute(text('SELECT DISTINCT COALESCE(user_name, \'Not set\') FROM trello_time_tracking ORDER BY COALESCE(user_name, \'Not set\')'))
+                return [row[0] for row in result]
+        except Exception as e:
+            if attempt < max_retries - 1:
+                time.sleep(0.5)
+                continue
+            else:
+                return []
+    return []
 
 def get_tags_from_database(_engine):
     """Get list of unique individual tags from database, splitting comma-separated values"""
-    try:
-        with _engine.connect() as conn:
-            result = conn.execute(text("SELECT DISTINCT tag FROM trello_time_tracking WHERE tag IS NOT NULL AND tag != '' ORDER BY tag"))
-            all_tag_strings = [row[0] for row in result]
-            
-            # Split comma-separated tags and create unique set
-            individual_tags = set()
-            for tag_string in all_tag_strings:
-                if tag_string:
-                    # Split by comma and strip whitespace
-                    tags_in_string = [tag.strip() for tag in tag_string.split(',')]
-                    individual_tags.update(tags_in_string)
-            
-            # Return sorted list of individual tags
-            return sorted(list(individual_tags))
-    except Exception as e:
-        st.error(f"Error fetching tags: {str(e)}")
-        return []
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            with _engine.connect() as conn:
+                result = conn.execute(text("SELECT DISTINCT tag FROM trello_time_tracking WHERE tag IS NOT NULL AND tag != '' ORDER BY tag"))
+                all_tag_strings = [row[0] for row in result]
+                
+                # Split comma-separated tags and create unique set
+                individual_tags = set()
+                for tag_string in all_tag_strings:
+                    if tag_string:
+                        # Split by comma and strip whitespace
+                        tags_in_string = [tag.strip() for tag in tag_string.split(',')]
+                        individual_tags.update(tags_in_string)
+                
+                # Return sorted list of individual tags
+                return sorted(list(individual_tags))
+                
+        except Exception as e:
+            if attempt < max_retries - 1:
+                # Wait before retrying
+                time.sleep(0.5)
+                continue
+            else:
+                # Final attempt failed, return empty list instead of showing error
+                return []
+    
+    return []
 
 def get_books_from_database(_engine):
-    """Get list of unique book names from database"""
-    try:
-        with _engine.connect() as conn:
-            result = conn.execute(text("SELECT DISTINCT card_name FROM trello_time_tracking WHERE card_name IS NOT NULL ORDER BY card_name"))
-            books = [row[0] for row in result]
-            return books
-    except Exception as e:
-        st.error(f"Error fetching books: {str(e)}")
-        return []
+    """Get list of unique book names from database with retry logic"""
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            with _engine.connect() as conn:
+                result = conn.execute(text("SELECT DISTINCT card_name FROM trello_time_tracking WHERE card_name IS NOT NULL ORDER BY card_name"))
+                books = [row[0] for row in result]
+                return books
+        except Exception as e:
+            if attempt < max_retries - 1:
+                time.sleep(0.5)
+                continue
+            else:
+                return []
+    return []
 
 def get_boards_from_database(_engine):
-    """Get list of unique board names from database"""
-    try:
-        with _engine.connect() as conn:
-            result = conn.execute(text("SELECT DISTINCT board_name FROM trello_time_tracking WHERE board_name IS NOT NULL AND board_name != '' ORDER BY board_name"))
-            boards = [row[0] for row in result]
-            return boards
-    except Exception as e:
-        st.error(f"Error fetching boards: {str(e)}")
-        return []
+    """Get list of unique board names from database with retry logic"""
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            with _engine.connect() as conn:
+                result = conn.execute(text("SELECT DISTINCT board_name FROM trello_time_tracking WHERE board_name IS NOT NULL AND board_name != '' ORDER BY board_name"))
+                boards = [row[0] for row in result]
+                return boards
+        except Exception as e:
+            if attempt < max_retries - 1:
+                time.sleep(0.5)
+                continue
+            else:
+                return []
+    return []
 
 
 def emergency_stop_all_timers(engine):
