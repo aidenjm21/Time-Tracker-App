@@ -2557,49 +2557,56 @@ def main():
                 pass  # Ignore debug errors
         
         # Add table showing all books with their boards below the book cards
-        if total_records and total_records > 0:
-            st.markdown("---")
-            st.subheader("All Books Overview")
-            
-            # Create data for the table
-            table_data = []
-            
-            # Create a dictionary to track books and their boards
-            book_board_map = {}
-            
-            # First, add books with tasks from database
-            if df_from_db is not None and not df_from_db.empty:
+        st.markdown("---")
+        st.subheader("All Books Overview")
+        
+        # Create data for the table
+        table_data = []
+        
+        # Create a dictionary to track books and their boards
+        book_board_map = {}
+        
+        # First, add books with tasks from database
+        if df_from_db is not None and not df_from_db.empty and 'Card name' in df_from_db.columns:
+            try:
                 for _, row in df_from_db.groupby('Card name').first().iterrows():
                     book_name = row['Card name']
-                    board_name = row['Board'] if row['Board'] else 'Not set'
+                    board_name = row['Board'] if 'Board' in row and row['Board'] else 'Not set'
                     book_board_map[book_name] = board_name
-            
-            # Then add books without tasks from all_books
+            except Exception as e:
+                # If groupby fails, fall back to simple iteration
+                pass
+        
+        # Then add books without tasks from all_books
+        try:
             for book_info in all_books:
                 book_name = book_info[0]
                 if book_name not in book_board_map:
                     board_name = book_info[1] if book_info[1] else 'Not set'
                     book_board_map[book_name] = board_name
+        except Exception as e:
+            # Handle case where all_books might be empty or malformed
+            pass
+        
+        # Convert to sorted list for table display
+        for book_name in sorted(book_board_map.keys()):
+            table_data.append({
+                'Book Name': book_name,
+                'Board': book_board_map[book_name]
+            })
+        
+        if table_data:
+            # Create DataFrame for display (pd is already imported at top of file)
+            table_df = pd.DataFrame(table_data)
             
-            # Convert to sorted list for table display
-            for book_name in sorted(book_board_map.keys()):
-                table_data.append({
-                    'Book Name': book_name,
-                    'Board': book_board_map[book_name]
-                })
-            
-            if table_data:
-                # Create DataFrame for display (pd is already imported at top of file)
-                table_df = pd.DataFrame(table_data)
-                
-                # Display the table
-                st.dataframe(
-                    table_df,
-                    use_container_width=True,
-                    hide_index=True
-                )
-            else:
-                st.info("No books found in the database.")
+            # Display the table
+            st.dataframe(
+                table_df,
+                use_container_width=True,
+                hide_index=True
+            )
+        else:
+            st.info("No books found in the database.")
         
         # Only refresh if absolutely necessary (major structural changes)
         refresh_needed = any([
