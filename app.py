@@ -2016,6 +2016,14 @@ def main():
                                                                         # Get existing tag from original data
                                                                         existing_tag = user_original_data.get('Tag', None) if 'Tag' in user_original_data else None
                                                                         
+                                                                        # Preserve expanded state before rerun
+                                                                        expanded_key = f"expanded_{book_title}"
+                                                                        st.session_state[expanded_key] = True
+                                                                        
+                                                                        # Preserve stage expanded state
+                                                                        stage_expanded_key = f"stage_expanded_{book_title}_{stage_name}"
+                                                                        st.session_state[stage_expanded_key] = True
+                                                                        
                                                                         with engine.connect() as conn:
                                                                             conn.execute(text('''
                                                                                 INSERT INTO trello_time_tracking 
