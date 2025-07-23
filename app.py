@@ -451,7 +451,6 @@ def load_active_timers(engine):
                     st.session_state.timer_paused = {}
                 
                 st.session_state.timers[timer_key] = True
-                st.session_state.timer_accumulated_time[timer_key] = accumulated_seconds
                 st.session_state.timer_paused[timer_key] = is_paused
                 
                 # Ensure timezone-aware datetime for consistency
@@ -460,7 +459,18 @@ def load_active_timers(engine):
                 elif start_time.tzinfo != BST:
                     # Convert to BST if it's in a different timezone
                     start_time = start_time.astimezone(BST)
-                st.session_state.timer_start_times[timer_key] = start_time
+                
+                if is_paused:
+                    # If paused, the accumulated_seconds IS the total time
+                    st.session_state.timer_accumulated_time[timer_key] = accumulated_seconds
+                    st.session_state.timer_start_times[timer_key] = start_time
+                else:
+                    # If running, we need to reset the start time to now and set accumulated time
+                    # The accumulated_seconds from DB represents the total time so far
+                    # We reset start time to current time for new session calculation
+                    current_time = datetime.now(BST)
+                    st.session_state.timer_accumulated_time[timer_key] = accumulated_seconds
+                    st.session_state.timer_start_times[timer_key] = current_time
                 
                 active_timers.append({
                     'timer_key': timer_key,
@@ -522,46 +532,7 @@ def save_active_timer(engine, timer_key, card_name, user_name, list_name, board_
     except Exception as e:
         st.error(f"Error saving active timer: {str(e)}")
 
-def update_all_active_timers(engine):
-    """Update all active timers in database with current accumulated time"""
-    try:
-        if 'timers' not in st.session_state:
-            return
-            
-        current_time = datetime.now(BST)
-        
-        for timer_key, is_active in st.session_state.timers.items():
-            if is_active and timer_key in st.session_state.timer_start_times:
-                # Calculate current accumulated time
-                start_time = st.session_state.timer_start_times[timer_key]
-                accumulated_time = st.session_state.timer_accumulated_time.get(timer_key, 0)
-                is_paused = st.session_state.timer_paused.get(timer_key, False)
-                
-                if not is_paused:
-                    # Add current session time to accumulated time for database update
-                    current_session = int((current_time - start_time).total_seconds())
-                    total_accumulated = accumulated_time + current_session
-                else:
-                    # Use only accumulated time if paused
-                    total_accumulated = accumulated_time
-                
-                # Update database with current state
-                with engine.connect() as conn:
-                    conn.execute(text('''
-                        UPDATE active_timers 
-                        SET accumulated_seconds = :accumulated_seconds,
-                            is_paused = :is_paused
-                        WHERE timer_key = :timer_key
-                    '''), {
-                        'accumulated_seconds': max(0, total_accumulated),
-                        'is_paused': is_paused,
-                        'timer_key': timer_key
-                    })
-                    conn.commit()
-                    
-    except Exception as e:
-        # Silently handle errors to avoid disrupting UI
-        pass
+
 
 
 def remove_active_timer(engine, timer_key):
@@ -1259,9 +1230,6 @@ def main():
     if active_timers and 'timers_loaded' not in st.session_state:
         st.info(f"Restored {len(active_timers)} active timer(s) from previous session.")
         st.session_state.timers_loaded = True
-    
-    # Update all active timers in database to keep them in sync
-    update_all_active_timers(engine)
     
     # Create tabs for different views
     tab_names = ["Book Progress", "Add Book", "Archive", "Reporting"]
@@ -2199,7 +2167,7 @@ def main():
                                                                     st.session_state.timer_paused[task_key] = False
                                                                     st.session_state.timer_start_times[task_key] = current_time
                                                                     
-                                                                    # Save resume state to database
+                                                                    # Save resume state to database (keep existing accumulated time)
                                                                     save_active_timer(
                                                                         engine, task_key, book_title,
                                                                         user_name if user_name != "Not set" else None,
@@ -2210,14 +2178,15 @@ def main():
                                                                 else:
                                                                     # Pause: accumulate current session time and pause
                                                                     current_session = current_time - start_time
-                                                                    st.session_state.timer_accumulated_time[task_key] += int(current_session.total_seconds())
+                                                                    if current_session.total_seconds() > 0:
+                                                                        st.session_state.timer_accumulated_time[task_key] += int(current_session.total_seconds())
                                                                     st.session_state.timer_paused[task_key] = True
                                                                     
                                                                     # Save pause state to database
                                                                     save_active_timer(
                                                                         engine, task_key, book_title,
                                                                         user_name if user_name != "Not set" else None,
-                                                                        stage_name, board_name, start_time,
+                                                                        stage_name, board_name, current_time,
                                                                         st.session_state.timer_accumulated_time[task_key],
                                                                         True
                                                                     )

@@ -167,6 +167,7 @@ Changelog:
 - July 23, 2025. Enhanced login system with IP-based 24-hour authentication persistence - users don't need to re-login for 24 hours from the same device/IP address, includes "Full Logout" option to clear IP authentication
 - July 23, 2025. Removed logout buttons from interface per user request - authentication persists for full 24-hour period automatically
 - July 23, 2025. Enhanced timer persistence system with comprehensive database storage: added accumulated_seconds and is_paused columns to active_timers table, timers now fully preserve pause/resume states and accumulated time across page refreshes, added continuous database sync to prevent timer resets, implemented background timer state updates to keep database current
+- July 23, 2025. Fixed critical multi-user timer race condition causing exponential time growth: removed problematic background update function that was accumulating time incorrectly when multiple users accessed the app, improved timer loading logic to properly handle accumulated time vs current session time, fixed pause/resume calculations to prevent time duplication
 ```
 
 ## User Preferences
