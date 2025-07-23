@@ -1623,8 +1623,9 @@ def main():
                                                     if not non_zero_estimates.empty:
                                                         estimated_time_for_user = non_zero_estimates.iloc[0]
                                                 
-                                                # Check if task is completed (simplified for performance)
-                                                completion_emoji = ""
+                                                # Check if task is completed and add tick emoji
+                                                task_completed = get_task_completion(engine, book_title, user_name, stage_name)
+                                                completion_emoji = "✅ " if task_completed else ""
                                                 
                                                 # Format times for display
                                                 actual_time_str = format_seconds_to_time(actual_time)
