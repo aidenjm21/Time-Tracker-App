@@ -165,6 +165,8 @@ Changelog:
 - July 23, 2025. Fixed search functionality for book titles containing special characters (parentheses, etc.) by adding regex escaping
 - July 23, 2025. Added basic login system with password protection (password: testpassword1) - users must authenticate before accessing the application
 - July 23, 2025. Enhanced login system with IP-based 24-hour authentication persistence - users don't need to re-login for 24 hours from the same device/IP address, includes "Full Logout" option to clear IP authentication
+- July 23, 2025. Removed logout buttons from interface per user request - authentication persists for full 24-hour period automatically
+- July 23, 2025. Enhanced timer persistence system with comprehensive database storage: added accumulated_seconds and is_paused columns to active_timers table, timers now fully preserve pause/resume states and accumulated time across page refreshes, added continuous database sync to prevent timer resets, implemented background timer state updates to keep database current
 ```
 
 ## User Preferences
