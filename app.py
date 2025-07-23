@@ -2023,14 +2023,17 @@ def main():
                                                         except ValueError:
                                                             st.error("Please enter valid numbers in hh:mm:ss format")
                                                 
-                                                # Add Remove stage button at the bottom right of the column
-                                                if st.button("Remove stage", key=f"remove_{book_title}_{stage_name}_{user_name}", type="secondary"):
-                                                    # Single click delete
-                                                    if delete_task_stage(engine, book_title, user_name, stage_name):
-                                                        st.success(f"Removed {stage_name} for {user_name}")
-                                                        st.rerun()
-                                                    else:
-                                                        st.error("Failed to remove stage")
+                                                # Add Remove stage button with right alignment and reduced spacing
+                                                st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
+                                                col_remove_left, col_remove_right = st.columns([3, 1])
+                                                with col_remove_right:
+                                                    if st.button("Remove stage", key=f"remove_{book_title}_{stage_name}_{user_name}", type="secondary"):
+                                                        # Single click delete
+                                                        if delete_task_stage(engine, book_title, user_name, stage_name):
+                                                            st.success(f"Removed {stage_name} for {user_name}")
+                                                            st.rerun()
+                                                        else:
+                                                            st.error("Failed to remove stage")
                                                 
                                                 # Display timer success message at bottom if exists
                                                 success_msg_key = f"timer_success_{task_key}"
