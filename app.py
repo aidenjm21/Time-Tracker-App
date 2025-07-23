@@ -1675,13 +1675,10 @@ def main():
                                                         
                                                         # Display progress information directly under user dropdown
                                                         if user_name and user_name != "Not set":
-                                                            # Calculate progress percentage and display progress bar
-                                                            time_spent = total_time_spent_user.get(user_name, 0)
-                                                            estimated_time_for_user = get_task_estimate(engine, book_title, user_name, stage_name)
-                                                            
+                                                            # Use the actual_time variable that's already calculated for this user/stage
                                                             if estimated_time_for_user and estimated_time_for_user > 0:
-                                                                progress_percentage = time_spent / estimated_time_for_user
-                                                                time_spent_formatted = format_seconds_to_time(time_spent)
+                                                                progress_percentage = actual_time / estimated_time_for_user
+                                                                time_spent_formatted = format_seconds_to_time(actual_time)
                                                                 estimated_formatted = format_seconds_to_time(estimated_time_for_user)
                                                                 
                                                                 # Progress bar
