@@ -1412,13 +1412,31 @@ def main():
                     
                     with col2:
                         st.markdown("<div style='height: 38px;'></div>", unsafe_allow_html=True)
-                        show_all = st.button("Show All")
+                        
+                        # Initialize show_all state if not exists
+                        if 'show_all_books' not in st.session_state:
+                            st.session_state.show_all_books = False
+                        
+                        # Show All button that toggles state
+                        if st.button("Show All"):
+                            st.session_state.show_all_books = True
+                            st.rerun()
+                        
+                        # Add "Hide All" button when showing all books
+                        if st.session_state.show_all_books:
+                            if st.button("Hide All"):
+                                st.session_state.show_all_books = False
+                                st.rerun()
                     
                     # Initialize filtered_df
                     filtered_df = df_from_db.copy()
                     
+                    # Reset show_all state when search is used
+                    if search_query:
+                        st.session_state.show_all_books = False
+                    
                     # Determine what to display based on search or show all
-                    if show_all:
+                    if st.session_state.show_all_books and not search_query:
                         # Show all books
                         books_with_tasks = set(filtered_df['Card name'].unique()) if not filtered_df.empty else set()
                         books_without_tasks = set(book[0] for book in all_books if book[0] not in books_with_tasks)
