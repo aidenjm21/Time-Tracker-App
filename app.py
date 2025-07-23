@@ -1811,7 +1811,9 @@ def main():
                                                                                        {'timer_key': task_key})
                                                                             conn.commit()
                                                                             
-                                                                        st.success(f"Added {elapsed_str} to {book_title} - {stage_name}")
+                                                                        # Store success message for display at bottom
+                                                                        success_msg_key = f"timer_success_{task_key}"
+                                                                        st.session_state[success_msg_key] = f"Added {elapsed_str} to {book_title} - {stage_name}"
                                                                     except Exception as e:
                                                                         st.error(f"Error saving time: {str(e)}")
                                                                 
@@ -1972,6 +1974,13 @@ def main():
                                                         st.rerun()
                                                     else:
                                                         st.error("Failed to remove stage")
+                                                
+                                                # Display timer success message at bottom if exists
+                                                success_msg_key = f"timer_success_{task_key}"
+                                                if success_msg_key in st.session_state:
+                                                    st.success(st.session_state[success_msg_key])
+                                                    # Clear the message after displaying
+                                                    del st.session_state[success_msg_key]
 
                                     
                                     # Show count of running timers (refresh buttons now appear under individual timers)
