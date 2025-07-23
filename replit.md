@@ -171,6 +171,7 @@ Changelog:
 - July 23, 2025. Fixed unique constraint violation error when stopping timers: implemented ON CONFLICT DO UPDATE logic to handle duplicate entries that occur when timers record identical time durations on the same date, preventing database errors during timer stops
 - July 23, 2025. Fixed timer display showing 00:00:00: corrected timer loading logic to properly calculate accumulated time for running timers restored from database
 - July 23, 2025. Enhanced timer stop robustness: improved error handling to clear timer states immediately on stop button click, preventing need for double-clicks and ensuring proper cleanup even when database errors occur
+- July 23, 2025. Fixed critical KeyError in timer operations: added proper key existence checks using .get() method to prevent crashes when accessing timer states that don't exist due to user reassignments or stage changes
 ```
 
 ## User Preferences

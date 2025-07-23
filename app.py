@@ -2055,9 +2055,9 @@ def main():
                                                         # Calculate elapsed time
                                                         current_time = datetime.utcnow().replace(tzinfo=timezone.utc).astimezone(BST)
                                                         
-                                                        if st.session_state.timer_paused[task_key]:
+                                                        if st.session_state.timer_paused.get(task_key, False):
                                                             # If paused, show accumulated time only
-                                                            total_seconds = st.session_state.timer_accumulated_time[task_key]
+                                                            total_seconds = st.session_state.timer_accumulated_time.get(task_key, 0)
                                                         else:
                                                             # If running, add current session time to accumulated time
                                                             current_session = current_time - start_time
@@ -2083,7 +2083,7 @@ def main():
                                                                 except Exception as e:
                                                                     st.error(f"Error updating timer start time: {str(e)}")
                                                             
-                                                            total_seconds = st.session_state.timer_accumulated_time[task_key] + int(current_session.total_seconds())
+                                                            total_seconds = st.session_state.timer_accumulated_time.get(task_key, 0) + int(current_session.total_seconds())
                                                         
                                                         # Format time as hh:mm:ss
                                                         hours = total_seconds // 3600
@@ -2094,17 +2094,17 @@ def main():
                                                         # Display recording status with layout: Recording (hh:mm:ss) -> (Stop Button)
                                                         timer_row1_col1, timer_row1_col2 = st.columns([2, 1])
                                                         with timer_row1_col1:
-                                                            status = "Recording (Paused)" if st.session_state.timer_paused[task_key] else "Recording"
+                                                            status = "Recording (Paused)" if st.session_state.timer_paused.get(task_key, False) else "Recording"
                                                             st.write(f"**{status}** ({elapsed_str})")
                                                         
                                                         with timer_row1_col2:
                                                             if st.button("Stop", key=f"stop_{task_key}"):
                                                                 # Calculate final total time including current session
-                                                                if not st.session_state.timer_paused[task_key]:
+                                                                if not st.session_state.timer_paused.get(task_key, False):
                                                                     current_session = current_time - start_time
-                                                                    final_time = st.session_state.timer_accumulated_time[task_key] + int(current_session.total_seconds())
+                                                                    final_time = st.session_state.timer_accumulated_time.get(task_key, 0) + int(current_session.total_seconds())
                                                                 else:
-                                                                    final_time = st.session_state.timer_accumulated_time[task_key]
+                                                                    final_time = st.session_state.timer_accumulated_time.get(task_key, 0)
                                                                 
                                                                 # Keep expanded states
                                                                 expanded_key = f"expanded_{book_title}"
@@ -2188,12 +2188,12 @@ def main():
                                                         timer_row2_col1, timer_row2_col2 = st.columns([1, 1])
                                                         
                                                         with timer_row2_col1:
-                                                            pause_resume_text = "Resume" if st.session_state.timer_paused[task_key] else "Pause"
+                                                            pause_resume_text = "Resume" if st.session_state.timer_paused.get(task_key, False) else "Pause"
                                                             if st.button(pause_resume_text, key=f"pause_resume_{task_key}"):
                                                                 user_original_data = stage_data[stage_data['User'] == user_name].iloc[0]
                                                                 board_name = user_original_data['Board']
                                                                 
-                                                                if st.session_state.timer_paused[task_key]:
+                                                                if st.session_state.timer_paused.get(task_key, False):
                                                                     # Resume: set new start time and unpause
                                                                     st.session_state.timer_paused[task_key] = False
                                                                     st.session_state.timer_start_times[task_key] = current_time
@@ -2203,13 +2203,15 @@ def main():
                                                                         engine, task_key, book_title,
                                                                         user_name if user_name != "Not set" else None,
                                                                         stage_name, board_name, current_time,
-                                                                        st.session_state.timer_accumulated_time[task_key],
+                                                                        st.session_state.timer_accumulated_time.get(task_key, 0),
                                                                         False
                                                                     )
                                                                 else:
                                                                     # Pause: accumulate current session time and pause
                                                                     current_session = current_time - start_time
                                                                     if current_session.total_seconds() > 0:
+                                                                        if task_key not in st.session_state.timer_accumulated_time:
+                                                                            st.session_state.timer_accumulated_time[task_key] = 0
                                                                         st.session_state.timer_accumulated_time[task_key] += int(current_session.total_seconds())
                                                                     st.session_state.timer_paused[task_key] = True
                                                                     
@@ -2218,7 +2220,7 @@ def main():
                                                                         engine, task_key, book_title,
                                                                         user_name if user_name != "Not set" else None,
                                                                         stage_name, board_name, current_time,
-                                                                        st.session_state.timer_accumulated_time[task_key],
+                                                                        st.session_state.timer_accumulated_time.get(task_key, 0),
                                                                         True
                                                                     )
                                                         
