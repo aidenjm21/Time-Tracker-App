@@ -1340,7 +1340,11 @@ def main():
                         elapsed_str = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
                         
                         # Display timer info with status
-                        st.write(f"🕐 **{book_title}** - {stage_name} ({user_name}) - {status} for {elapsed_str}")
+                        st.write(f"**{book_title}** - {stage_name} ({user_name}) - {status} for {elapsed_str}")
+            
+            # Add refresh button for active timers
+            if st.button("🔄 Refresh Active Timers", key="refresh_active_timers"):
+                st.rerun()
             
             st.markdown("---")
         
