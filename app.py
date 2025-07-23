@@ -2156,6 +2156,9 @@ def main():
                                                                         # Store success message for display at bottom
                                                                         success_msg_key = f"timer_success_{task_key}"
                                                                         st.session_state[success_msg_key] = f"Added {elapsed_str} to {book_title} - {stage_name}"
+                                                                        
+                                                                        # Set flag for major update to refresh the display
+                                                                        st.session_state['major_update_needed'] = True
                                                                     except Exception as e:
                                                                         st.error(f"Error saving timer data: {str(e)}")
                                                                         # Still try to clean up active timer from database on error
