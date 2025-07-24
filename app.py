@@ -287,7 +287,8 @@ def emergency_stop_all_timers(engine):
             st.session_state.timer_start_times = {}
         
         saved_timers = 0
-        current_time = datetime.now(BST)
+        current_time_utc = datetime.utcnow().replace(tzinfo=timezone.utc)
+        current_time_bst = current_time_utc.astimezone(BST)
         
         # Process any active timers from session state
         for timer_key, is_active in st.session_state.timers.items():
@@ -300,7 +301,7 @@ def emergency_stop_all_timers(engine):
                         list_name = parts[-2]
                         user_name = parts[-1]
                         
-                        # Calculate elapsed time - simple approach
+                        # Calculate elapsed time using UTC-based function
                         start_time = st.session_state.timer_start_times[timer_key]
                         elapsed_seconds = calculate_timer_elapsed_time(start_time)
                         
@@ -424,31 +425,15 @@ def load_active_timers(engine):
                 if 'timer_start_times' not in st.session_state:
                     st.session_state.timer_start_times = {}
                 
-                st.session_state.timers[timer_key] = True
-                st.session_state.timer_start_times[timer_key] = start_time
-                
                 # Ensure timezone-aware datetime for consistency
                 if start_time.tzinfo is None:
-                    start_time = start_time.replace(tzinfo=BST)
-                elif start_time.tzinfo != BST:
-                    # Convert to BST if it's in a different timezone
-                    start_time = start_time.astimezone(BST)
-                
-                if is_paused:
-                    # If paused, the accumulated_seconds IS the total time
-                    st.session_state.timer_accumulated_time[timer_key] = accumulated_seconds
-                    st.session_state.timer_start_times[timer_key] = start_time
+                    start_time_with_tz = start_time.replace(tzinfo=BST)
                 else:
-                    # If running, calculate how much time has elapsed since the original start
-                    # and put that in accumulated_time, then reset start_time to now
-                    current_time = datetime.now(BST)
-                    elapsed_since_start = int((current_time - start_time).total_seconds())
-                    
-                    # The total time is accumulated_seconds + elapsed_since_start
-                    # But we want to display correctly, so we set accumulated to the total
-                    # and start_time to now for the next session calculation
-                    st.session_state.timer_accumulated_time[timer_key] = accumulated_seconds + max(0, elapsed_since_start)
-                    st.session_state.timer_start_times[timer_key] = current_time
+                    # Convert to BST for consistency in session state
+                    start_time_with_tz = start_time.astimezone(BST)
+                
+                st.session_state.timers[timer_key] = True
+                st.session_state.timer_start_times[timer_key] = start_time_with_tz
                 
                 active_timers.append({
                     'timer_key': timer_key,
@@ -456,7 +441,7 @@ def load_active_timers(engine):
                     'user_name': user_name,
                     'list_name': list_name,
                     'board_name': board_name,
-                    'start_time': start_time
+                    'start_time': start_time_with_tz
                 })
             
             return active_timers
@@ -483,9 +468,17 @@ def load_active_timers(engine):
 
 
 def save_active_timer(engine, timer_key, card_name, user_name, list_name, board_name, start_time):
-    """Save active timer to database - simplified version"""
+    """Save active timer to database - timezone-aware version"""
     try:
         with engine.connect() as conn:
+            # Ensure timezone information is preserved for database storage
+            if start_time.tzinfo is None:
+                # If no timezone, assume BST
+                start_time_with_tz = start_time.replace(tzinfo=BST)
+            else:
+                # Keep existing timezone info
+                start_time_with_tz = start_time
+                
             conn.execute(text('''
                 INSERT INTO active_timers (timer_key, card_name, user_name, list_name, board_name, start_time, created_at)
                 VALUES (:timer_key, :card_name, :user_name, :list_name, :board_name, :start_time, CURRENT_TIMESTAMP)
@@ -498,7 +491,7 @@ def save_active_timer(engine, timer_key, card_name, user_name, list_name, board_
                 'user_name': user_name,
                 'list_name': list_name,
                 'board_name': board_name,
-                'start_time': start_time.astimezone(BST) if start_time.tzinfo else start_time.replace(tzinfo=BST)
+                'start_time': start_time_with_tz
             })
             conn.commit()
     except Exception as e:
@@ -828,18 +821,23 @@ def format_seconds_to_time(seconds):
     return f"{hours:02d}:{minutes:02d}:{secs:02d}"
 
 def calculate_timer_elapsed_time(start_time):
-    """Calculate elapsed time from start_time to now"""
+    """Calculate elapsed time from start_time to now using UTC for accuracy"""
     if not start_time:
         return 0
     
-    current_time = datetime.now(BST)
-    if start_time.tzinfo is None:
-        start_time = start_time.replace(tzinfo=BST)
-    elif start_time.tzinfo != BST:
-        start_time = start_time.astimezone(BST)
+    # Use UTC for all calculations to avoid timezone issues
+    current_time_utc = datetime.utcnow().replace(tzinfo=timezone.utc)
     
-    elapsed = current_time - start_time
-    return int(elapsed.total_seconds())
+    # Convert start_time to UTC
+    if start_time.tzinfo is None:
+        # Assume start_time is in BST if no timezone info
+        start_time = start_time.replace(tzinfo=BST).astimezone(timezone.utc)
+    else:
+        # Convert to UTC
+        start_time = start_time.astimezone(timezone.utc)
+    
+    elapsed = current_time_utc - start_time
+    return max(0, int(elapsed.total_seconds()))  # Ensure non-negative result
 
 def calculate_completion_status(time_spent_seconds, estimated_seconds):
     """Calculate completion status based on time spent vs estimated time"""
@@ -2042,10 +2040,12 @@ def main():
                                                         stage_expanded_key = f"stage_expanded_{book_title}_{stage_name}"
                                                         st.session_state[stage_expanded_key] = True
                                                         
-                                                        # Start timer - simple approach
-                                                        start_time = datetime.now(BST)
+                                                        # Start timer - use UTC for consistency
+                                                        start_time_utc = datetime.utcnow().replace(tzinfo=timezone.utc)
+                                                        # Convert to BST for display/storage but keep UTC calculation base
+                                                        start_time_bst = start_time_utc.astimezone(BST)
                                                         st.session_state.timers[task_key] = True
-                                                        st.session_state.timer_start_times[task_key] = start_time
+                                                        st.session_state.timer_start_times[task_key] = start_time_bst
                                                         
                                                         # Save to database for persistence
                                                         user_original_data = stage_data[stage_data['User'] == user_name].iloc[0]
@@ -2054,7 +2054,7 @@ def main():
                                                         save_active_timer(
                                                             engine, task_key, book_title, 
                                                             user_name if user_name != "Not set" else None,
-                                                            stage_name, board_name, start_time
+                                                            stage_name, board_name, start_time_bst
                                                         )
                                                         
                                                         st.rerun()
