@@ -163,7 +163,7 @@ Changelog:
 - July 23, 2025. Added maximum time validation (100 hours) for manual time entry to prevent database integer overflow errors
 - July 23, 2025. Optimized refresh system by removing unnecessary st.rerun() calls from timer operations, manual time additions, and completion status changes - only major structural changes now trigger full page refreshes
 - July 23, 2025. Fixed search functionality for book titles containing special characters (parentheses, etc.) by adding regex escaping
-- July 23, 2025. Added basic login system with password protection (password: testpassword1) - users must authenticate before accessing the application
+- July 23, 2025. Added basic login system with password protection (password: Booklife01) - users must authenticate before accessing the application
 - July 23, 2025. Enhanced login system with IP-based 24-hour authentication persistence - users don't need to re-login for 24 hours from the same device/IP address, includes "Full Logout" option to clear IP authentication
 - July 23, 2025. Removed logout buttons from interface per user request - authentication persists for full 24-hour period automatically
 - July 23, 2025. Enhanced timer persistence system with comprehensive database storage: added accumulated_seconds and is_paused columns to active_timers table, timers now fully preserve pause/resume states and accumulated time across page refreshes, added continuous database sync to prevent timer resets, implemented background timer state updates to keep database current
@@ -179,6 +179,7 @@ Changelog:
 - July 24, 2025. Restored simplified active timers display: brought back "Active Timers" section showing only book names without time displays, refresh buttons, or any background processing to minimize compute usage while providing visibility into which books have running timers
 - July 24, 2025. Fixed timezone calculation issues causing negative timer displays: standardized all timer calculations to use UTC as base time with proper BST conversion, ensuring accurate time calculations for UK users regardless of daylight saving time transitions
 - July 24, 2025. CRITICAL FIX: Eliminated infinite rerun loop causing excessive compute usage (1M+ units/day): removed automatic refresh system that was triggering st.rerun() repeatedly when major_update_needed flags were set, significantly reducing compute unit consumption to normal levels
+- July 24, 2025. Updated login password from "testpassword1" to "Booklife01" for improved security and branding alignment
 ```
 
 ## User Preferences

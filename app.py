@@ -1141,7 +1141,7 @@ def main():
             )
             
             if st.button("Login", type="primary", use_container_width=True):
-                if password == "testpassword1":
+                if password == "Booklife01":
                     # Store IP authentication for 24 hours
                     if authenticate_ip(engine, client_ip):
                         st.session_state.logged_in = True
