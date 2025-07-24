@@ -1476,35 +1476,7 @@ def main():
         """, unsafe_allow_html=True)
         st.markdown("Visual progress tracking for all books with individual task timers.")
         
-        # Display active timers at the top
-        active_timer_count = sum(1 for running in st.session_state.timers.values() if running)
-        if active_timer_count > 0:
-            st.info(f"{active_timer_count} timer(s) currently running - these will persist even if you refresh the page or close the tab")
-            
-            # Show active timers as visible block (not in dropdown)
-            st.markdown("### Active Timers")
-            for task_key, is_running in st.session_state.timers.items():
-                if is_running and task_key in st.session_state.timer_start_times:
-                    # Extract book, stage, and user from task_key
-                    parts = task_key.split('_')
-                    if len(parts) >= 3:
-                        book_title = '_'.join(parts[:-2])
-                        stage_name = parts[-2]
-                        user_name = parts[-1]
-                        
-                        # Simple calculation: elapsed time from start to now
-                        start_time = st.session_state.timer_start_times[task_key]
-                        elapsed_seconds = calculate_timer_elapsed_time(start_time)
-                        elapsed_str = format_seconds_to_time(elapsed_seconds)
-                        
-                        # Display timer info
-                        st.write(f"**{book_title}** - {stage_name} ({user_name}) - RUNNING for {elapsed_str}")
-            
-            # Add refresh button for active timers
-            if st.button("Refresh Active Timers", key="refresh_active_timers"):
-                st.rerun()
-            
-            st.markdown("---")
+
         
         # Initialize session state for timers
         if 'timers' not in st.session_state:
