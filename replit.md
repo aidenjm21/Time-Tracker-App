@@ -176,6 +176,7 @@ Changelog:
 - July 23, 2025. Replaced Show All button with overview table: removed Show All/Hide All toggle functionality and added "All Books Overview" table below book cards displaying Book Name and Board columns for complete project visibility
 - July 24, 2025. Simplified timer system to eliminate background compute usage: removed complex pause/resume functionality, JavaScript timers, and continuous database synchronization - timers now calculate elapsed time on-demand using simple start_time to current_time calculation, significantly reducing compute unit consumption
 - July 24, 2025. Removed active timers display section: eliminated the "Active Timers" section at the top of Book Progress tab to further reduce any potential background compute usage while maintaining timer functionality within individual book cards
+- July 24, 2025. Restored simplified active timers display: brought back "Active Timers" section showing only book names without time displays, refresh buttons, or any background processing to minimize compute usage while providing visibility into which books have running timers
 ```
 
 ## User Preferences

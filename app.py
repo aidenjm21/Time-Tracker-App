@@ -1476,7 +1476,27 @@ def main():
         """, unsafe_allow_html=True)
         st.markdown("Visual progress tracking for all books with individual task timers.")
         
-
+        # Display active timers - simplified (card names only)
+        active_timer_count = sum(1 for running in st.session_state.timers.values() if running)
+        if active_timer_count > 0:
+            st.info(f"{active_timer_count} timer(s) currently running")
+            
+            # Show active timer card names only
+            st.markdown("### Active Timers")
+            active_books = set()
+            for task_key, is_running in st.session_state.timers.items():
+                if is_running and task_key in st.session_state.timer_start_times:
+                    # Extract book name from task_key
+                    parts = task_key.split('_')
+                    if len(parts) >= 3:
+                        book_title = '_'.join(parts[:-2])
+                        active_books.add(book_title)
+            
+            # Display unique book names with timers
+            for book_title in sorted(active_books):
+                st.write(f"**{book_title}**")
+            
+            st.markdown("---")
         
         # Initialize session state for timers
         if 'timers' not in st.session_state:
