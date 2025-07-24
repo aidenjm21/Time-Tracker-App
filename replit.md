@@ -178,6 +178,7 @@ Changelog:
 - July 24, 2025. Removed active timers display section: eliminated the "Active Timers" section at the top of Book Progress tab to further reduce any potential background compute usage while maintaining timer functionality within individual book cards
 - July 24, 2025. Restored simplified active timers display: brought back "Active Timers" section showing only book names without time displays, refresh buttons, or any background processing to minimize compute usage while providing visibility into which books have running timers
 - July 24, 2025. Fixed timezone calculation issues causing negative timer displays: standardized all timer calculations to use UTC as base time with proper BST conversion, ensuring accurate time calculations for UK users regardless of daylight saving time transitions
+- July 24, 2025. CRITICAL FIX: Eliminated infinite rerun loop causing excessive compute usage (1M+ units/day): removed automatic refresh system that was triggering st.rerun() repeatedly when major_update_needed flags were set, significantly reducing compute unit consumption to normal levels
 ```
 
 ## User Preferences

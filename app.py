@@ -1913,8 +1913,7 @@ def main():
                                                                     success_key = f"reassign_success_{book_title}_{stage_name}"
                                                                     st.session_state[success_key] = f"User reassigned from {current_user} to {new_user}"
                                                                     
-                                                                    # Set flag for major structural change
-                                                                    st.session_state['major_update_needed'] = True
+                                                                    # User reassignment completed
                                                             except Exception as e:
                                                                 st.error(f"Error reassigning user: {str(e)}")
                                                     
@@ -2000,8 +1999,7 @@ def main():
                                                                         success_msg_key = f"timer_success_{task_key}"
                                                                         st.session_state[success_msg_key] = f"Added {elapsed_str} to {book_title} - {stage_name}"
                                                                         
-                                                                        # Set flag for major update to refresh the display
-                                                                        st.session_state['major_update_needed'] = True
+                                                                        # Timer stopped successfully
                                                                     except Exception as e:
                                                                         st.error(f"Error saving timer data: {str(e)}")
                                                                         # Still try to clean up active timer from database on error
@@ -2234,8 +2232,7 @@ def main():
                                             
                                             if add_stage_to_book(engine, book_title, selected_stage, board_name, tag, estimate_seconds):
                                                 st.success(f"Added {selected_stage} to {book_title} with {current_time_estimate} hour estimate")
-                                                # Set flag for major structural change that needs refresh
-                                                st.session_state['major_update_needed'] = True
+                                                # Stage added successfully
                                             else:
                                                 st.error("Failed to add stage")
                                     
@@ -2274,7 +2271,7 @@ def main():
                                                     if st.button("Remove", key=f"remove_confirm_{book_title}_{remove_stage_name}_{remove_user_name}", type="secondary"):
                                                         if delete_task_stage(engine, book_title, remove_user_name, remove_stage_name):
                                                             st.success(f"Removed {remove_stage_name} for {remove_user_name}")
-                                                            st.session_state['major_update_needed'] = True
+                                                            # Manual time added successfully
                                                         else:
                                                             st.error("Failed to remove stage")
                                     
@@ -2322,7 +2319,7 @@ def main():
                                                 # Keep user on the current tab
                                                 st.session_state.active_tab = 0  # Book Progress tab
                                                 st.success(f"'{book_title}' has been archived successfully!")
-                                                st.session_state['major_update_needed'] = True
+                                                # Archive operation completed
                                             except Exception as e:
                                                 st.error(f"Error archiving book: {str(e)}")
                                     
@@ -2350,7 +2347,7 @@ def main():
                                                     # Keep user on the Book Progress tab
                                                     st.session_state.active_tab = 0  # Book Progress tab
                                                     st.success(f"'{book_title}' has been permanently deleted!")
-                                                    st.session_state['major_update_needed'] = True
+                                                    # Delete operation completed
                                                 except Exception as e:
                                                     st.error(f"Error deleting book: {str(e)}")
                                                     # Reset confirmation state on error
@@ -2421,18 +2418,10 @@ def main():
         else:
             st.info("No books found in the database.")
         
-        # Only refresh if absolutely necessary (major structural changes)
-        refresh_needed = any([
-            st.session_state.get('completion_changed', False),
-            st.session_state.get('major_update_needed', False)
-        ])
-        
-        if refresh_needed:
-            # Clear all refresh flags
-            for flag in ['completion_changed', 'major_update_needed']:
-                if flag in st.session_state:
-                    del st.session_state[flag]
-            st.rerun()
+        # Clear refresh flags without automatic rerun to prevent infinite loops
+        for flag in ['completion_changed', 'major_update_needed']:
+            if flag in st.session_state:
+                del st.session_state[flag]
     
     elif selected_tab == "Reporting":
         st.header("Reporting")
