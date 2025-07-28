@@ -679,6 +679,91 @@ def add_stage_to_book(engine, card_name, stage_name, board_name=None, tag=None, 
         return False
 
 
+def import_books_from_csv(engine, df):
+    """Import books and stage estimates from a CSV DataFrame"""
+    required_cols = {"Card Name", "Board", "Tags"}
+    if not required_cols.issubset(df.columns):
+        missing = required_cols - set(df.columns)
+        return False, f"Missing columns: {', '.join(missing)}"
+
+    # Identify stage columns (user and time pairs)
+    stage_names = [
+        col for col in df.columns
+        if col not in required_cols and not col.endswith(" Time")
+    ]
+    if not stage_names:
+        return False, "No stage columns found in CSV"
+
+    total_entries = 0
+
+    for _, row in df.iterrows():
+        card_name = str(row.get("Card Name", "")).strip()
+        board_name = row.get("Board")
+        board_name = str(board_name).strip() if pd.notna(board_name) else None
+        tag_value = row.get("Tags")
+        if pd.notna(tag_value) and str(tag_value).strip():
+            final_tag = ", ".join([t.strip() for t in str(tag_value).split(",") if t.strip()])
+        else:
+            final_tag = None
+
+        # Create/update book record
+        create_book_record(engine, card_name, board_name, final_tag)
+
+        current_time = datetime.now(BST)
+
+        with engine.connect() as conn:
+            for stage in stage_names:
+                time_col = f"{stage} Time"
+                if time_col not in df.columns:
+                    continue
+
+                time_val = row.get(time_col)
+                if pd.isna(time_val) or str(time_val).strip() == "":
+                    continue
+
+                try:
+                    hours = float(str(time_val))
+                except ValueError:
+                    continue
+                if hours <= 0:
+                    continue
+
+                estimate_seconds = int(hours * 3600)
+
+                user_val = row.get(stage)
+                if pd.notna(user_val) and str(user_val).strip() and str(user_val).strip() != "Not set":
+                    final_user = str(user_val).strip()
+                else:
+                    final_user = None
+
+                conn.execute(text(
+                    '''
+                    INSERT INTO trello_time_tracking
+                    (card_name, user_name, list_name, time_spent_seconds,
+                     card_estimate_seconds, board_name, created_at,
+                     session_start_time, tag)
+                    VALUES (:card_name, :user_name, :list_name, :time_spent_seconds,
+                            :card_estimate_seconds, :board_name, :created_at,
+                            :session_start_time, :tag)
+                    '''
+                ), {
+                    'card_name': card_name,
+                    'user_name': final_user,
+                    'list_name': stage,
+                    'time_spent_seconds': 0,
+                    'card_estimate_seconds': estimate_seconds,
+                    'board_name': board_name,
+                    'created_at': current_time,
+                    'session_start_time': None,
+                    'tag': final_tag
+                })
+                total_entries += 1
+
+            conn.commit()
+
+    return True, f"Imported {total_entries} stage entries from CSV"
+
+
 def get_filtered_tasks_from_database(_engine, user_name=None, book_name=None, board_name=None, tag_name=None, start_date=None, end_date=None):
     """Get filtered tasks from database with multiple filter options"""
     try:
@@ -1138,6 +1223,23 @@ def main():
     
     # Create individual tab sections based on selection
     if selected_tab == "Add Book":
+        st.header("Upload CSV")
+        st.markdown(
+            "Upload a CSV file with columns 'Card Name', 'Board', 'Tags' followed by stage/user and 'Stage Time' pairs."
+        )
+        uploaded_csv = st.file_uploader("Choose CSV file", type="csv", key="csv_upload")
+        if uploaded_csv is not None:
+            try:
+                csv_df = pd.read_csv(uploaded_csv)
+                success, msg = import_books_from_csv(engine, csv_df)
+                if success:
+                    st.success(msg)
+                else:
+                    st.error(msg)
+            except Exception as e:
+                st.error(f"Error reading CSV: {str(e)}")
+        st.markdown("---")
+
         # Manual Data Entry Form
         st.header("Manual Data Entry")
         st.markdown("Add individual time tracking entries for detailed stage-specific analysis.")
