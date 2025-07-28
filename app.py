@@ -1284,16 +1284,12 @@ def main():
         st.error("Could not connect to database. Please check your configuration.")
         return
     
-    # Get client IP address and auth token from browser
+    # Get client IP address for authentication check
     client_ip = get_client_ip()
-    browser_token = get_auth_cookie()
-    
-    # Initialize login session state
+
+    # Initialize login session state using IP-based persistence only
     if 'logged_in' not in st.session_state:
-        if browser_token and is_token_authenticated(engine, browser_token):
-            st.session_state.logged_in = True
-        else:
-            st.session_state.logged_in = is_ip_authenticated(engine, client_ip)
+        st.session_state.logged_in = is_ip_authenticated(engine, client_ip)
     
     # Login screen
     if not st.session_state.logged_in:
@@ -1320,9 +1316,6 @@ def main():
             if st.button("Login", type="primary", use_container_width=True):
                 if verify_password(password):
                     authenticate_ip(engine, client_ip)
-                    token = uuid.uuid4().hex
-                    if authenticate_token(engine, token):
-                        set_auth_cookie(token)
 
                     st.session_state.logged_in = True
                     st.success("Login successful! You won't need to login again for 24 hours from this device.")
