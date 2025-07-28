@@ -1287,52 +1287,8 @@ def main():
     # Get client IP address for authentication check
     client_ip = get_client_ip()
 
-    # Initialize login session state using IP-based persistence only
-    if 'logged_in' not in st.session_state:
-        st.session_state.logged_in = is_ip_authenticated(engine, client_ip)
-    
-    # Login screen
-    if not st.session_state.logged_in:
-        st.markdown("""
-        <div style="display: flex; justify-content: center; align-items: center; height: 80vh;">
-            <div style="text-align: center; padding: 2rem; border: 1px solid #ddd; border-radius: 10px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); background-color: white; max-width: 400px; width: 100%;">
-                <h1 style="color: #333; margin-bottom: 1.5rem;">🔒 Access Required</h1>
-                <h3 style="color: #666; margin-bottom: 2rem;">Book Production Time Tracking</h3>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        # Center the password input
-        col1, col2, col3 = st.columns([1, 2, 1])
-        
-        with col2:
-            password = st.text_input(
-                "Enter Password:",
-                type="password",
-                placeholder="Enter password to access the system",
-                key="login_password"
-            )
-            
-            if st.button("Login", type="primary", use_container_width=True):
-                if verify_password(password):
-                    authenticate_ip(engine, client_ip)
-
-                    st.session_state.logged_in = True
-                    st.success("Login successful! You won't need to login again for 24 hours from this device.")
-                    st.rerun()
-                else:
-                    st.error("Incorrect password. Please try again.")
-            
-            # Add some styling for the login area
-            st.markdown("""
-            <style>
-            .stTextInput > div > div > input {
-                text-align: center;
-            }
-            </style>
-            """, unsafe_allow_html=True)
-        
-        return  # Exit early if not logged in
+    # Disable login screen - always allow access
+    st.session_state.logged_in = True
     
     # Add custom CSS to reduce padding and margins
     st.markdown("""
