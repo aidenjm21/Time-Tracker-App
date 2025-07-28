@@ -7,43 +7,12 @@ import io
 import os
 import re
 import time
-import json
-import uuid
-import hashlib
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import IntegrityError
-import streamlit.components.v1 as components
 
 # Set BST timezone (UTC+1)
 BST = timezone(timedelta(hours=1))
 UTC_PLUS_1 = BST  # Keep backward compatibility
-
-# -------- Password Handling ---------
-PASSWORD_FILE = "password.json"
-
-def _load_password_data():
-    """Load hashed password data from file, creating default if needed."""
-    if not os.path.exists(PASSWORD_FILE):
-        # Allow overriding the initial password via environment variable
-        default_password = os.getenv("APP_PASSWORD", "Booklife01")
-        salt = os.urandom(16)
-        hashed = hashlib.pbkdf2_hmac("sha256", default_password.encode(), salt, 100000)
-        data = {"salt": salt.hex(), "hash": hashed.hex()}
-        with open(PASSWORD_FILE, "w", encoding="utf-8") as f:
-            json.dump(data, f)
-    else:
-        with open(PASSWORD_FILE, "r", encoding="utf-8") as f:
-            data = json.load(f)
-    return data
-
-def verify_password(password: str) -> bool:
-    """Verify plaintext password against stored hash."""
-    data = _load_password_data()
-    salt = bytes.fromhex(data["salt"])
-    expected = bytes.fromhex(data["hash"])
-    hashed = hashlib.pbkdf2_hmac("sha256", password.encode(), salt, 100000)
-    return hashed == expected
-
 
 @st.cache_resource
 def init_database():
@@ -148,27 +117,7 @@ def init_database():
                 ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             '''))
             
-            # Create authenticated_ips table for 24-hour login persistence
-            conn.execute(text('''
-                CREATE TABLE IF NOT EXISTS authenticated_ips (
-                    id SERIAL PRIMARY KEY,
-                    ip_address VARCHAR(45) NOT NULL UNIQUE,
-                    login_time TIMESTAMPTZ NOT NULL,
-                    expires_at TIMESTAMPTZ NOT NULL,
-                    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
-                )
-            '''))
 
-            # Create auth_tokens table for cookie-based login persistence
-            conn.execute(text('''
-                CREATE TABLE IF NOT EXISTS auth_tokens (
-                    id SERIAL PRIMARY KEY,
-                    token VARCHAR(255) NOT NULL UNIQUE,
-                    login_time TIMESTAMPTZ NOT NULL,
-                    expires_at TIMESTAMPTZ NOT NULL,
-                    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
-                )
-            '''))
             
             # Create active timers table for persistent timer storage
             conn.execute(text('''
@@ -216,164 +165,6 @@ def init_database():
         st.error(f"Database initialisation failed: {str(e)}")
         return None
 
-def get_client_ip():
-    """Get client IP address from Streamlit context"""
-    try:
-        # Try to get real IP from headers (for reverse proxy setups)
-        if hasattr(st, 'context') and hasattr(st.context, 'headers'):
-            headers = st.context.headers
-            # Check common proxy headers
-            for header in ['X-Forwarded-For', 'X-Real-IP', 'CF-Connecting-IP']:
-                if header in headers:
-                    ip = headers[header].split(',')[0].strip()
-                    if ip:
-                        return ip
-        
-        # Fallback to session info if available
-        if hasattr(st, 'session_state') and hasattr(st.session_state, '_session_info'):
-            session_info = st.session_state._session_info
-            if hasattr(session_info, 'client_ip'):
-                return session_info.client_ip
-        
-        # Return a placeholder - in production this would be the actual IP
-        return "127.0.0.1"  # localhost fallback
-    except:
-        return "127.0.0.1"
-
-def is_ip_authenticated(engine, ip_address):
-    """Check if IP address has valid authentication within 24 hours"""
-    try:
-        with engine.connect() as conn:
-            # Clean up expired entries first
-            conn.execute(text('''
-                DELETE FROM authenticated_ips 
-                WHERE expires_at < NOW()
-            '''))
-            
-            # Check if IP has valid authentication
-            result = conn.execute(text('''
-                SELECT COUNT(*) FROM authenticated_ips 
-                WHERE ip_address = :ip_address AND expires_at > NOW()
-            '''), {'ip_address': ip_address})
-            
-            conn.commit()
-            return result.scalar() > 0
-    except Exception as e:
-        st.error(f"Error checking IP authentication: {e}")
-        return False
-
-def authenticate_ip(engine, ip_address):
-    """Store IP authentication for 24 hours"""
-    try:
-        with engine.connect() as conn:
-            # Calculate expiration time (24 hours from now)
-            current_time = datetime.utcnow().replace(tzinfo=timezone.utc)
-            expires_at = current_time + timedelta(hours=24)
-            
-            # Insert or update IP authentication
-            conn.execute(text('''
-                INSERT INTO authenticated_ips (ip_address, login_time, expires_at)
-                VALUES (:ip_address, :login_time, :expires_at)
-                ON CONFLICT (ip_address) 
-                DO UPDATE SET 
-                    login_time = EXCLUDED.login_time,
-                    expires_at = EXCLUDED.expires_at
-            '''), {
-                'ip_address': ip_address,
-                'login_time': current_time,
-                'expires_at': expires_at
-            })
-            
-            conn.commit()
-            return True
-    except Exception as e:
-        st.error(f"Error authenticating IP: {e}")
-        return False
-
-
-def is_token_authenticated(engine, token):
-    """Check if auth token is valid within 24 hours"""
-    if not token or not isinstance(token, str):
-        return False
-    try:
-        with engine.connect() as conn:
-            conn.execute(text('''
-                DELETE FROM auth_tokens
-                WHERE expires_at < NOW()
-            '''))
-
-            result = conn.execute(text('''
-                SELECT COUNT(*) FROM auth_tokens
-                WHERE token = :token AND expires_at > NOW()
-            '''), {'token': token})
-
-            conn.commit()
-            return result.scalar() > 0
-    except Exception as e:
-        st.error(f"Error checking auth token: {e}")
-        return False
-
-
-def authenticate_token(engine, token):
-    """Store auth token for 24 hours"""
-    if not token:
-        return False
-    try:
-        with engine.connect() as conn:
-            current_time = datetime.utcnow().replace(tzinfo=timezone.utc)
-            expires_at = current_time + timedelta(hours=24)
-
-            conn.execute(text('''
-                INSERT INTO auth_tokens (token, login_time, expires_at)
-                VALUES (:token, :login_time, :expires_at)
-                ON CONFLICT (token)
-                DO UPDATE SET
-                    login_time = EXCLUDED.login_time,
-                    expires_at = EXCLUDED.expires_at
-            '''), {
-                'token': token,
-                'login_time': current_time,
-                'expires_at': expires_at
-            })
-
-            conn.commit()
-            return True
-    except Exception as e:
-        st.error(f"Error authenticating token: {e}")
-        return False
-
-
-def set_auth_cookie(token):
-    """Set auth token cookie in the browser"""
-    if token:
-        components.html(
-            f"""
-            <script>
-            document.cookie = 'auth_token={token}; path=/; max-age={24*3600}; SameSite=Lax';
-            </script>
-            """,
-            height=0,
-        )
-
-
-def get_auth_cookie():
-    """Retrieve auth token from browser cookies"""
-    token = components.html(
-        """
-        <script>
-        const match = document.cookie.match(new RegExp('(^| )auth_token=([^;]+)'));
-        const token = match ? match[2] : '';
-        Streamlit.setComponentValue(token);
-        </script>
-        """,
-        height=0,
-        key="auth_cookie",
-    )
-
-    # components.html may return a DeltaGenerator object while the browser
-    # sends back the actual token value asynchronously.  Ensure we only
-    # return a string to avoid passing unsupported objects to SQLAlchemy.
-    return token if isinstance(token, str) else ""
 
 
 
@@ -1278,17 +1069,12 @@ def process_user_task_breakdown(df):
 
 
 def main():
-    # Initialise database first to check IP authentication
+    # Initialise database connection
     engine = init_database()
     if not engine:
         st.error("Could not connect to database. Please check your configuration.")
         return
-    
-    # Get client IP address for authentication check
-    client_ip = get_client_ip()
 
-    # Disable login screen - always allow access
-    st.session_state.logged_in = True
     
     # Add custom CSS to reduce padding and margins
     st.markdown("""
@@ -1314,7 +1100,7 @@ def main():
     st.title("Book Production Time Tracking")
     st.markdown("Track time spent on different stages of book production with detailed stage-specific analysis.")
     
-    # Database already initialized earlier for IP authentication
+    # Database already initialized earlier
     
     # Initialize session state for active tab
     if 'active_tab' not in st.session_state:
