@@ -1478,30 +1478,26 @@ def main():
                     # Initialize filtered_df
                     filtered_df = df_from_db.copy()
                     
-                    # Determine what to display based on search only
+                    # Determine books to display
                     if search_query:
-                        # Filter books based on search and limit to 10 results
-                        # Escape special regex characters in search query
+                        # Filter books based on search
                         import re
                         escaped_query = re.escape(search_query)
                         mask = filtered_df['Card name'].str.contains(escaped_query, case=False, na=False)
                         filtered_df = filtered_df[mask]
-                        
+
                         # Get unique books from both sources
                         books_with_tasks = set(filtered_df['Card name'].unique()) if not filtered_df.empty else set()
                         books_without_tasks = set(book[0] for book in all_books if book[0] not in books_with_tasks)
-                        
+
                         # Filter books without tasks based on search query
                         books_without_tasks = {book for book in books_without_tasks if search_query.lower() in book.lower()}
-                        
-                        # Combine and sort, then limit to 10
-                        all_matching_books = sorted(books_with_tasks | books_without_tasks)
-                        books_to_display = all_matching_books[:10]  # Limit to 10 results
-                        
-                        if len(books_to_display) == 0:
-                            books_to_display = []
+
+                        # Combine and sort
+                        books_to_display = sorted(books_with_tasks | books_without_tasks)
                     else:
-                        books_to_display = []
+                        # Show all books by default
+                        books_to_display = sorted(book[0] for book in all_books)
                     
                     # Only display books if we have search results
                     if books_to_display:
