@@ -90,8 +90,37 @@ def init_database():
             
             # Add tag column if it doesn't exist
             conn.execute(text('''
-                ALTER TABLE trello_time_tracking 
+                ALTER TABLE trello_time_tracking
                 ADD COLUMN IF NOT EXISTS tag VARCHAR(255)
+            '''))
+
+            # Create books table for storing book metadata
+            conn.execute(text('''
+                CREATE TABLE IF NOT EXISTS books (
+                    card_name VARCHAR(500) PRIMARY KEY,
+                    board_name VARCHAR(255),
+                    tag VARCHAR(255),
+                    archived BOOLEAN DEFAULT FALSE,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            '''))
+
+            # Add optional columns to books table if they are missing
+            conn.execute(text('''
+                ALTER TABLE books
+                ADD COLUMN IF NOT EXISTS board_name VARCHAR(255)
+            '''))
+            conn.execute(text('''
+                ALTER TABLE books
+                ADD COLUMN IF NOT EXISTS tag VARCHAR(255)
+            '''))
+            conn.execute(text('''
+                ALTER TABLE books
+                ADD COLUMN IF NOT EXISTS archived BOOLEAN DEFAULT FALSE
+            '''))
+            conn.execute(text('''
+                ALTER TABLE books
+                ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             '''))
             
             # Create authenticated_ips table for 24-hour login persistence
