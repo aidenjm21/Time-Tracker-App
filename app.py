@@ -8,9 +8,11 @@ import os
 import re
 import time
 import json
+import uuid
 import hashlib
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import IntegrityError
+import streamlit.components.v1 as components
 
 # Set BST timezone (UTC+1)
 BST = timezone(timedelta(hours=1))
@@ -156,6 +158,17 @@ def init_database():
                     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
                 )
             '''))
+
+            # Create auth_tokens table for cookie-based login persistence
+            conn.execute(text('''
+                CREATE TABLE IF NOT EXISTS auth_tokens (
+                    id SERIAL PRIMARY KEY,
+                    token VARCHAR(255) NOT NULL UNIQUE,
+                    login_time TIMESTAMPTZ NOT NULL,
+                    expires_at TIMESTAMPTZ NOT NULL,
+                    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+                )
+            '''))
             
             # Create active timers table for persistent timer storage
             conn.execute(text('''
@@ -276,6 +289,85 @@ def authenticate_ip(engine, ip_address):
     except Exception as e:
         st.error(f"Error authenticating IP: {e}")
         return False
+
+
+def is_token_authenticated(engine, token):
+    """Check if auth token is valid within 24 hours"""
+    if not token:
+        return False
+    try:
+        with engine.connect() as conn:
+            conn.execute(text('''
+                DELETE FROM auth_tokens
+                WHERE expires_at < NOW()
+            '''))
+
+            result = conn.execute(text('''
+                SELECT COUNT(*) FROM auth_tokens
+                WHERE token = :token AND expires_at > NOW()
+            '''), {'token': token})
+
+            conn.commit()
+            return result.scalar() > 0
+    except Exception as e:
+        st.error(f"Error checking auth token: {e}")
+        return False
+
+
+def authenticate_token(engine, token):
+    """Store auth token for 24 hours"""
+    if not token:
+        return False
+    try:
+        with engine.connect() as conn:
+            current_time = datetime.utcnow().replace(tzinfo=timezone.utc)
+            expires_at = current_time + timedelta(hours=24)
+
+            conn.execute(text('''
+                INSERT INTO auth_tokens (token, login_time, expires_at)
+                VALUES (:token, :login_time, :expires_at)
+                ON CONFLICT (token)
+                DO UPDATE SET
+                    login_time = EXCLUDED.login_time,
+                    expires_at = EXCLUDED.expires_at
+            '''), {
+                'token': token,
+                'login_time': current_time,
+                'expires_at': expires_at
+            })
+
+            conn.commit()
+            return True
+    except Exception as e:
+        st.error(f"Error authenticating token: {e}")
+        return False
+
+
+def set_auth_cookie(token):
+    """Set auth token cookie in the browser"""
+    if token:
+        components.html(
+            f"""
+            <script>
+            document.cookie = 'auth_token={token}; path=/; max-age={24*3600}; SameSite=Lax';
+            </script>
+            """,
+            height=0,
+        )
+
+
+def get_auth_cookie():
+    """Retrieve auth token from browser cookies"""
+    return components.html(
+        """
+        <script>
+        const match = document.cookie.match(new RegExp('(^| )auth_token=([^;]+)'));
+        const token = match ? match[2] : '';
+        Streamlit.setComponentValue(token);
+        </script>
+        """,
+        height=0,
+    )
 
 
 
@@ -1186,13 +1278,16 @@ def main():
         st.error("Could not connect to database. Please check your configuration.")
         return
     
-    # Get client IP address
+    # Get client IP address and auth token from browser
     client_ip = get_client_ip()
+    browser_token = get_auth_cookie()
     
     # Initialize login session state
     if 'logged_in' not in st.session_state:
-        # Check if IP is already authenticated
-        st.session_state.logged_in = is_ip_authenticated(engine, client_ip)
+        if browser_token and is_token_authenticated(engine, browser_token):
+            st.session_state.logged_in = True
+        else:
+            st.session_state.logged_in = is_ip_authenticated(engine, client_ip)
     
     # Login screen
     if not st.session_state.logged_in:
@@ -1218,15 +1313,14 @@ def main():
             
             if st.button("Login", type="primary", use_container_width=True):
                 if verify_password(password):
-                    # Store IP authentication for 24 hours
-                    if authenticate_ip(engine, client_ip):
-                        st.session_state.logged_in = True
-                        st.success("Login successful! You won't need to login again for 24 hours from this device.")
-                        st.rerun()
-                    else:
-                        st.session_state.logged_in = True  # Still allow login even if IP storage fails
-                        st.success("Login successful! Redirecting...")
-                        st.rerun()
+                    authenticate_ip(engine, client_ip)
+                    token = uuid.uuid4().hex
+                    if authenticate_token(engine, token):
+                        set_auth_cookie(token)
+
+                    st.session_state.logged_in = True
+                    st.success("Login successful! You won't need to login again for 24 hours from this device.")
+                    st.rerun()
                 else:
                     st.error("Incorrect password. Please try again.")
             
@@ -1550,26 +1644,28 @@ def main():
         """, unsafe_allow_html=True)
         st.markdown("Visual progress tracking for all books with individual task timers.")
         
-        # Display active timers - simplified (card names only)
+        # Display active timers with current session time
         active_timer_count = sum(1 for running in st.session_state.timers.values() if running)
         if active_timer_count > 0:
             st.info(f"{active_timer_count} timer(s) currently running")
-            
-            # Show active timer card names only
+
             st.markdown("### Active Timers")
-            active_books = set()
             for task_key, is_running in st.session_state.timers.items():
                 if is_running and task_key in st.session_state.timer_start_times:
-                    # Extract book name from task_key
                     parts = task_key.split('_')
                     if len(parts) >= 3:
                         book_title = '_'.join(parts[:-2])
-                        active_books.add(book_title)
-            
-            # Display unique book names with timers
-            for book_title in sorted(active_books):
-                st.write(f"**{book_title}**")
-            
+                        stage_name = parts[-2]
+                        user_name = parts[-1]
+                        start_time = st.session_state.timer_start_times[task_key]
+                        elapsed_seconds = calculate_timer_elapsed_time(start_time)
+                        elapsed_str = format_seconds_to_time(elapsed_seconds)
+                        user_display = user_name if user_name and user_name != "Not set" else "Unassigned"
+                        st.write(f"**{book_title} - {stage_name} ({user_display})**: {elapsed_str}")
+
+            if st.button("Refresh Active Timers", key="refresh_active_timers", type="secondary"):
+                st.rerun()
+
             st.markdown("---")
         
         # Initialize session state for timers
@@ -2099,7 +2195,10 @@ def main():
                                                                 # Clear timer states
                                                                 if task_key in st.session_state.timer_start_times:
                                                                     del st.session_state.timer_start_times[task_key]
-                                                        
+
+                                                                if st.button("Refresh Timer", key=f"refresh_timer_{task_key}", type="secondary"):
+                                                                    st.rerun()
+
 
                                                     else:
                                                         st.write("")
