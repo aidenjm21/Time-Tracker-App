@@ -10,6 +10,8 @@ import time
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import IntegrityError
 
+st.set_page_config(page_title="Book Production Time Tracking", page_icon="favicon.png")
+
 # Set BST timezone (UTC+1)
 BST = timezone(timedelta(hours=1))
 UTC_PLUS_1 = BST  # Keep backward compatibility
@@ -1238,6 +1240,13 @@ def main():
                     st.error(msg)
             except Exception as e:
                 st.error(f"Error reading CSV: {str(e)}")
+        with open("time_tracker_example.xlsx", "rb") as example_file:
+            st.download_button(
+                label="Download example Excel format",
+                data=example_file,
+                file_name="time_tracker_example.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            )
         st.markdown("---")
 
         # Manual Data Entry Form
