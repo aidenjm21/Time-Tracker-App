@@ -47,9 +47,6 @@ def verify_password(password: str) -> bool:
 def init_database():
     """Initialise database connection and create tables"""
     try:
-        database_url = os.getenv('DATABASE_URL')
-        if not database_url:
-            st.error("Database URL not found. Please check your environment variables.")
             return None
         
         engine = create_engine(database_url)
