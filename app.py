@@ -46,16 +46,17 @@ def verify_password(password: str) -> bool:
 @st.cache_resource
 def init_database():
     """Initialise database connection and create tables"""
-    try:
-        # Prefer Streamlit secrets but allow an env var fallback
-        database_url = st.secrets.get("database", {}).get("url") or os.getenv("DATABASE_URL")
-        if not database_url:
-            st.error(
-                "Database URL not configured. Set database.url in Streamlit secrets "
-                "or the DATABASE_URL environment variable."
-            )
-            return None
 
+    # Prefer Streamlit secrets but allow an env var fallback
+    database_url = st.secrets.get("database", {}).get("url") or os.getenv("DATABASE_URL")
+    if not database_url:
+        st.error(
+            "Database URL not configured. Set database.url in Streamlit secrets "
+            "or the DATABASE_URL environment variable."
+        )
+        return None
+
+    try:
         engine = create_engine(database_url)
         
         # Create table if it doesn't exist
