@@ -71,6 +71,7 @@ def init_database():
                     card_estimate_seconds INTEGER,
                     board_name VARCHAR(255),
                     labels TEXT,
+                    completed BOOLEAN DEFAULT FALSE,
                     archived BOOLEAN DEFAULT FALSE,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     UNIQUE(card_name, user_name, list_name, date_started, time_spent_seconds)
@@ -92,6 +93,28 @@ def init_database():
             conn.execute(text('''
                 ALTER TABLE trello_time_tracking
                 ADD COLUMN IF NOT EXISTS tag VARCHAR(255)
+            '''))
+
+            # Ensure other optional columns exist for older databases
+            conn.execute(text('''
+                ALTER TABLE trello_time_tracking
+                ADD COLUMN IF NOT EXISTS card_estimate_seconds INTEGER
+            '''))
+            conn.execute(text('''
+                ALTER TABLE trello_time_tracking
+                ADD COLUMN IF NOT EXISTS board_name VARCHAR(255)
+            '''))
+            conn.execute(text('''
+                ALTER TABLE trello_time_tracking
+                ADD COLUMN IF NOT EXISTS labels TEXT
+            '''))
+            conn.execute(text('''
+                ALTER TABLE trello_time_tracking
+                ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            '''))
+            conn.execute(text('''
+                ALTER TABLE trello_time_tracking
+                ADD COLUMN IF NOT EXISTS completed BOOLEAN DEFAULT FALSE
             '''))
 
             # Create books table for storing book metadata
