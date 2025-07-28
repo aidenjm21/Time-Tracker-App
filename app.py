@@ -1600,11 +1600,27 @@ def main():
                     else:
                         # Show all books by default
                         books_to_display = sorted(book[0] for book in all_books)
-                    
+
+                    # Pagination setup
+                    books_per_page = 10
+                    if 'book_page' not in st.session_state:
+                        st.session_state.book_page = 0
+
+                    # Reset to first page if search changes
+                    prev_search = st.session_state.get('prev_completion_search')
+                    if search_query != prev_search:
+                        st.session_state.book_page = 0
+                    st.session_state.prev_completion_search = search_query
+
+                    total_books_to_display = len(books_to_display)
+                    start_idx = st.session_state.book_page * books_per_page
+                    end_idx = start_idx + books_per_page
+                    books_subset = books_to_display[start_idx:end_idx]
+
                     # Only display books if we have search results
-                    if books_to_display:
+                    if books_subset:
                             # Display each book with enhanced visualization
-                            for book_title in books_to_display:
+                            for book_title in books_subset:
                                 # Check if book has tasks
                                 if not filtered_df.empty:
                                     book_mask = filtered_df['Card name'] == book_title
@@ -2371,7 +2387,19 @@ def main():
                                                         del st.session_state[confirm_key]
                                 
                                 stage_counter += 1
-        
+
+                    # Pagination controls below book cards
+                    total_pages = (total_books_to_display - 1) // books_per_page + 1 if total_books_to_display > 0 else 1
+                    nav_col1, nav_col2 = st.columns(2)
+                    with nav_col1:
+                        if st.button("Previous", disabled=st.session_state.book_page == 0):
+                            st.session_state.book_page -= 1
+                            st.rerun()
+                    with nav_col2:
+                        if st.button("Next", disabled=st.session_state.book_page >= total_pages - 1):
+                            st.session_state.book_page += 1
+                            st.rerun()
+
         except Exception as e:
             st.error(f"Error accessing database: {str(e)}")
             # Add simplified debug info
