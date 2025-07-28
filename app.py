@@ -293,7 +293,7 @@ def authenticate_ip(engine, ip_address):
 
 def is_token_authenticated(engine, token):
     """Check if auth token is valid within 24 hours"""
-    if not token:
+    if not token or not isinstance(token, str):
         return False
     try:
         with engine.connect() as conn:
@@ -358,7 +358,7 @@ def set_auth_cookie(token):
 
 def get_auth_cookie():
     """Retrieve auth token from browser cookies"""
-    return components.html(
+    token = components.html(
         """
         <script>
         const match = document.cookie.match(new RegExp('(^| )auth_token=([^;]+)'));
@@ -367,7 +367,13 @@ def get_auth_cookie():
         </script>
         """,
         height=0,
+        key="auth_cookie",
     )
+
+    # components.html may return a DeltaGenerator object while the browser
+    # sends back the actual token value asynchronously.  Ensure we only
+    # return a string to avoid passing unsupported objects to SQLAlchemy.
+    return token if isinstance(token, str) else ""
 
 
 
