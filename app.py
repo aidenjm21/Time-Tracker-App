@@ -2114,7 +2114,7 @@ def main():
                                                         timer_row1_col1, timer_row1_col2 = st.columns([2, 1])
                                                         with timer_row1_col1:
                                                             st.write(f"**Recording** ({elapsed_str})")
-                                                        
+
                                                         with timer_row1_col2:
                                                             if st.button("Stop", key=f"stop_{task_key}"):
                                                                 # Calculate final total time
@@ -2196,9 +2196,8 @@ def main():
                                                                 if task_key in st.session_state.timer_start_times:
                                                                     del st.session_state.timer_start_times[task_key]
 
-                                                                if st.button("Refresh Timer", key=f"refresh_timer_{task_key}", type="secondary"):
-                                                                    st.rerun()
-
+                                                    if st.button("Refresh", key=f"refresh_timer_{task_key}", type="secondary"):
+                                                        st.rerun()
 
                                                     else:
                                                         st.write("")
