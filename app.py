@@ -10,7 +10,6 @@ import time
 import json
 import uuid
 import hashlib
-import math
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import IntegrityError
 import streamlit.components.v1 as components
@@ -2539,36 +2538,13 @@ def main():
             })
         
         if table_data:
-            # Create DataFrame for display (pd is already imported at top of file)
+            # Create DataFrame for display
             table_df = pd.DataFrame(table_data)
-
-            page_size = 10
-            if 'books_page' not in st.session_state:
-                st.session_state.books_page = 0
-
-            total_pages = math.ceil(len(table_df) / page_size)
-            st.session_state.books_page = max(0, min(st.session_state.books_page, total_pages - 1))
-
-            start_idx = st.session_state.books_page * page_size
-            end_idx = start_idx + page_size
-
             st.dataframe(
-                table_df.iloc[start_idx:end_idx],
+                table_df,
                 use_container_width=True,
                 hide_index=True
             )
-
-            prev_col, page_col, next_col = st.columns([1,2,1])
-            with prev_col:
-                if st.button('Previous', disabled=st.session_state.books_page == 0, key='books_prev'):
-                    st.session_state.books_page -= 1
-                    st.rerun()
-            with next_col:
-                if st.button('Next', disabled=st.session_state.books_page >= total_pages - 1, key='books_next'):
-                    st.session_state.books_page += 1
-                    st.rerun()
-            with page_col:
-                st.markdown(f"Page {st.session_state.books_page + 1} of {total_pages}")
         else:
             st.info("No books found in the database.")
         
