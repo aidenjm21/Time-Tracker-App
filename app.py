@@ -1179,6 +1179,17 @@ def main():
     div[data-testid="column"] {
         padding: 0 0.5rem;
     }
+
+    /* Improve input visibility when dark mode is active */
+    @media (prefers-color-scheme: dark) {
+        input,
+        textarea,
+        select {
+            background-color: #333 !important;
+            color: #fafafa !important;
+            border: 1px solid #777 !important;
+        }
+    }
     </style>
     """, unsafe_allow_html=True)
     
