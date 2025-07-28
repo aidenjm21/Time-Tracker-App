@@ -94,7 +94,23 @@ This is a Streamlit-based time tracking application focused on book production m
 **Local Development:**
 - Run with `streamlit run app.py`
 - Hot reload for development
-- No database setup required
+- Requires PostgreSQL connection via the `DATABASE_URL` environment variable or a
+  `.streamlit/secrets.toml` file.
+
+### Database Configuration
+Set the `DATABASE_URL` environment variable to a full PostgreSQL connection
+string, for example:
+
+```
+postgresql://user:password@host:port/database
+```
+
+Alternatively create a `.streamlit/secrets.toml` file containing:
+
+```
+[database]
+url = "postgresql://user:password@host:port/database"
+```
 
 **Production Considerations:**
 - Stateless application design
