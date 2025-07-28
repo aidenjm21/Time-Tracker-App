@@ -223,7 +223,6 @@ def authenticate_ip(engine, ip_address):
 
 
 
-@st.cache_data(ttl=300)  # Cache for 5 minutes
 def get_users_from_database(_engine):
     """Get list of unique users from database with retry logic"""
     max_retries = 3
