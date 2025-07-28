@@ -1290,6 +1290,10 @@ def main():
     if active_timers and 'timers_loaded' not in st.session_state:
         st.info(f"Restored {len(active_timers)} active timer(s) from previous session.")
         st.session_state.timers_loaded = True
+
+    # Auto-refresh the page every second while any timer is running
+    if any(st.session_state.timers.values()):
+        st.markdown('<meta http-equiv="refresh" content="1">', unsafe_allow_html=True)
     
     # Create tabs for different views
     tab_names = ["Book Progress", "Add Book", "Archive", "Reporting"]
@@ -2099,6 +2103,10 @@ def main():
                                                                 # Clear timer states
                                                                 if task_key in st.session_state.timer_start_times:
                                                                     del st.session_state.timer_start_times[task_key]
+
+                                                                # Refresh cached data and update display
+                                                                st.cache_data.clear()
+                                                                st.rerun()
                                                         
 
                                                     else:
