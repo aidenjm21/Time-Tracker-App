@@ -2527,14 +2527,6 @@ def main():
                                                                 final_time = elapsed_seconds
                                                                 stop_active_timer(engine, task_key)
 
-
-with timer_row1_col4:
-    if st.button("Stop", key=f"stop_{task_key}"):
-        final_time = elapsed_seconds
-        # Optionally: stop_active_timer(engine, task_key)
-
- main
-
                                                             # Keep expanded states
                                                             expanded_key = f"expanded_{book_title}"
                                                             st.session_state[expanded_key] = True
