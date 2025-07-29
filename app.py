@@ -1781,7 +1781,6 @@ def main():
         # Display active timers in sidebar
         active_timer_count = sum(1 for running in st.session_state.timers.values() if running)
 
- main
         with st.sidebar:
             st.write(f"**Active Timers ({active_timer_count})**")
             if active_timer_count == 0:
@@ -1822,23 +1821,6 @@ def main():
         max_retries = 3
         for attempt in range(max_retries):
             try:
-if st.button("Refresh Active Timers", key="refresh_active_timers_sidebar", type="secondary"):
-    st.rerun()
-
-st.markdown("---")
-
-# Initialize session state for timers
-if 'timers' not in st.session_state:
-    st.session_state.timers = {}
-if 'timer_start_times' not in st.session_state:
-    st.session_state.timer_start_times = {}
-        
-    # Check if we have data from database with SSL connection retry
-    total_records = 0
-    max_retries = 3
-    for attempt in range(max_retries):
-        try:
-main
                 with engine.connect() as conn:
                     result = conn.execute(text("SELECT COUNT(*) FROM trello_time_tracking"))
                     total_records = result.scalar()
