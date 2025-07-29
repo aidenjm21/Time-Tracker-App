@@ -1490,7 +1490,7 @@ def main():
     }
     /* Light grey sidebar background */
     [data-testid="stSidebar"] {
-        background-color: #f5f5f5;
+        background-color: #F0F2F5;
     }
     </style>
     """,
