@@ -1661,7 +1661,7 @@ def main():
                                 )
 
                                 st.write(f"**{book_title} - {stage_name} ({user_display})**: {elapsed_str}")
- main
+             main
                             with timer_col2:
                                 if st.button("Stop", key=f"summary_stop_{task_key}"):
                                     stop_active_timer(engine, task_key)
