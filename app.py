@@ -2523,9 +2523,9 @@ def main():
                                                             st.rerun()
 
                                                     with timer_row2_col2:
-                                                            if st.button("Stop", key=f"stop_{task_key}_{idx}"):
-                                                                final_time = elapsed_seconds
-                                                                stop_active_timer(engine, task_key)
+                                                        if st.button("Stop", key=f"stop_{task_key}_{idx}"):
+                                                            final_time = elapsed_seconds
+                                                            stop_active_timer(engine, task_key)
 
                                                             # Keep expanded states
                                                             expanded_key = f"expanded_{book_title}"
@@ -2559,18 +2559,18 @@ def main():
                                                                         conn.execute(
                                                                             text(
                                                                                 '''
-                                                                                INSERT INTO trello_time_tracking
-                                                                                (card_name, user_name, list_name, time_spent_seconds,
-                                                                                 date_started, session_start_time, board_name, tag)
-                                                                                VALUES (:card_name, :user_name, :list_name, :time_spent_seconds,
-                                                                                       :date_started, :session_start_time, :board_name, :tag)
-                                                                                ON CONFLICT (card_name, user_name, list_name, date_started, time_spent_seconds)
-                                                                                DO UPDATE SET
-                                                                                    session_start_time = EXCLUDED.session_start_time,
-                                                                                    board_name = EXCLUDED.board_name,
-                                                                                    tag = EXCLUDED.tag,
-                                                                                    created_at = CURRENT_TIMESTAMP
-                                                                            '''
+                                            INSERT INTO trello_time_tracking
+                                            (card_name, user_name, list_name, time_spent_seconds,
+                                             date_started, session_start_time, board_name, tag)
+                                            VALUES (:card_name, :user_name, :list_name, :time_spent_seconds,
+                                                   :date_started, :session_start_time, :board_name, :tag)
+                                            ON CONFLICT (card_name, user_name, list_name, date_started, time_spent_seconds)
+                                            DO UPDATE SET
+                                                session_start_time = EXCLUDED.session_start_time,
+                                                board_name = EXCLUDED.board_name,
+                                                tag = EXCLUDED.tag,
+                                                created_at = CURRENT_TIMESTAMP
+                                        '''
                                                                             ),
                                                                             {
                                                                                 'card_name': book_title,
