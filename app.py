@@ -1566,7 +1566,6 @@ def main():
         st.markdown("Visual progress tracking for all books with individual task timers.")
         
         # Display active timers in sidebar
- chham0-codex/fix-indentation-error-on-line-1571
         active_timer_count = sum(
             1 for running in st.session_state.timers.values() if running
         )
