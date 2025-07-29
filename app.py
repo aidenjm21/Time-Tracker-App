@@ -1187,7 +1187,7 @@ def main():
     st.title("Book Production Time Tracking")
     st.markdown("Track time spent on different stages of book production with detailed stage-specific analysis.")
 
-    # Inject JavaScript for independent timers that count up from a start time
+    # Inject JavaScript for browser-side timers that increment every second
     st.markdown(
         """
         <script>
