@@ -1553,11 +1553,7 @@ def main():
         background-color: #2AA395;
         color: white;
     }
-
-    /* Progress bar color */
-    div[data-testid="stProgress"] > div > div > div > div {
-        background-color: #2AA395;
-    }
+    
     </style>
     """,
         unsafe_allow_html=True,
