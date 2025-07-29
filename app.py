@@ -1596,13 +1596,13 @@ def main():
 if st.button("Refresh Active Timers", key="refresh_active_timers_sidebar", type="secondary"):
     st.rerun()
 
-        st.markdown("---")
-        
-        # Initialize session state for timers
-        if 'timers' not in st.session_state:
-            st.session_state.timers = {}
-        if 'timer_start_times' not in st.session_state:
-            st.session_state.timer_start_times = {}
+st.markdown("---")
+
+# Initialize session state for timers
+if 'timers' not in st.session_state:
+    st.session_state.timers = {}
+if 'timer_start_times' not in st.session_state:
+    st.session_state.timer_start_times = {}
         
         # Check if we have data from database with SSL connection retry
         total_records = 0
