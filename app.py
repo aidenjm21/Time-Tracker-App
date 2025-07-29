@@ -1187,6 +1187,7 @@ def main():
     st.title("Book Production Time Tracking")
     st.markdown("Track time spent on different stages of book production with detailed stage-specific analysis.")
 
+
     # Inject JavaScript for browser-side timers that increment every second
     st.markdown(
         """
@@ -1544,8 +1545,9 @@ def main():
                         elapsed_seconds = calculate_timer_elapsed_time(start_time)
                         elapsed_str = format_seconds_to_time(elapsed_seconds)
                         user_display = user_name if user_name and user_name != "Not set" else "Unassigned"
-                        start_ts = int(start_time.timestamp() * 1000)
+ start_ts = int(start_time.timestamp() * 1000)
                         timer_html = f'<span class="js-timer" data-start="{start_ts}">{elapsed_str}</span>'
+                        st.markdown(f"**{book_title} - {stage_name} ({user_display})**: {timer_html}", unsafe_allow_html=True)
                         st.markdown(f"**{book_title} - {stage_name} ({user_display})**: {timer_html}", unsafe_allow_html=True)
 
             if st.button("Refresh Active Timers", key="refresh_active_timers", type="secondary"):
@@ -2012,6 +2014,7 @@ def main():
                                                         with timer_row1_col1:
                                                             start_ts = int(start_time.timestamp() * 1000)
                                                             timer_html = f'<span class="js-timer" data-start="{start_ts}">{elapsed_str}</span>'
+                                                            st.markdown(f"**Recording** ({timer_html})", unsafe_allow_html=True)
                                                             st.markdown(f"**Recording** ({timer_html})", unsafe_allow_html=True)
 
                                                         with timer_row1_col2:
