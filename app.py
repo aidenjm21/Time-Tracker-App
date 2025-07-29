@@ -1186,6 +1186,37 @@ def main():
     
     st.title("Book Production Time Tracking")
     st.markdown("Track time spent on different stages of book production with detailed stage-specific analysis.")
+
+    # Inject JavaScript for independent timers that count up from a start time
+    st.markdown(
+        """
+        <script>
+        function formatTimerTime(sec) {
+            const h = String(Math.floor(sec / 3600)).padStart(2, '0');
+            const m = String(Math.floor((sec % 3600) / 60)).padStart(2, '0');
+            const s = String(sec % 60).padStart(2, '0');
+            return `${h}:${m}:${s}`;
+        }
+        function startJsTimers() {
+            document.querySelectorAll('.js-timer').forEach(el => {
+                if (el.dataset.timerStarted) return;
+                const start = parseInt(el.dataset.start, 10);
+                if (isNaN(start)) return;
+                el.dataset.timerStarted = "true";
+                function tick() {
+                    const now = Date.now();
+                    const sec = Math.floor((now - start) / 1000);
+                    el.textContent = formatTimerTime(sec);
+                }
+                tick();
+                setInterval(tick, 1000);
+            });
+        }
+        document.addEventListener('DOMContentLoaded', startJsTimers);
+        </script>
+        """,
+        unsafe_allow_html=True,
+    )
     
     # Database already initialized earlier
     
@@ -1513,7 +1544,9 @@ def main():
                         elapsed_seconds = calculate_timer_elapsed_time(start_time)
                         elapsed_str = format_seconds_to_time(elapsed_seconds)
                         user_display = user_name if user_name and user_name != "Not set" else "Unassigned"
-                        st.write(f"**{book_title} - {stage_name} ({user_display})**: {elapsed_str}")
+                        start_ts = int(start_time.timestamp() * 1000)
+                        timer_html = f'<span class="js-timer" data-start="{start_ts}">{elapsed_str}</span>'
+                        st.markdown(f"**{book_title} - {stage_name} ({user_display})**: {timer_html}", unsafe_allow_html=True)
 
             if st.button("Refresh Active Timers", key="refresh_active_timers", type="secondary"):
                 st.rerun()
@@ -1977,7 +2010,9 @@ def main():
                                                         # Display recording status with layout: Recording (hh:mm:ss) -> (Stop Button)
                                                         timer_row1_col1, timer_row1_col2 = st.columns([2, 1])
                                                         with timer_row1_col1:
-                                                            st.write(f"**Recording** ({elapsed_str})")
+                                                            start_ts = int(start_time.timestamp() * 1000)
+                                                            timer_html = f'<span class="js-timer" data-start="{start_ts}">{elapsed_str}</span>'
+                                                            st.markdown(f"**Recording** ({timer_html})", unsafe_allow_html=True)
 
                                                         with timer_row1_col2:
                                                             if st.button("Stop", key=f"stop_{task_key}"):
