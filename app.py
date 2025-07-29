@@ -2516,7 +2516,6 @@ def main():
                                                             st.rerun()
 
                                                     with timer_row2_col2:
-                                                    with timer_row1_col4:
                                                         if st.button("Stop", key=f"stop_{task_key}"):
                                                             final_time = elapsed_seconds
 
