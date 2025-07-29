@@ -1586,17 +1586,26 @@ def main():
 
                             timer_col1, timer_col2 = st.columns([3, 1])
                             with timer_col1:
+ 41qt9n-codex/fix-indentation-error-on-line-1571
                                 st.write(
                                     f"**{book_title} - {stage_name} ({user_display})**: {elapsed_str}"
                                 )
+=======
+                                st.write(f"**{book_title} - {stage_name} ({user_display})**: {elapsed_str}")
+ main
                             with timer_col2:
                                 if st.button("Stop", key=f"summary_stop_{task_key}"):
                                     stop_active_timer(engine, task_key)
 
+ 41qt9n-codex/fix-indentation-error-on-line-1571
             if st.button(
                 "Refresh Active Timers", key="refresh_active_timers_sidebar", type="secondary"
             ):
                 st.rerun()
+=======
+        if st.button("Refresh Active Timers", key="refresh_active_timers_sidebar", type="secondary"):
+            st.rerun()
+ main
 
 
         st.markdown("---")
