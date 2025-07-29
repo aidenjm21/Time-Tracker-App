@@ -2471,16 +2471,14 @@ def main():
                                                     elapsed_seconds = accumulated + current_elapsed
                                                     elapsed_str = format_seconds_to_time(elapsed_seconds)
 
-                                                    # Display recording status with layout - first row shows status and refresh
-                                                    timer_row1_col1, timer_row1_col2 = st.columns([2, 1.5])
-                                                    # Placeholders kept for compatibility
-                                                    timer_row1_col3 = timer_row1_col1
-                                                    timer_row1_col4 = timer_row1_col2
-                                                    with timer_row1_col1:
+                                                    # Display controls in a single row so they align on mobile
+                                                    status_col, refresh_col, pause_col, stop_col = st.columns([2, 1, 1, 1])
+
+                                                    with status_col:
                                                         status_label = "Paused" if paused else "Recording"
                                                         st.write(f"**{status_label}** ({elapsed_str})")
 
-                                                    with timer_row1_col2:
+                                                    with refresh_col:
                                                         if st.button(
                                                             "Refresh",
                                                             key=f"refresh_timer_{task_key}_{idx}",
@@ -2488,10 +2486,7 @@ def main():
                                                         ):
                                                             st.rerun()
 
-                                                    # Second row with pause and stop controls
-                                                    timer_row2_col1, timer_row2_col2 = st.columns([1.5, 1])
-
-                                                    with timer_row2_col1:
+                                                    with pause_col:
                                                         pause_label = "Resume" if paused else "Pause"
 
                                                         if st.button(
@@ -2522,10 +2517,10 @@ def main():
                                                                 )
                                                             st.rerun()
 
-                                                    with timer_row2_col2:
-                                                            if st.button("Stop", key=f"stop_{task_key}_{idx}"):
-                                                                final_time = elapsed_seconds
-                                                                stop_active_timer(engine, task_key)
+                                                    with stop_col:
+                                                        if st.button("Stop", key=f"stop_{task_key}_{idx}"):
+                                                            final_time = elapsed_seconds
+                                                            stop_active_timer(engine, task_key)
 
                                                             # Keep expanded states
                                                             expanded_key = f"expanded_{book_title}"
@@ -2559,18 +2554,18 @@ def main():
                                                                         conn.execute(
                                                                             text(
                                                                                 '''
-                                                                                INSERT INTO trello_time_tracking
-                                                                                (card_name, user_name, list_name, time_spent_seconds,
-                                                                                 date_started, session_start_time, board_name, tag)
-                                                                                VALUES (:card_name, :user_name, :list_name, :time_spent_seconds,
-                                                                                       :date_started, :session_start_time, :board_name, :tag)
-                                                                                ON CONFLICT (card_name, user_name, list_name, date_started, time_spent_seconds)
-                                                                                DO UPDATE SET
-                                                                                    session_start_time = EXCLUDED.session_start_time,
-                                                                                    board_name = EXCLUDED.board_name,
-                                                                                    tag = EXCLUDED.tag,
-                                                                                    created_at = CURRENT_TIMESTAMP
-                                                                            '''
+                                            INSERT INTO trello_time_tracking
+                                            (card_name, user_name, list_name, time_spent_seconds,
+                                             date_started, session_start_time, board_name, tag)
+                                            VALUES (:card_name, :user_name, :list_name, :time_spent_seconds,
+                                                   :date_started, :session_start_time, :board_name, :tag)
+                                            ON CONFLICT (card_name, user_name, list_name, date_started, time_spent_seconds)
+                                            DO UPDATE SET
+                                                session_start_time = EXCLUDED.session_start_time,
+                                                board_name = EXCLUDED.board_name,
+                                                tag = EXCLUDED.tag,
+                                                created_at = CURRENT_TIMESTAMP
+                                        '''
                                                                             ),
                                                                             {
                                                                                 'card_name': book_title,
