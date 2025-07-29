@@ -1571,7 +1571,7 @@ def main():
         )
 
         active_timer_count = sum(1 for running in st.session_state.timers.values() if running)
- main
+ 
         with st.sidebar:
             st.write(f"**Active Timers ({active_timer_count})**")
             if active_timer_count == 0:
