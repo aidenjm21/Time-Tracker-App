@@ -2473,6 +2473,9 @@ def main():
 
                                                     # Display recording status with layout - first row shows status and refresh
                                                     timer_row1_col1, timer_row1_col2 = st.columns([2, 1.5])
+                                                    # Placeholders kept for compatibility
+                                                    timer_row1_col3 = timer_row1_col1
+                                                    timer_row1_col4 = timer_row1_col2
                                                     with timer_row1_col1:
                                                         status_label = "Paused" if paused else "Recording"
                                                         st.write(f"**{status_label}** ({elapsed_str})")
