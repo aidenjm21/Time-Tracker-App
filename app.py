@@ -1605,7 +1605,6 @@ def main():
                 st.write("No active timers")
             else:
                 for task_key, is_running in st.session_state.timers.items():
- chham0-codex/fix-indentation-error-on-line-1571
                     if (
                         is_running
                         and task_key in st.session_state.timer_start_times
