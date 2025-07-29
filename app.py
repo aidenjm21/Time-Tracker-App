@@ -1559,6 +1559,7 @@ def main():
     /* Custom progress bar colour */
     div[data-testid="stProgress"] div[data-testid="stProgressBar"] > div {
         background-color: #2AA395;
+
     }
     
     </style>
