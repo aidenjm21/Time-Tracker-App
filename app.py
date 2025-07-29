@@ -2526,7 +2526,7 @@ def main():
                                                             if st.button("Stop", key=f"stop_{task_key}_{idx}"):
                                                                 final_time = elapsed_seconds
 
- with timer_row2_col2:
+with timer_row2_col2:
     if st.button(
         "Stop",
         key=f"stop_{task_key}_{idx}",
