@@ -1593,8 +1593,9 @@ def main():
                                 if st.button("Stop", key=f"summary_stop_{task_key}"):
                                     stop_active_timer(engine, task_key)
 
-            if st.button("Refresh Active Timers", key="refresh_active_timers_sidebar", type="secondary"):
-                st.rerun()
+if st.button("Refresh Active Timers", key="refresh_active_timers_sidebar", type="secondary"):
+    st.rerun()
+
         st.markdown("---")
         
         # Initialize session state for timers
