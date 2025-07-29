@@ -2471,16 +2471,14 @@ def main():
                                                     elapsed_seconds = accumulated + current_elapsed
                                                     elapsed_str = format_seconds_to_time(elapsed_seconds)
 
-                                                    # Display recording status with layout - first row shows status and refresh
-                                                    timer_row1_col1, timer_row1_col2 = st.columns([2, 1.5])
-                                                    # Placeholders kept for compatibility
-                                                    timer_row1_col3 = timer_row1_col1
-                                                    timer_row1_col4 = timer_row1_col2
-                                                    with timer_row1_col1:
+                                                    # Display controls in a single row so they align on mobile
+                                                    status_col, refresh_col, pause_col, stop_col = st.columns([2, 1, 1, 1])
+
+                                                    with status_col:
                                                         status_label = "Paused" if paused else "Recording"
                                                         st.write(f"**{status_label}** ({elapsed_str})")
 
-                                                    with timer_row1_col2:
+                                                    with refresh_col:
                                                         if st.button(
                                                             "Refresh",
                                                             key=f"refresh_timer_{task_key}_{idx}",
@@ -2488,10 +2486,7 @@ def main():
                                                         ):
                                                             st.rerun()
 
-                                                    # Second row with pause and stop controls
-                                                    timer_row2_col1, timer_row2_col2 = st.columns([1.5, 1])
-
-                                                    with timer_row2_col1:
+                                                    with pause_col:
                                                         pause_label = "Resume" if paused else "Pause"
 
                                                         if st.button(
@@ -2522,6 +2517,7 @@ def main():
                                                                 )
                                                             st.rerun()
 
+                                                    with stop_col:
                                                     with timer_row2_col2:
                                                         if st.button("Stop", key=f"stop_{task_key}_{idx}"):
                                                             final_time = elapsed_seconds
