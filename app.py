@@ -1579,33 +1579,59 @@ def main():
                     books_without_tasks = set(book[0] for book in all_books if book[0] not in books_with_tasks)
                     total_books = len(books_with_tasks | books_without_tasks)
                     
-                    # Add search bar only
+                    # ---------- Multi-search functionality ----------
+                    if 'search_queries' not in st.session_state:
+                        st.session_state.search_queries = []
+
                     search_query = st.text_input(
                         f"Search books by title ({total_books}):",
                         placeholder="Enter book title to search...",
-                        key="completion_search"
+                        key="completion_search_input"
                     )
-                    
+
+                    add_search = st.button("Add Search")
+                    if add_search and search_query:
+                        st.session_state.search_queries.append(search_query)
+                        st.session_state.completion_search_input = ""
+                        st.rerun()
+
+                    # Display current searches with remove buttons
+                    active_searches = st.session_state.search_queries
+                    if active_searches:
+                        st.markdown("**Active Searches:**")
+                        remove_indices = []
+                        for idx, q in enumerate(active_searches):
+                            col_a, col_b = st.columns([4,1])
+                            col_a.write(q)
+                            if col_b.button("X", key=f"remove_search_{idx}"):
+                                remove_indices.append(idx)
+                        if remove_indices:
+                            for i in sorted(remove_indices, reverse=True):
+                                del st.session_state.search_queries[i]
+                            st.rerun()
+
                     # Initialize filtered_df
                     filtered_df = df_from_db.copy()
-                    
-                    # Determine books to display
-                    if search_query:
-                        # Filter books based on search
+
+                    # Determine books to display based on all search queries
+                    if st.session_state.search_queries:
                         import re
-                        escaped_query = re.escape(search_query)
-                        mask = filtered_df['Card name'].str.contains(escaped_query, case=False, na=False)
-                        filtered_df = filtered_df[mask]
+                        combined_mask = pd.Series(False, index=filtered_df.index)
+                        for q in st.session_state.search_queries:
+                            escaped_query = re.escape(q)
+                            mask = filtered_df['Card name'].str.contains(escaped_query, case=False, na=False)
+                            combined_mask |= mask
+                        filtered_df = filtered_df[combined_mask]
 
-                        # Get unique books from both sources
+                        # Get unique books from filtered df
                         books_with_tasks = set(filtered_df['Card name'].unique()) if not filtered_df.empty else set()
-                        books_without_tasks = set(book[0] for book in all_books if book[0] not in books_with_tasks)
+                        books_without_tasks_all = set(book[0] for book in all_books if book[0] not in books_with_tasks)
 
-                        # Filter books without tasks based on search query
-                        books_without_tasks = {book for book in books_without_tasks if search_query.lower() in book.lower()}
+                        matched_books_without_tasks = set()
+                        for q in st.session_state.search_queries:
+                            matched_books_without_tasks.update({book for book in books_without_tasks_all if q.lower() in book.lower()})
 
-                        # Combine and sort
-                        books_to_display = sorted(books_with_tasks | books_without_tasks)
+                        books_to_display = sorted(books_with_tasks | matched_books_without_tasks)
                     else:
                         # Show all books by default
                         books_to_display = sorted(book[0] for book in all_books)
@@ -1616,10 +1642,10 @@ def main():
                         st.session_state.book_page = 0
 
                     # Reset to first page if search changes
-                    prev_search = st.session_state.get('prev_completion_search')
-                    if search_query != prev_search:
+                    prev_searches = st.session_state.get('prev_completion_searches')
+                    if st.session_state.search_queries != prev_searches:
                         st.session_state.book_page = 0
-                    st.session_state.prev_completion_search = search_query
+                    st.session_state.prev_completion_searches = list(st.session_state.search_queries)
 
                     total_books_to_display = len(books_to_display)
                     start_idx = st.session_state.book_page * books_per_page
@@ -2682,19 +2708,45 @@ def main():
                 )
                 
                 if not df_archived.empty:
-                    # Add search bar for archived book titles
+                    # ---------- Multi-search for archived books ----------
+                    if 'archive_searches' not in st.session_state:
+                        st.session_state.archive_searches = []
+
                     archive_search_query = st.text_input(
                         "Search archived books by title:",
                         placeholder="Enter book title to filter archived results...",
                         help="Search for specific archived books by typing part of the title",
-                        key="archive_search"
+                        key="archive_search_input"
                     )
-                    
-                    # Filter archived books based on search
+
+                    add_archive_search = st.button("Add Archived Search")
+                    if add_archive_search and archive_search_query:
+                        st.session_state.archive_searches.append(archive_search_query)
+                        st.session_state.archive_search_input = ""
+                        st.rerun()
+
+                    active_archive_searches = st.session_state.archive_searches
+                    if active_archive_searches:
+                        st.markdown("**Active Searches:**")
+                        remove_idxs = []
+                        for idx, q in enumerate(active_archive_searches):
+                            c1, c2 = st.columns([4,1])
+                            c1.write(q)
+                            if c2.button("X", key=f"remove_archive_search_{idx}"):
+                                remove_idxs.append(idx)
+                        if remove_idxs:
+                            for i in sorted(remove_idxs, reverse=True):
+                                del st.session_state.archive_searches[i]
+                            st.rerun()
+
                     filtered_archived_df = df_archived.copy()
-                    if archive_search_query:
-                        mask = filtered_archived_df['Card name'].str.contains(archive_search_query, case=False, na=False)
-                        filtered_archived_df = filtered_archived_df[mask]
+                    if st.session_state.archive_searches:
+                        import re
+                        mask_combined = pd.Series(False, index=filtered_archived_df.index)
+                        for q in st.session_state.archive_searches:
+                            esc_q = re.escape(q)
+                            mask_combined |= filtered_archived_df['Card name'].str.contains(esc_q, case=False, na=False)
+                        filtered_archived_df = filtered_archived_df[mask_combined]
                     
                     # Get unique archived books
                     unique_archived_books = filtered_archived_df['Card name'].unique()
@@ -2799,8 +2851,8 @@ def main():
                                                 if confirm_key in st.session_state:
                                                     del st.session_state[confirm_key]
                     else:
-                        if archive_search_query:
-                            st.warning(f"No archived books found matching '{archive_search_query}'")
+                        if st.session_state.archive_searches:
+                            st.warning("No archived books found matching current searches")
                         else:
                             st.warning("No archived books available")
                 else:
