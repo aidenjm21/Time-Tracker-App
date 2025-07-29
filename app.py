@@ -1598,7 +1598,6 @@ def main():
         if st.button("Refresh Active Timers", key="refresh_active_timers_sidebar", type="secondary"):
             st.rerun()
 
-=======
  
         with st.sidebar:
             st.write(f"**Active Timers ({active_timer_count})**")
