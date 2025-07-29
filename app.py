@@ -1879,6 +1879,7 @@ def main():
                             user_display = user_name if user_name and user_name != "Not set" else "Unassigned"
 
                             timer_col1, timer_col2, timer_col3 = st.columns([3, 1.4, 1])
+                            timer_col1, timer_col2, timer_col3 = st.columns([3, 1, 1])
                             with timer_col1:
                                 st.write(f"**{book_title} - {stage_name} ({user_display})**: {elapsed_str}")
                             with timer_col2:
@@ -2472,6 +2473,8 @@ def main():
 
                                                     # Display recording status with layout - first row shows status and refresh
                                                     timer_row1_col1, timer_row1_col2 = st.columns([2, 1])
+                                                    # Display recording status with layout
+                                                    timer_row1_col1, timer_row1_col2, timer_row1_col3, timer_row1_col4 = st.columns([2, 1, 1, 1])
                                                     with timer_row1_col1:
                                                         status_label = "Paused" if paused else "Recording"
                                                         st.write(f"**{status_label}** ({elapsed_str})")
@@ -2483,6 +2486,7 @@ def main():
                                                     # Second row with pause and stop controls
                                                     timer_row2_col1, timer_row2_col2 = st.columns([1.5, 1])
                                                     with timer_row2_col1:
+                                                    with timer_row1_col3:
                                                         pause_label = "Resume" if paused else "Pause"
                                                         if st.button(pause_label, key=f"pause_{task_key}"):
                                                             if paused:
@@ -2510,6 +2514,7 @@ def main():
                                                             st.rerun()
 
                                                     with timer_row2_col2:
+                                                    with timer_row1_col4:
                                                         if st.button("Stop", key=f"stop_{task_key}"):
                                                             final_time = elapsed_seconds
 
