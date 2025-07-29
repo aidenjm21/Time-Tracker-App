@@ -59,7 +59,7 @@ def init_database():
             conn.execute(
                 text(
                     '''
-                ALTER TABLE trello_time_tracking 
+                ALTER TABLE trello_time_tracking
                 ADD COLUMN IF NOT EXISTS archived BOOLEAN DEFAULT FALSE
             '''
                 )
@@ -69,7 +69,7 @@ def init_database():
             conn.execute(
                 text(
                     '''
-                ALTER TABLE trello_time_tracking 
+                ALTER TABLE trello_time_tracking
                 ADD COLUMN IF NOT EXISTS session_start_time TIMESTAMP
             '''
                 )
@@ -200,7 +200,7 @@ def init_database():
             conn.execute(
                 text(
                     '''
-                ALTER TABLE active_timers 
+                ALTER TABLE active_timers
                 ADD COLUMN IF NOT EXISTS accumulated_seconds INTEGER DEFAULT 0
             '''
                 )
@@ -208,7 +208,7 @@ def init_database():
             conn.execute(
                 text(
                     '''
-                ALTER TABLE active_timers 
+                ALTER TABLE active_timers
                 ADD COLUMN IF NOT EXISTS is_paused BOOLEAN DEFAULT FALSE
             '''
                 )
@@ -219,7 +219,7 @@ def init_database():
                 conn.execute(
                     text(
                         '''
-                    ALTER TABLE active_timers 
+                    ALTER TABLE active_timers
                     ALTER COLUMN start_time TYPE TIMESTAMPTZ USING start_time AT TIME ZONE 'Europe/London'
                 '''
                     )
@@ -227,7 +227,7 @@ def init_database():
                 conn.execute(
                     text(
                         '''
-                    ALTER TABLE active_timers 
+                    ALTER TABLE active_timers
                     ALTER COLUMN created_at TYPE TIMESTAMPTZ USING created_at AT TIME ZONE 'Europe/London'
                 '''
                     )
@@ -382,10 +382,10 @@ def emergency_stop_all_timers(engine):
                                         conn.execute(
                                             text(
                                                 '''
-                                            INSERT INTO trello_time_tracking 
-                                            (card_name, user_name, list_name, time_spent_seconds, 
+                                            INSERT INTO trello_time_tracking
+                                            (card_name, user_name, list_name, time_spent_seconds,
                                              date_started, session_start_time, board_name)
-                                            VALUES (:card_name, :user_name, :list_name, :time_spent_seconds, 
+                                            VALUES (:card_name, :user_name, :list_name, :time_spent_seconds,
                                                    :date_started, :session_start_time, :board_name)
                                         '''
                                             ),
@@ -452,10 +452,10 @@ def recover_emergency_saved_times(engine):
                     conn.execute(
                         text(
                             '''
-                        INSERT INTO trello_time_tracking 
-                        (card_name, user_name, list_name, time_spent_seconds, 
+                        INSERT INTO trello_time_tracking
+                        (card_name, user_name, list_name, time_spent_seconds,
                          date_started, session_start_time, board_name)
-                        VALUES (:card_name, :user_name, :list_name, :time_spent_seconds, 
+                        VALUES (:card_name, :user_name, :list_name, :time_spent_seconds,
                                :date_started, :session_start_time, :board_name)
                     '''
                         ),
@@ -758,10 +758,10 @@ def update_task_completion(engine, card_name, user_name, list_name, completed):
             result = conn.execute(
                 text(
                     """
-                UPDATE trello_time_tracking 
+                UPDATE trello_time_tracking
                 SET completed = :completed
-                WHERE card_name = :card_name 
-                AND COALESCE(user_name, 'Not set') = :user_name 
+                WHERE card_name = :card_name
+                AND COALESCE(user_name, 'Not set') = :user_name
                 AND list_name = :list_name
                 AND archived = FALSE
             """
@@ -786,9 +786,9 @@ def get_task_completion(engine, card_name, user_name, list_name):
             result = conn.execute(
                 text(
                     """
-                SELECT completed FROM trello_time_tracking 
-                WHERE card_name = :card_name 
-                AND COALESCE(user_name, 'Not set') = :user_name 
+                SELECT completed FROM trello_time_tracking
+                WHERE card_name = :card_name
+                AND COALESCE(user_name, 'Not set') = :user_name
                 AND list_name = :list_name
                 LIMIT 1
             """
@@ -810,10 +810,10 @@ def check_all_tasks_completed(engine, card_name):
             result = conn.execute(
                 text(
                     """
-                SELECT list_name, COALESCE(user_name, 'Not set') as user_name, 
+                SELECT list_name, COALESCE(user_name, 'Not set') as user_name,
                        BOOL_AND(COALESCE(completed, false)) as all_completed
-                FROM trello_time_tracking 
-                WHERE card_name = :card_name 
+                FROM trello_time_tracking
+                WHERE card_name = :card_name
                 AND archived = FALSE
                 GROUP BY list_name, COALESCE(user_name, 'Not set')
             """
@@ -843,9 +843,9 @@ def delete_task_stage(engine, card_name, user_name, list_name):
             conn.execute(
                 text(
                     """
-                DELETE FROM trello_time_tracking 
-                WHERE card_name = :card_name 
-                AND COALESCE(user_name, 'Not set') = :user_name 
+                DELETE FROM trello_time_tracking
+                WHERE card_name = :card_name
+                AND COALESCE(user_name, 'Not set') = :user_name
                 AND list_name = :list_name
             """
                 ),
@@ -948,7 +948,7 @@ def add_stage_to_book(engine, card_name, stage_name, board_name=None, tag=None, 
             conn.execute(
                 text(
                     """
-                INSERT INTO trello_time_tracking 
+                INSERT INTO trello_time_tracking
                 (card_name, user_name, list_name, time_spent_seconds, card_estimate_seconds, board_name, created_at, tag)
                 VALUES (:card_name, :user_name, :list_name, :time_spent_seconds, :card_estimate_seconds, :board_name, :created_at, :tag)
             """
@@ -1067,7 +1067,7 @@ def get_filtered_tasks_from_database(
                        SUM(time_spent_seconds) as total_time,
                        MAX(card_estimate_seconds) as estimated_seconds,
                        MIN(CASE WHEN session_start_time IS NOT NULL THEN session_start_time END) as first_session
-                FROM trello_time_tracking 
+                FROM trello_time_tracking
                 WHERE 1=1
         '''
         params = {}
@@ -1777,7 +1777,7 @@ def main():
                             conn.execute(
                                 text(
                                     '''
-                                INSERT INTO trello_time_tracking 
+                                INSERT INTO trello_time_tracking
                                 (card_name, user_name, list_name, time_spent_seconds, card_estimate_seconds, board_name, created_at, session_start_time, tag)
                                 VALUES (:card_name, :user_name, :list_name, :time_spent_seconds, :card_estimate_seconds, :board_name, :created_at, :session_start_time, :tag)
                             '''
@@ -1959,12 +1959,12 @@ def main():
 
                 # Get task data from database for book completion (exclude archived)
                 df_from_db = pd.read_sql(
-                    '''SELECT card_name as "Card name", 
-                       COALESCE(user_name, 'Not set') as "User", 
-                       list_name as "List", 
-                       time_spent_seconds as "Time spent (s)", 
-                       date_started as "Date started (f)", 
-                       card_estimate_seconds as "Card estimate(s)", 
+                    '''SELECT card_name as "Card name",
+                       COALESCE(user_name, 'Not set') as "User",
+                       list_name as "List",
+                       time_spent_seconds as "Time spent (s)",
+                       date_started as "Date started (f)",
+                       card_estimate_seconds as "Card estimate(s)",
                        board_name as "Board", created_at, tag as "Tag"
                        FROM trello_time_tracking WHERE archived = FALSE ORDER BY created_at DESC''',
                     engine,
@@ -2409,10 +2409,10 @@ def main():
                                                                 conn.execute(
                                                                     text(
                                                                         '''
-                                                                        UPDATE trello_time_tracking 
+                                                                        UPDATE trello_time_tracking
                                                                         SET user_name = :new_user
-                                                                        WHERE card_name = :card_name 
-                                                                        AND list_name = :list_name 
+                                                                        WHERE card_name = :card_name
+                                                                        AND list_name = :list_name
                                                                         AND COALESCE(user_name, '') = COALESCE(:old_user, '')
                                                                     '''
                                                                     ),
@@ -2472,25 +2472,32 @@ def main():
                                                     elapsed_str = format_seconds_to_time(elapsed_seconds)
 
                                                     # Display recording status with layout - first row shows status and refresh
-                                                    timer_row1_col1, timer_row1_col2 = st.columns([2, 1])
-                                                    # Display recording status with layout
-                                                    timer_row1_col1, timer_row1_col2, timer_row1_col3, timer_row1_col4 = st.columns([2, 1, 1, 1])
+                                                    timer_row1_col1, timer_row1_col2 = st.columns([2, 1.5])
+                                                    # Placeholders kept for compatibility
+                                                    timer_row1_col3 = timer_row1_col1
+                                                    timer_row1_col4 = timer_row1_col2
                                                     with timer_row1_col1:
                                                         status_label = "Paused" if paused else "Recording"
                                                         st.write(f"**{status_label}** ({elapsed_str})")
 
                                                     with timer_row1_col2:
-                                                        if st.button("Refresh", key=f"refresh_timer_{task_key}", type="secondary"):
+                                                        if st.button(
+                                                            "Refresh",
+                                                            key=f"refresh_timer_{task_key}_{idx}",
+                                                            type="secondary",
+                                                        ):
                                                             st.rerun()
 
                                                     # Second row with pause and stop controls
                                                     timer_row2_col1, timer_row2_col2 = st.columns([1.5, 1])
 
                                                     with timer_row2_col1:
-                                                        with timer_row1_col3:
-                                                            pause_label = "Resume" if paused else "Pause"
+                                                        pause_label = "Resume" if paused else "Pause"
 
-                                                        if st.button(pause_label, key=f"pause_{task_key}"):
+                                                        if st.button(
+                                                            pause_label,
+                                                            key=f"pause_{task_key}_{idx}",
+                                                        ):
                                                             if paused:
                                                                 resume_time = datetime.utcnow().replace(tzinfo=timezone.utc).astimezone(BST)
                                                                 st.session_state.timer_start_times[task_key] = resume_time
@@ -2516,9 +2523,8 @@ def main():
                                                             st.rerun()
 
                                                     with timer_row2_col2:
-                                                    with timer_row1_col4:
-                                                        if st.button("Stop", key=f"stop_{task_key}"):
-                                                            final_time = elapsed_seconds
+                                                            if st.button("Stop", key=f"stop_{task_key}_{idx}"):
+                                                                final_time = elapsed_seconds
 
                                                             # Keep expanded states
                                                             expanded_key = f"expanded_{book_title}"
@@ -2552,13 +2558,13 @@ def main():
                                                                         conn.execute(
                                                                             text(
                                                                                 '''
-                                                                                INSERT INTO trello_time_tracking 
-                                                                                (card_name, user_name, list_name, time_spent_seconds, 
+                                                                                INSERT INTO trello_time_tracking
+                                                                                (card_name, user_name, list_name, time_spent_seconds,
                                                                                  date_started, session_start_time, board_name, tag)
-                                                                                VALUES (:card_name, :user_name, :list_name, :time_spent_seconds, 
+                                                                                VALUES (:card_name, :user_name, :list_name, :time_spent_seconds,
                                                                                        :date_started, :session_start_time, :board_name, :tag)
-                                                                                ON CONFLICT (card_name, user_name, list_name, date_started, time_spent_seconds) 
-                                                                                DO UPDATE SET 
+                                                                                ON CONFLICT (card_name, user_name, list_name, date_started, time_spent_seconds)
+                                                                                DO UPDATE SET
                                                                                     session_start_time = EXCLUDED.session_start_time,
                                                                                     board_name = EXCLUDED.board_name,
                                                                                     tag = EXCLUDED.tag,
@@ -2634,7 +2640,7 @@ def main():
 
                                             else:
                                                 # Timer is not active - show Start button
-                                                if st.button("Start", key=f"start_{task_key}"):
+                                                if st.button("Start", key=f"start_{task_key}_{idx}"):
                                                     # Preserve expanded state before rerun
                                                     expanded_key = f"expanded_{book_title}"
                                                     st.session_state[expanded_key] = True
@@ -2676,7 +2682,7 @@ def main():
                                             st.write("**Manual Entry:**")
 
                                             # Create a form to handle Enter key properly
-                                            with st.form(key=f"time_form_{task_key}"):
+                                            with st.form(key=f"time_form_{task_key}_{idx}"):
                                                 manual_time = st.text_input(
                                                     "Add time (hh:mm:ss):", placeholder="01:30:00"
                                                 )
@@ -2771,7 +2777,7 @@ def main():
                                                                             conn.execute(
                                                                                 text(
                                                                                     '''
-                                                                                    INSERT INTO trello_time_tracking 
+                                                                                    INSERT INTO trello_time_tracking
                                                                                     (card_name, user_name, list_name, time_spent_seconds, board_name, created_at, tag, completed)
                                                                                     VALUES (:card_name, :user_name, :list_name, :time_spent_seconds, :board_name, :created_at, :tag, :completed)
                                                                                 '''
@@ -2955,7 +2961,7 @@ def main():
                                                 result = conn.execute(
                                                     text(
                                                         '''
-                                                        SELECT COUNT(*) FROM trello_time_tracking 
+                                                        SELECT COUNT(*) FROM trello_time_tracking
                                                         WHERE card_name = :card_name
                                                     '''
                                                     ),
@@ -2968,8 +2974,8 @@ def main():
                                                     conn.execute(
                                                         text(
                                                             '''
-                                                            UPDATE trello_time_tracking 
-                                                            SET archived = TRUE 
+                                                            UPDATE trello_time_tracking
+                                                            SET archived = TRUE
                                                             WHERE card_name = :card_name
                                                         '''
                                                         ),
@@ -2980,10 +2986,10 @@ def main():
                                                     conn.execute(
                                                         text(
                                                             '''
-                                                            INSERT INTO trello_time_tracking 
-                                                            (card_name, user_name, list_name, time_spent_seconds, 
+                                                            INSERT INTO trello_time_tracking
+                                                            (card_name, user_name, list_name, time_spent_seconds,
                                                              card_estimate_seconds, board_name, archived, created_at)
-                                                            VALUES (:card_name, 'Not set', 'No tasks assigned', 0, 
+                                                            VALUES (:card_name, 'Not set', 'No tasks assigned', 0,
                                                                    0, 'Manual Entry', TRUE, NOW())
                                                         '''
                                                         ),
@@ -2994,8 +3000,8 @@ def main():
                                                 conn.execute(
                                                     text(
                                                         '''
-                                                        UPDATE books 
-                                                        SET archived = TRUE 
+                                                        UPDATE books
+                                                        SET archived = TRUE
                                                         WHERE card_name = :book_name
                                                     '''
                                                     ),
@@ -3034,7 +3040,7 @@ def main():
                                                     conn.execute(
                                                         text(
                                                             '''
-                                                            DELETE FROM trello_time_tracking 
+                                                            DELETE FROM trello_time_tracking
                                                             WHERE card_name = :card_name
                                                         '''
                                                         ),
@@ -3321,12 +3327,12 @@ def main():
 
                 # Get archived data from database
                 df_archived = pd.read_sql(
-                    '''SELECT card_name as "Card name", 
-                       COALESCE(user_name, 'Not set') as "User", 
-                       list_name as "List", 
-                       time_spent_seconds as "Time spent (s)", 
-                       date_started as "Date started (f)", 
-                       card_estimate_seconds as "Card estimate(s)", 
+                    '''SELECT card_name as "Card name",
+                       COALESCE(user_name, 'Not set') as "User",
+                       list_name as "List",
+                       time_spent_seconds as "Time spent (s)",
+                       date_started as "Date started (f)",
+                       card_estimate_seconds as "Card estimate(s)",
                        board_name as "Board", created_at, tag as "Tag"
                        FROM trello_time_tracking WHERE archived = TRUE ORDER BY created_at DESC''',
                     engine,
@@ -3420,8 +3426,8 @@ def main():
                                                 conn.execute(
                                                     text(
                                                         '''
-                                                    UPDATE trello_time_tracking 
-                                                    SET archived = FALSE 
+                                                    UPDATE trello_time_tracking
+                                                    SET archived = FALSE
                                                     WHERE card_name = :card_name
                                                 '''
                                                     ),
@@ -3460,7 +3466,7 @@ def main():
                                                     conn.execute(
                                                         text(
                                                             '''
-                                                        DELETE FROM trello_time_tracking 
+                                                        DELETE FROM trello_time_tracking
                                                         WHERE card_name = :card_name
                                                     '''
                                                         ),
