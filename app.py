@@ -2201,7 +2201,8 @@ def main():
 
                                                     # Include the row index so the key is always unique
                                                     selectbox_key = f"reassign_{book_title}_{stage_name}_{user_name}_{idx}"
-
+                                                    # Include user_name in key to avoid duplicate elements for the same stage
+                                                    selectbox_key = f"reassign_{book_title}_{stage_name}_{user_name}"
                                                     new_user = st.selectbox(
                                                         f"User for {stage_name}:",
                                                         user_options,
@@ -2330,6 +2331,7 @@ def main():
                                                                 # Store success message instead of immediate refresh
                                                                 success_key = (
                                                                     f"reassign_success_{book_title}_{stage_name}_{user_name}_{idx}"
+                                                                    f"reassign_success_{book_title}_{stage_name}_{user_name}"
                                                                 )
                                                                 st.session_state[success_key] = (
                                                                     f"User reassigned from {current_user} to {new_user}"
@@ -2674,6 +2676,7 @@ def main():
 
                                             # User reassignment success message
                                             reassign_success_key = f"reassign_success_{book_title}_{stage_name}_{user_name}_{idx}"
+                                            reassign_success_key = f"reassign_success_{book_title}_{stage_name}_{user_name}"
                                             if reassign_success_key in st.session_state:
                                                 st.success(st.session_state[reassign_success_key])
                                                 del st.session_state[reassign_success_key]
