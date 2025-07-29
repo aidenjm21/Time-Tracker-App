@@ -2522,16 +2522,16 @@ def main():
                                                                 )
                                                             st.rerun()
 
-                                                    with timer_row2_col2:
-                                                        if st.button(
-                                                            "Stop",
-                                                            key=f"stop_{task_key}_{idx}",
-                                                        ):
-                                                        if st.button("Stop", key=f"stop_{task_key}"):
-                                                            final_time = elapsed_seconds
-                                                        with timer_row1_col4:
-                                                            if st.button("Stop", key=f"stop_{task_key}"):
-                                                                final_time = elapsed_seconds
+                                                   with timer_row2_col2:
+    if st.button("Stop", key=f"stop_{task_key}_{idx}"):
+        final_time = elapsed_seconds  # ← Add the body of the first button
+        # Optionally: stop_active_timer(engine, task_key)
+
+with timer_row1_col4:
+    if st.button("Stop", key=f"stop_{task_key}"):
+        final_time = elapsed_seconds
+        # Optionally: stop_active_timer(engine, task_key)
+
 
                                                             # Keep expanded states
                                                             expanded_key = f"expanded_{book_title}"
