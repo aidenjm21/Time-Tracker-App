@@ -2481,7 +2481,11 @@ def main():
                                                         st.write(f"**{status_label}** ({elapsed_str})")
 
                                                     with timer_row1_col2:
-                                                        if st.button("Refresh", key=f"refresh_timer_{task_key}", type="secondary"):
+                                                        if st.button(
+                                                            "Refresh",
+                                                            key=f"refresh_timer_{task_key}_{idx}",
+                                                            type="secondary",
+                                                        ):
                                                             st.rerun()
 
                                                     # Second row with pause and stop controls
@@ -2490,7 +2494,10 @@ def main():
                                                     with timer_row2_col1:
                                                         pause_label = "Resume" if paused else "Pause"
 
-                                                        if st.button(pause_label, key=f"pause_{task_key}"):
+                                                        if st.button(
+                                                            pause_label,
+                                                            key=f"pause_{task_key}_{idx}",
+                                                        ):
                                                             if paused:
                                                                 resume_time = datetime.utcnow().replace(tzinfo=timezone.utc).astimezone(BST)
                                                                 st.session_state.timer_start_times[task_key] = resume_time
@@ -2516,6 +2523,10 @@ def main():
                                                             st.rerun()
 
                                                     with timer_row2_col2:
+                                                        if st.button(
+                                                            "Stop",
+                                                            key=f"stop_{task_key}_{idx}",
+                                                        ):
                                                         if st.button("Stop", key=f"stop_{task_key}"):
                                                             final_time = elapsed_seconds
                                                         with timer_row1_col4:
@@ -2636,7 +2647,7 @@ def main():
 
                                             else:
                                                 # Timer is not active - show Start button
-                                                if st.button("Start", key=f"start_{task_key}"):
+                                                if st.button("Start", key=f"start_{task_key}_{idx}"):
                                                     # Preserve expanded state before rerun
                                                     expanded_key = f"expanded_{book_title}"
                                                     st.session_state[expanded_key] = True
@@ -2678,7 +2689,7 @@ def main():
                                             st.write("**Manual Entry:**")
 
                                             # Create a form to handle Enter key properly
-                                            with st.form(key=f"time_form_{task_key}"):
+                                            with st.form(key=f"time_form_{task_key}_{idx}"):
                                                 manual_time = st.text_input(
                                                     "Add time (hh:mm:ss):", placeholder="01:30:00"
                                                 )
