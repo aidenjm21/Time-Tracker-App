@@ -1246,6 +1246,10 @@ def main():
     div[data-testid="column"] {
         padding: 0 0.5rem;
     }
+    /* Light grey sidebar background */
+    [data-testid="stSidebar"] {
+        background-color: #f5f5f5;
+    }
     </style>
     """, unsafe_allow_html=True)
     
@@ -1561,12 +1565,13 @@ def main():
         """, unsafe_allow_html=True)
         st.markdown("Visual progress tracking for all books with individual task timers.")
         
-        # Display active timers with current session time
+        # Display active timers in sidebar
         active_timer_count = sum(1 for running in st.session_state.timers.values() if running)
-        if active_timer_count > 0:
-            st.info(f"{active_timer_count} timer(s) currently running")
-
-            st.markdown("### Active Timers")
+with st.sidebar:
+    with st.expander(f"Active Timers ({active_timer_count})", expanded=active_timer_count > 0):
+        if active_timer_count == 0:
+            st.write("No active timers")
+        else:
             for task_key, is_running in st.session_state.timers.items():
                 if is_running and task_key in st.session_state.timer_start_times:
                     parts = task_key.split('_')
@@ -1586,10 +1591,12 @@ def main():
                             if st.button("Stop", key=f"summary_stop_{task_key}"):
                                 stop_active_timer(engine, task_key)
 
-            if st.button("Refresh Active Timers", key="refresh_active_timers", type="secondary"):
+    if st.button("Refresh Active Timers", key="refresh_active_timers_sidebar", type="secondary"):
+        st.rerun()
+        
                 st.rerun()
 
-            st.markdown("---")
+        st.markdown("---")
         
         # Initialize session state for timers
         if 'timers' not in st.session_state:
