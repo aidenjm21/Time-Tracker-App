@@ -1572,78 +1572,12 @@ def main():
 
         active_timer_count = sum(1 for running in st.session_state.timers.values() if running)
         with st.sidebar:
-            with st.expander(f"Active Timers ({active_timer_count})", expanded=active_timer_count > 0):
-                if active_timer_count == 0:
-                    st.write("No active timers")
-                else:
-                    for task_key, is_running in st.session_state.timers.items():
-                        if is_running and task_key in st.session_state.timer_start_times:
-                            parts = task_key.split('_')
-                            if len(parts) >= 3:
-                                book_title = '_'.join(parts[:-2])
-                                stage_name = parts[-2]
-                                user_name = parts[-1]
-                                start_time = st.session_state.timer_start_times[task_key]
-                                elapsed_seconds = calculate_timer_elapsed_time(start_time)
-                                elapsed_str = format_seconds_to_time(elapsed_seconds)
-                                user_display = user_name if user_name and user_name != "Not set" else "Unassigned"
-
-                                timer_col1, timer_col2 = st.columns([3, 1])
-                                with timer_col1:
-                                    st.write(f"**{book_title} - {stage_name} ({user_display})**: {elapsed_str}")
-                                with timer_col2:
-                                    if st.button("Stop", key=f"summary_stop_{task_key}"):
-                                        stop_active_timer(engine, task_key)
-
-        if st.button("Refresh Active Timers", key="refresh_active_timers_sidebar", type="secondary"):
-            st.rerun()
-
- 
-        with st.sidebar:
             st.write(f"**Active Timers ({active_timer_count})**")
             if active_timer_count == 0:
                 st.write("No active timers")
             else:
                 for task_key, is_running in st.session_state.timers.items():
-                    if (
-                        is_running
-                        and task_key in st.session_state.timer_start_times
-                    ):
-                        parts = task_key.split("_")
-                        if len(parts) >= 3:
-                            book_title = "_".join(parts[:-2])
-                            stage_name = parts[-2]
-                            user_name = parts[-1]
-                            start_time = st.session_state.timer_start_times[task_key]
-                            elapsed_seconds = calculate_timer_elapsed_time(
-                                start_time
-                            )
-                            elapsed_str = format_seconds_to_time(elapsed_seconds)
-                            user_display = (
-                                user_name
-                                if user_name and user_name != "Not set"
-                                else "Unassigned"
-                            )
-
-                            timer_col1, timer_col2 = st.columns([3, 1])
-                            with timer_col1:
-                                st.write(
-                                    f"**{book_title} - {stage_name} ({user_display})**: {elapsed_str}"
-                                )
-                            with timer_col2:
-                                if st.button(
-                                    "Stop", key=f"summary_stop_{task_key}"
-                                ):
-                                    stop_active_timer(engine, task_key)
-
-            if st.button(
-                "Refresh Active Timers",
-                key="refresh_active_timers_sidebar",
-                type="secondary",
-            ):
-                st.rerun()
-
-                if is_running and task_key in st.session_state.timer_start_times:
+                    if is_running and task_key in st.session_state.timer_start_times:
                         parts = task_key.split('_')
                         if len(parts) >= 3:
                             book_title = '_'.join(parts[:-2])
@@ -1656,27 +1590,15 @@ def main():
 
                             timer_col1, timer_col2 = st.columns([3, 1])
                             with timer_col1:
-                                st.write(
-                                    f"**{book_title} - {stage_name} ({user_display})**: {elapsed_str}"
-                                )
-
                                 st.write(f"**{book_title} - {stage_name} ({user_display})**: {elapsed_str}")
-            main
-                        with timer_col2:
-                            if st.button("Stop", key=f"summary_stop_{task_key}"):
-                                stop_active_timer(engine, task_key)
-
-            if st.button(
-                "Refresh Active Timers", key="refresh_active_timers_sidebar", type="secondary"
-            ):
-                st.rerun()
+                            with timer_col2:
+                                if st.button("Stop", key=f"summary_stop_{task_key}"):
+                                    stop_active_timer(engine, task_key)
 
         if st.button("Refresh Active Timers", key="refresh_active_timers_sidebar", type="secondary"):
             st.rerun()
- main
- main
 
- main
+ 
 
         st.markdown("---")
         
