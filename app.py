@@ -1542,6 +1542,17 @@ def main():
     [data-testid="stSidebar"] {
         background-color: #F0F2F5;
     }
+
+    /* Consistent button styling */
+    .stButton > button, .stDownloadButton > button {
+        background-color: #EB5D0C;
+        color: white;
+        border: none;
+    }
+    .stButton > button:hover, .stDownloadButton > button:hover {
+        background-color: #2AA395;
+        color: white;
+    }
     </style>
     """,
         unsafe_allow_html=True,
