@@ -1781,7 +1781,6 @@ def main():
         # Display active timers in sidebar
         active_timer_count = sum(1 for running in st.session_state.timers.values() if running)
 
- main
         with st.sidebar:
             st.write(f"**Active Timers ({active_timer_count})**")
             if active_timer_count == 0:
@@ -1822,23 +1821,6 @@ def main():
         max_retries = 3
         for attempt in range(max_retries):
             try:
-if st.button("Refresh Active Timers", key="refresh_active_timers_sidebar", type="secondary"):
-    st.rerun()
-
-st.markdown("---")
-
-# Initialize session state for timers
-if 'timers' not in st.session_state:
-    st.session_state.timers = {}
-if 'timer_start_times' not in st.session_state:
-    st.session_state.timer_start_times = {}
-        
-    # Check if we have data from database with SSL connection retry
-    total_records = 0
-    max_retries = 3
-    for attempt in range(max_retries):
-        try:
-main
                 with engine.connect() as conn:
                     result = conn.execute(text("SELECT COUNT(*) FROM trello_time_tracking"))
                     total_records = result.scalar()
@@ -2217,8 +2199,8 @@ main
                                                     except ValueError:
                                                         current_index = 0  # Default to "Not set"
 
-                                                    # Use a stable key that doesn't depend on user_name to avoid state conflicts
-                                                    selectbox_key = f"reassign_{book_title}_{stage_name}"
+                                                    # Include the row index so the key is always unique
+                                                    selectbox_key = f"reassign_{book_title}_{stage_name}_{user_name}_{idx}"
 
                                                     new_user = st.selectbox(
                                                         f"User for {stage_name}:",
@@ -2347,7 +2329,7 @@ main
 
                                                                 # Store success message instead of immediate refresh
                                                                 success_key = (
-                                                                    f"reassign_success_{book_title}_{stage_name}"
+                                                                    f"reassign_success_{book_title}_{stage_name}_{user_name}_{idx}"
                                                                 )
                                                                 st.session_state[success_key] = (
                                                                     f"User reassigned from {current_user} to {new_user}"
@@ -2691,7 +2673,7 @@ main
                                                 del st.session_state[completion_success_key]
 
                                             # User reassignment success message
-                                            reassign_success_key = f"reassign_success_{book_title}_{stage_name}"
+                                            reassign_success_key = f"reassign_success_{book_title}_{stage_name}_{user_name}_{idx}"
                                             if reassign_success_key in st.session_state:
                                                 st.success(st.session_state[reassign_success_key])
                                                 del st.session_state[reassign_success_key]
