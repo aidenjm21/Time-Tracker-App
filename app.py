@@ -2522,7 +2522,6 @@ def main():
                                                                 )
                                                             st.rerun()
 
-3fjkw2-codex/fix-indentation-errors-in-app.py
                                                     with timer_row2_col2:
                                                             if st.button("Stop", key=f"stop_{task_key}_{idx}"):
                                                                 final_time = elapsed_seconds
