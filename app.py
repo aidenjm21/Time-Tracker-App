@@ -979,7 +979,7 @@ def create_progress_bar_html(completion_percentage):
     if completion_percentage <= 100:
         # Normal progress (green)
         width = min(completion_percentage, 100)
-        color = "#28a745"  # Green
+        color = "#2AA395"  # Updated progress colour
         return f"""
         <div style="margin-bottom: 5px;">
             <div style="background-color: #f0f0f0; border-radius: 10px; padding: 2px; width: 200px; height: 20px;">
@@ -1730,7 +1730,7 @@ def main():
                                     # Show progress bar and completion info at the top
                                     progress_bar_html = f"""
                                     <div style="width: 50%; background-color: #f0f0f0; border-radius: 5px; height: 10px; margin: 8px 0;">
-                                        <div style="width: {min(completion_percentage, 100):.1f}%; background-color: #007bff; height: 100%; border-radius: 5px;"></div>
+                                    <div style="width: {min(completion_percentage, 100):.1f}%; background-color: #2AA395; height: 100%; border-radius: 5px;"></div>
                                     </div>
                                     """
                                     st.markdown(progress_bar_html, unsafe_allow_html=True)
@@ -2729,7 +2729,7 @@ def main():
                                 # Show progress bar and completion info at the top
                                 progress_bar_html = f"""
                                 <div style="width: 50%; background-color: #f0f0f0; border-radius: 5px; height: 10px; margin: 8px 0;">
-                                    <div style="width: {min(completion_percentage, 100):.1f}%; background-color: #007bff; height: 100%; border-radius: 5px;"></div>
+                                    <div style="width: {min(completion_percentage, 100):.1f}%; background-color: #2AA395; height: 100%; border-radius: 5px;"></div>
                                 </div>
                                 """
                                 st.markdown(progress_bar_html, unsafe_allow_html=True)
