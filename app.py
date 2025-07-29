@@ -2522,6 +2522,11 @@ def main():
                                                                 )
                                                             st.rerun()
 
+3fjkw2-codex/fix-indentation-errors-in-app.py
+                                                    with timer_row2_col2:
+                                                            if st.button("Stop", key=f"stop_{task_key}_{idx}"):
+                                                                final_time = elapsed_seconds
+
  with timer_row2_col2:
     if st.button(
         "Stop",
@@ -2536,6 +2541,7 @@ with timer_row1_col4:
         final_time = elapsed_seconds
         # Optionally: stop_active_timer(engine, task_key)
 
+ main
 
                                                             # Keep expanded states
                                                             expanded_key = f"expanded_{book_title}"
