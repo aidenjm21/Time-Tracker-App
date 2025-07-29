@@ -1604,11 +1604,11 @@ if 'timers' not in st.session_state:
 if 'timer_start_times' not in st.session_state:
     st.session_state.timer_start_times = {}
         
-        # Check if we have data from database with SSL connection retry
-        total_records = 0
-        max_retries = 3
-        for attempt in range(max_retries):
-            try:
+    # Check if we have data from database with SSL connection retry
+    total_records = 0
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
                 with engine.connect() as conn:
                     result = conn.execute(text("SELECT COUNT(*) FROM trello_time_tracking"))
                     total_records = result.scalar()
