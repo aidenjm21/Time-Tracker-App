@@ -1551,7 +1551,12 @@ def main():
     }
     .stButton > button:hover, .stDownloadButton > button:hover {
         background-color: #2AA395;
-        color: white;
+        color: #ffffff;
+    }
+
+    /* Custom progress bar colour */
+    div[data-testid="stProgress"] div[data-testid="stProgressBar"] > div {
+        background-color: #2AA395;
     }
     
     </style>
