@@ -1643,7 +1643,7 @@ def main():
             ):
                 st.rerun()
 
-                    if is_running and task_key in st.session_state.timer_start_times:
+                if is_running and task_key in st.session_state.timer_start_times:
                         parts = task_key.split('_')
                         if len(parts) >= 3:
                             book_title = '_'.join(parts[:-2])
