@@ -2472,9 +2472,7 @@ def main():
                                                     elapsed_str = format_seconds_to_time(elapsed_seconds)
 
                                                     # Display recording status with layout - first row shows status and refresh
-                                                    timer_row1_col1, timer_row1_col2 = st.columns([2, 1])
-                                                    # Display recording status with layout
-                                                    timer_row1_col1, timer_row1_col2, timer_row1_col3, timer_row1_col4 = st.columns([2, 1, 1, 1])
+                                                    timer_row1_col1, timer_row1_col2 = st.columns([2, 1.5])
                                                     with timer_row1_col1:
                                                         status_label = "Paused" if paused else "Recording"
                                                         st.write(f"**{status_label}** ({elapsed_str})")
@@ -2487,8 +2485,7 @@ def main():
                                                     timer_row2_col1, timer_row2_col2 = st.columns([1.5, 1])
 
                                                     with timer_row2_col1:
-                                                        with timer_row1_col3:
-                                                            pause_label = "Resume" if paused else "Pause"
+                                                        pause_label = "Resume" if paused else "Pause"
 
                                                         if st.button(pause_label, key=f"pause_{task_key}"):
                                                             if paused:
@@ -2516,7 +2513,6 @@ def main():
                                                             st.rerun()
 
                                                     with timer_row2_col2:
-                                                    with timer_row1_col4:
                                                         if st.button("Stop", key=f"stop_{task_key}"):
                                                             final_time = elapsed_seconds
 
