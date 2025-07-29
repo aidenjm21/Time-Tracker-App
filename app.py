@@ -1546,12 +1546,10 @@ def main():
     /* Consistent button styling */
     .stButton > button, .stDownloadButton > button {
         background-color: #EB5D0C;
-        color: #ffffff;
+        color: white;
         border: none;
     }
-    .stButton > button:hover, .stDownloadButton > button:hover,
-    .stButton > button:active, .stDownloadButton > button:active,
-    .stButton > button:focus, .stDownloadButton > button:focus {
+    .stButton > button:hover, .stDownloadButton > button:hover {
         background-color: #2AA395;
         color: #ffffff;
     }
@@ -1559,7 +1557,6 @@ def main():
     /* Custom progress bar colour */
     div[data-testid="stProgress"] div[data-testid="stProgressBar"] > div {
         background-color: #2AA395;
-
     }
     
     </style>
@@ -1567,7 +1564,6 @@ def main():
         unsafe_allow_html=True,
     )
 
-    st.image("BLP_head.png", width=150)
     st.title("Book Production Time Tracking")
     st.markdown("Track time spent on different stages of book production with detailed stage-specific analysis.")
 
