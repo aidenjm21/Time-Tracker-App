@@ -979,7 +979,7 @@ def create_progress_bar_html(completion_percentage):
     if completion_percentage <= 100:
         # Normal progress (green)
         width = min(completion_percentage, 100)
-        color = "#2AA395"  # Updated progress colour
+        color = "#EB5D0C"  # Updated progress colour
         return f"""
         <div style="margin-bottom: 5px;">
             <div style="background-color: #f0f0f0; border-radius: 10px; padding: 2px; width: 200px; height: 20px;">
