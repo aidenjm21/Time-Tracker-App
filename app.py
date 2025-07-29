@@ -1593,8 +1593,6 @@ with st.sidebar:
 
     if st.button("Refresh Active Timers", key="refresh_active_timers_sidebar", type="secondary"):
         st.rerun()
-        
-                st.rerun()
 
         st.markdown("---")
         
