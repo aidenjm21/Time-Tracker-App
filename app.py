@@ -487,6 +487,71 @@ def remove_active_timer(engine, timer_key):
         st.error(f"Error removing active timer: {str(e)}")
 
 
+def stop_active_timer(engine, timer_key):
+    """Stop a running timer and save its elapsed time."""
+    if timer_key not in st.session_state.get('timer_start_times', {}):
+        return
+
+    start_time = st.session_state.timer_start_times.get(timer_key)
+    elapsed_seconds = calculate_timer_elapsed_time(start_time)
+
+    parts = timer_key.split('_')
+    if len(parts) < 3:
+        return
+
+    card_name = '_'.join(parts[:-2])
+    list_name = parts[-2]
+    user_name = parts[-1]
+
+    board_name = 'Manual Entry'
+    try:
+        with engine.connect() as conn:
+            res = conn.execute(
+                text('SELECT board_name FROM active_timers WHERE timer_key = :timer_key'),
+                {'timer_key': timer_key}
+            )
+            row = res.fetchone()
+            if row and row[0]:
+                board_name = row[0]
+    except Exception:
+        pass
+
+    try:
+        with engine.connect() as conn:
+            conn.execute(text('''
+                INSERT INTO trello_time_tracking
+                (card_name, user_name, list_name, time_spent_seconds,
+                 date_started, session_start_time, board_name)
+                VALUES (:card_name, :user_name, :list_name, :time_spent_seconds,
+                        :date_started, :session_start_time, :board_name)
+                ON CONFLICT (card_name, user_name, list_name, date_started, time_spent_seconds)
+                DO UPDATE SET
+                    session_start_time = EXCLUDED.session_start_time,
+                    board_name = EXCLUDED.board_name,
+                    created_at = CURRENT_TIMESTAMP
+            '''), {
+                'card_name': card_name,
+                'user_name': user_name,
+                'list_name': list_name,
+                'time_spent_seconds': elapsed_seconds,
+                'date_started': start_time.date(),
+                'session_start_time': start_time,
+                'board_name': board_name
+            })
+            conn.execute(
+                text('DELETE FROM active_timers WHERE timer_key = :timer_key'),
+                {'timer_key': timer_key}
+            )
+            conn.commit()
+    except Exception as e:
+        st.error(f"Error saving timer data: {str(e)}")
+
+    st.session_state.timers[timer_key] = False
+    if timer_key in st.session_state.timer_start_times:
+        del st.session_state.timer_start_times[timer_key]
+    st.rerun()
+
+
 def update_task_completion(engine, card_name, user_name, list_name, completed):
     """Update task completion status for all matching records"""
     try:
@@ -1181,6 +1246,10 @@ def main():
     div[data-testid="column"] {
         padding: 0 0.5rem;
     }
+    /* Light grey sidebar background */
+    [data-testid="stSidebar"] {
+        background-color: #f5f5f5;
+    }
     </style>
     """, unsafe_allow_html=True)
     
@@ -1496,29 +1565,36 @@ def main():
         """, unsafe_allow_html=True)
         st.markdown("Visual progress tracking for all books with individual task timers.")
         
-        # Display active timers with current session time
+        # Display active timers in sidebar
         active_timer_count = sum(1 for running in st.session_state.timers.values() if running)
-        if active_timer_count > 0:
-            st.info(f"{active_timer_count} timer(s) currently running")
+        with st.sidebar:
+            with st.expander(f"Active Timers ({active_timer_count})", expanded=active_timer_count > 0):
+                if active_timer_count == 0:
+                    st.write("No active timers")
+                else:
+                    for task_key, is_running in st.session_state.timers.items():
+                        if is_running and task_key in st.session_state.timer_start_times:
+                            parts = task_key.split('_')
+                            if len(parts) >= 3:
+                                book_title = '_'.join(parts[:-2])
+                                stage_name = parts[-2]
+                                user_name = parts[-1]
+                                start_time = st.session_state.timer_start_times[task_key]
+                                elapsed_seconds = calculate_timer_elapsed_time(start_time)
+                                elapsed_str = format_seconds_to_time(elapsed_seconds)
+                                user_display = user_name if user_name and user_name != "Not set" else "Unassigned"
 
-            st.markdown("### Active Timers")
-            for task_key, is_running in st.session_state.timers.items():
-                if is_running and task_key in st.session_state.timer_start_times:
-                    parts = task_key.split('_')
-                    if len(parts) >= 3:
-                        book_title = '_'.join(parts[:-2])
-                        stage_name = parts[-2]
-                        user_name = parts[-1]
-                        start_time = st.session_state.timer_start_times[task_key]
-                        elapsed_seconds = calculate_timer_elapsed_time(start_time)
-                        elapsed_str = format_seconds_to_time(elapsed_seconds)
-                        user_display = user_name if user_name and user_name != "Not set" else "Unassigned"
-                        st.write(f"**{book_title} - {stage_name} ({user_display})**: {elapsed_str}")
+                                timer_col1, timer_col2 = st.columns([3, 1])
+                                with timer_col1:
+                                    st.write(f"**{book_title} - {stage_name} ({user_display})**: {elapsed_str}")
+                                with timer_col2:
+                                    if st.button("Stop", key=f"summary_stop_{task_key}"):
+                                        stop_active_timer(engine, task_key)
 
-            if st.button("Refresh Active Timers", key="refresh_active_timers", type="secondary"):
+            if st.button("Refresh Active Timers", key="refresh_active_timers_sidebar", type="secondary"):
                 st.rerun()
 
-            st.markdown("---")
+        st.markdown("---")
         
         # Initialize session state for timers
         if 'timers' not in st.session_state:
@@ -2486,7 +2562,7 @@ def main():
         
         if not users:
             st.info("No users found in database. Please add entries in the 'Add Book' tab first.")
-            return
+            st.stop()
         
         # Filter selection - organized in columns
         col1, col2 = st.columns(2)
@@ -2609,13 +2685,23 @@ def main():
                     active_filters.append(f"Date range: {start_str} to {end_str}")
                 
                 if active_filters:
-                    st.info("Active filters: " + " | ".join(active_filters))
-                
-                st.dataframe(
-                    filtered_tasks,
-                    use_container_width=True,
-                    hide_index=True
-                )
+                    left_col, right_col = st.columns([1, 3])
+                    with left_col:
+                        with st.expander("Active Filters", expanded=False):
+                            for f in active_filters:
+                                st.write(f)
+                    with right_col:
+                        st.dataframe(
+                            filtered_tasks,
+                            use_container_width=True,
+                            hide_index=True
+                        )
+                else:
+                    st.dataframe(
+                        filtered_tasks,
+                        use_container_width=True,
+                        hide_index=True
+                    )
                 
                 # Download button for filtered results
                 csv_buffer = io.StringIO()
