@@ -1186,32 +1186,6 @@ def main():
     
     st.title("Book Production Time Tracking")
     st.markdown("Track time spent on different stages of book production with detailed stage-specific analysis.")
-
-    # Inject JavaScript to update timers in the browser every second
-    st.markdown(
-        """
-        <script>
-        function formatTimerTime(sec) {
-            const h = String(Math.floor(sec / 3600)).padStart(2, '0');
-            const m = String(Math.floor((sec % 3600) / 60)).padStart(2, '0');
-            const s = String(sec % 60).padStart(2, '0');
-            return `${h}:${m}:${s}`;
-        }
-        function updateTimers() {
-            document.querySelectorAll('.js-timer').forEach(el => {
-                let sec = parseInt(el.dataset.elapsed, 10);
-                if (!isNaN(sec)) {
-                    sec += 1;
-                    el.dataset.elapsed = sec;
-                    el.textContent = formatTimerTime(sec);
-                }
-            });
-        }
-        setInterval(updateTimers, 1000);
-        </script>
-        """,
-        unsafe_allow_html=True,
-    )
     
     # Database already initialized earlier
     
@@ -1539,8 +1513,7 @@ def main():
                         elapsed_seconds = calculate_timer_elapsed_time(start_time)
                         elapsed_str = format_seconds_to_time(elapsed_seconds)
                         user_display = user_name if user_name and user_name != "Not set" else "Unassigned"
-                        timer_html = f'<span class="js-timer" data-elapsed="{elapsed_seconds}">{elapsed_str}</span>'
-                        st.markdown(f"**{book_title} - {stage_name} ({user_display})**: {timer_html}", unsafe_allow_html=True)
+                        st.write(f"**{book_title} - {stage_name} ({user_display})**: {elapsed_str}")
 
             if st.button("Refresh Active Timers", key="refresh_active_timers", type="secondary"):
                 st.rerun()
@@ -2004,8 +1977,7 @@ def main():
                                                         # Display recording status with layout: Recording (hh:mm:ss) -> (Stop Button)
                                                         timer_row1_col1, timer_row1_col2 = st.columns([2, 1])
                                                         with timer_row1_col1:
-                                                            timer_html = f'<span class="js-timer" data-elapsed="{elapsed_seconds}">{elapsed_str}</span>'
-                                                            st.markdown(f"**Recording** ({timer_html})", unsafe_allow_html=True)
+                                                            st.write(f"**Recording** ({elapsed_str})")
 
                                                         with timer_row1_col2:
                                                             if st.button("Stop", key=f"stop_{task_key}"):
