@@ -2487,7 +2487,7 @@ def main():
                                                     timer_row2_col1, timer_row2_col2 = st.columns([1.5, 1])
                                                     with timer_row2_col1:
                                                     with timer_row1_col3:
-                                                        pause_label = "Resume" if paused else "Pause"
+                                                    pause_label = "Resume" if paused else "Pause"
                                                         if st.button(pause_label, key=f"pause_{task_key}"):
                                                             if paused:
                                                                 resume_time = datetime.utcnow().replace(tzinfo=timezone.utc).astimezone(BST)
