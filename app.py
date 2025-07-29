@@ -1569,8 +1569,6 @@ def main():
         active_timer_count = sum(
             1 for running in st.session_state.timers.values() if running
         )
-
-        active_timer_count = sum(1 for running in st.session_state.timers.values() if running)
         with st.sidebar:
             st.write(f"**Active Timers ({active_timer_count})**")
             if active_timer_count == 0:
@@ -1595,10 +1593,15 @@ def main():
                                 if st.button("Stop", key=f"summary_stop_{task_key}"):
                                     stop_active_timer(engine, task_key)
 
+ 6n6s3p-codex/update-active-timers-display-in-sidebar
+            if st.button("Refresh Active Timers", key="refresh_active_timers_sidebar", type="secondary"):
+                st.rerun()
+
         if st.button("Refresh Active Timers", key="refresh_active_timers_sidebar", type="secondary"):
             st.rerun()
 
  
+ main
 
         st.markdown("---")
         
