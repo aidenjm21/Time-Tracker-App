@@ -9,37 +9,14 @@ import re
 import time
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import IntegrityError
-import streamlit as st
 
 st.markdown("""
     <style>
-    /* Fallback to light theme */
-    :root {
-        --secondary-background-color: #f0f2f6;
-    }
-
     [data-testid="stSidebar"],
     section[data-testid="stSidebar"] > div:first-child {
-        background-color: var(--secondary-background-color) !important;
+        background-color: var(--secondary-background-color);
     }
     </style>
-
-    <script>
-    // Wait for Streamlit to finish rendering
-    window.addEventListener('DOMContentLoaded', function () {
-        const sidebar = document.querySelector('[data-testid="stSidebar"]');
-        if (!sidebar) return;
-
-        const currentBg = getComputedStyle(sidebar).backgroundColor;
-
-        // Define your dark theme match colour (adjust as needed)
-        const darkThemeBg = "rgb(38, 39, 48)";  // #262730
-
-        if (currentBg === darkThemeBg) {
-            document.documentElement.style.setProperty('--secondary-background-color', darkThemeBg);
-        }
-    });
-    </script>
 """, unsafe_allow_html=True)
 
 st.set_page_config(page_title="Book Production Time Tracking", page_icon="favicon.png")
