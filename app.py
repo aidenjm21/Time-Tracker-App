@@ -1641,20 +1641,17 @@ def main():
         background-color: #2AA395;
     }
 
-    /* Style tabs */
-    div[data-testid="stTabs"] button[data-baseweb="tab"] {
-        font-weight: bold;
-        font-size: calc(1em + 2pt);
-    }
-
+    /* Style tabs with brand colour when active or hovered */
     div[data-testid="stTabs"] button[data-baseweb="tab"]:hover {
         color: #EB5D0C;
     }
     div[data-testid="stTabs"] button[data-baseweb="tab"][aria-selected="true"] {
         color: #EB5D0C;
-        border-bottom: 3px solid #EB5D0C;
     }
-
+    
+div[data-baseweb="tab-highlight"] {
+    background-color: #eb5d0c !important;
+}
     </style>
     """,
         unsafe_allow_html=True,
