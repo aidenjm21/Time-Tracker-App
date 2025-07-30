@@ -1575,19 +1575,31 @@ def main():
         background-color: #F0F2F5;
     }
 
-    /* Consistent button styling */
-    .stButton > button, .stDownloadButton > button {
-        background-color: #EB5D0C;
-        color: #ffffff;
-        border: none;
-    }
-    .stButton > button:hover, .stDownloadButton > button:hover,
-    .stButton > button:active, .stDownloadButton > button:active,
-    .stButton > button:focus, .stDownloadButton > button:focus,
-    .stButton > button:disabled, .stDownloadButton > button:disabled {
-        background-color: #2AA395;
-        color: #ffffff;
-    }
+
+   /* Consistent button styling */
+.stButton > button,
+.stDownloadButton > button,
+button.st-emotion-cache-1h08hrp.e1e4lema2 {
+    background-color: #EB5D0C;
+    color: #ffffff;
+    border: none;
+}
+
+.stButton > button:hover,
+.stDownloadButton > button:hover,
+button.st-emotion-cache-1h08hrp.e1e4lema2:hover,
+.stButton > button:active,
+.stDownloadButton > button:active,
+button.st-emotion-cache-1h08hrp.e1e4lema2:active,
+.stButton > button:focus,
+.stDownloadButton > button:focus,
+button.st-emotion-cache-1h08hrp.e1e4lema2:focus,
+.stButton > button:disabled,
+.stDownloadButton > button:disabled,
+button.st-emotion-cache-1h08hrp.e1e4lema2:disabled {
+    background-color: #2AA395;
+    color: #ffffff;
+}
 
     /* Custom progress bar colour */
     div[data-testid="stProgress"] div[data-testid="stProgressBar"] > div {
@@ -1664,17 +1676,18 @@ def main():
                 except Exception as e:
                     st.error(f"Error reading CSV: {str(e)}")
         with open("time_tracker_example.xlsx", "rb") as example_file:
+
             st.download_button(
-                label="Download example Excel format",
+                label="Download example csv format",
                 data=example_file,
-                file_name="time_tracker_example.xlsx",
+                file_name="time_tracker_example.csv",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             )
         st.markdown("---")
 
         # Manual Data Entry Form
         st.header("Manual Data Entry")
-        st.markdown("Add individual time tracking entries for detailed stage-specific analysis.")
+        st.markdown("*Add individual time tracking entries for detailed stage-specific analysis. Add the Card Name from Trello, the board it's from and any tags attached to the card. The Card Name is a required field.*")
 
         # Check if form should be cleared
         clear_form = st.session_state.get('clear_form', False)
@@ -1763,7 +1776,7 @@ def main():
 
         st.subheader("Task Assignment & Estimates")
         st.markdown(
-            "*Assign users to stages and set time estimates. All tasks start with 0 actual time - use the Book Completion tab to track actual work time.*"
+            "*Assign users to stages and set time estimates. You don't need to assign a user; that can be done later. Time should be added in decimal format. E.g. one hour is 1 and 2 hours and 30 minutes is 2.5.*"
         )
 
         # Define user groups for different types of work (alphabetically ordered)
