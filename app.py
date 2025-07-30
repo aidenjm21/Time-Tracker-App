@@ -1543,19 +1543,31 @@ def main():
         background-color: #F0F2F5;
     }
 
-    /* Consistent button styling */
-    .stButton > button, .stDownloadButton > button {
-        background-color: #EB5D0C;
-        color: #ffffff;
-        border: none;
-    }
-    .stButton > button:hover, .stDownloadButton > button:hover,
-    .stButton > button:active, .stDownloadButton > button:active,
-    .stButton > button:focus, .stDownloadButton > button:focus,
-    .stButton > button:disabled, .stDownloadButton > button:disabled {
-        background-color: #2AA395;
-        color: #ffffff;
-    }
+   /* Consistent button styling */
+.stButton > button,
+.stDownloadButton > button,
+button.st-emotion-cache-1h08hrp.e1e4lema2 {
+    background-color: #EB5D0C;
+    color: #ffffff;
+    border: none;
+}
+
+.stButton > button:hover,
+.stDownloadButton > button:hover,
+button.st-emotion-cache-1h08hrp.e1e4lema2:hover,
+.stButton > button:active,
+.stDownloadButton > button:active,
+button.st-emotion-cache-1h08hrp.e1e4lema2:active,
+.stButton > button:focus,
+.stDownloadButton > button:focus,
+button.st-emotion-cache-1h08hrp.e1e4lema2:focus,
+.stButton > button:disabled,
+.stDownloadButton > button:disabled,
+button.st-emotion-cache-1h08hrp.e1e4lema2:disabled {
+    background-color: #2AA395;
+    color: #ffffff;
+}
+
 
     /* Custom progress bar colour */
     div[data-testid="stProgress"] div[data-testid="stProgressBar"] > div {
