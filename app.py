@@ -775,7 +775,10 @@ def display_active_timers_sidebar(engine):
 
                         col1, col2, col3 = st.columns([3, 1, 1])
                         with col1:
-                            st.write(f"**{book_title} - {stage_name} ({user_display})**: {elapsed_str}")
+                            status_text = "PAUSED" if paused else "RECORDING"
+                            st.write(
+                                f"**{book_title} - {stage_name} ({user_display})**: {elapsed_str} - {status_text}"
+                            )
                         with col2:
                             pause_label = "Resume" if paused else "Pause"
                             if st.button(pause_label, key=f"summary_pause_{task_key}"):
@@ -1061,13 +1064,13 @@ def import_books_from_csv(engine, df):
                     continue
 
                 try:
-                    hours = float(str(time_val))
-                except ValueError:
+                    hours = parse_hours_minutes(time_val)
+                except Exception:
                     continue
                 if hours <= 0:
                     continue
 
-                estimate_seconds = int(hours * 3600)
+                estimate_seconds = int(round(hours * 60)) * 60
 
                 user_val = row.get(stage)
                 if pd.notna(user_val) and str(user_val).strip() and str(user_val).strip() != "Not set":
@@ -1224,6 +1227,33 @@ def format_seconds_to_time(seconds):
     minutes = (seconds % 3600) // 60
     secs = seconds % 60
     return f"{hours:02d}:{minutes:02d}:{secs:02d}"
+
+
+def parse_hours_minutes(value):
+    """Parse HH:MM or decimal hour strings to float hours."""
+    if value is None or value == "":
+        return 0.0
+
+    try:
+        if isinstance(value, (int, float)):
+            return float(value)
+
+        value = str(value).strip()
+
+        if ":" in value:
+            parts = value.split(":")
+            if len(parts) == 2:
+                hours = float(parts[0])
+                minutes = float(parts[1])
+                if minutes >= 60:
+                    st.warning("Minutes must be less than 60")
+                    return 0.0
+                return hours + minutes / 60
+
+        return float(value)
+    except ValueError:
+        st.warning("Use HH:MM or decimal hours (e.g., 2:30)")
+        return 0.0
 
 
 def calculate_timer_elapsed_time(start_time):
@@ -1546,10 +1576,13 @@ def main():
     /* Consistent button styling */
     .stButton > button, .stDownloadButton > button {
         background-color: #EB5D0C;
-        color: white;
+        color: #ffffff;
         border: none;
     }
-    .stButton > button:hover, .stDownloadButton > button:hover {
+    .stButton > button:hover, .stDownloadButton > button:hover,
+    .stButton > button:active, .stDownloadButton > button:active,
+    .stButton > button:focus, .stDownloadButton > button:focus,
+    .stButton > button:disabled, .stDownloadButton > button:disabled {
         background-color: #2AA395;
         color: #ffffff;
     }
@@ -1787,14 +1820,13 @@ def main():
                 )
 
             with col2:
-                time_value = st.number_input(
+                time_input = st.text_input(
                     f"Time for {field_label}",
-                    min_value=0.0,
-                    step=0.1,
-                    format="%.1f",
                     key=f"time_{list_name.replace(' ', '_').lower()}",
                     label_visibility="collapsed",
+                    placeholder="HH:MM or hours",
                 )
+                time_value = parse_hours_minutes(time_input)
 
             # Handle user selection and calculate totals
             # Allow time entries with or without user assignment
