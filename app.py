@@ -1639,7 +1639,16 @@ def main():
     div[data-testid="stProgress"] div[data-testid="stProgressBar"] > div {
         background-color: #2AA395;
     }
-    
+
+    /* Style tabs with brand colour when active or hovered */
+    div[data-testid="stTabs"] button[data-baseweb="tab"]:hover {
+        color: #EB5D0C;
+    }
+    div[data-testid="stTabs"] button[data-baseweb="tab"][aria-selected="true"] {
+        color: #EB5D0C;
+        border-bottom: 3px solid #EB5D0C;
+    }
+
     </style>
     """,
         unsafe_allow_html=True,
