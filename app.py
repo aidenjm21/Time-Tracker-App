@@ -1546,10 +1546,13 @@ def main():
     /* Consistent button styling */
     .stButton > button, .stDownloadButton > button {
         background-color: #EB5D0C;
-        color: white;
+        color: #ffffff;
         border: none;
     }
-    .stButton > button:hover, .stDownloadButton > button:hover {
+    .stButton > button:hover, .stDownloadButton > button:hover,
+    .stButton > button:active, .stDownloadButton > button:active,
+    .stButton > button:focus, .stDownloadButton > button:focus,
+    .stButton > button:disabled, .stDownloadButton > button:disabled {
         background-color: #2AA395;
         color: #ffffff;
     }
