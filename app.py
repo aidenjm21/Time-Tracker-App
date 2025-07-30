@@ -1647,7 +1647,10 @@ def main():
     div[data-testid="stTabs"] button[data-baseweb="tab"][aria-selected="true"] {
         color: #EB5D0C;
     }
-
+    
+div[data-baseweb="tab-highlight"] {
+    background-color: #eb5d0c !important;
+}
     </style>
     """,
         unsafe_allow_html=True,
