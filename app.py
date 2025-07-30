@@ -7,78 +7,7 @@ import io
 import os
 import re
 import time
-from sqlalchemy import create_engine, text
-from sqlalchemy.exc import IntegrityError
 
-  <style>
-    [data-testid="stSidebar"],
-    section[data-testid="stSidebar"] > div:first-child {
-        background-color: var(--secondary-background-color);
-    }
-    </style>
-
-    <script>
-    // Update sidebar background variable whenever the theme changes
-    window.addEventListener('DOMContentLoaded', function () {
-        const sidebar = document.querySelector('[data-testid="stSidebar"]');
-        if (!sidebar) return;
-
-        const updateColor = () => {
-            const bg = getComputedStyle(sidebar).backgroundColor;
-            document.documentElement.style.setProperty('--secondary-background-color', bg);
-        };
-
-        // Initial set
-        updateColor();
-
-        // Observe theme or style changes on the document and sidebar
-        const observer = new MutationObserver(updateColor);
-        observer.observe(document.documentElement, {
-            attributes: true,
-            attributeFilter: ['data-theme', 'class', 'style']
-        });
-        observer.observe(sidebar, {
-            attributes: true,
-            attributeFilter: ['class', 'style']
-        });
-    });
-    </script>
-st.markdown("""
-    <style>
-    [data-testid="stSidebar"],
-    section[data-testid="stSidebar"] > div:first-child {
-        background-color: var(--secondary-background-color);
-    }
-    </style>
-
-    <script>
-    // Update sidebar background variable whenever the theme changes
-    window.addEventListener('DOMContentLoaded', function () {
-        const sidebar = document.querySelector('[data-testid="stSidebar"]');
-        if (!sidebar) return;
-
-        const updateColor = () => {
-            const bg = getComputedStyle(sidebar).backgroundColor;
-            document.documentElement.style.setProperty('--secondary-background-color', bg);
-        };
-
-        // Initial set
-        updateColor();
-
-        // Observe theme or style changes on the document and sidebar
-        const observer = new MutationObserver(updateColor);
-        observer.observe(document.documentElement, {
-            attributes: true,
-            attributeFilter: ['data-theme', 'class', 'style']
-        });
-        observer.observe(sidebar, {
-            attributes: true,
-            attributeFilter: ['class', 'style']
-        });
-    });
-    </script>
-
-""", unsafe_allow_html=True)
 
 st.set_page_config(page_title="Book Production Time Tracking", page_icon="favicon.png")
 
