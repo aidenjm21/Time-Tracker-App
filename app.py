@@ -775,7 +775,10 @@ def display_active_timers_sidebar(engine):
 
                         col1, col2, col3 = st.columns([3, 1, 1])
                         with col1:
-                            st.write(f"**{book_title} - {stage_name} ({user_display})**: {elapsed_str}")
+                            status_text = "PAUSED" if paused else "RECORDING"
+                            st.write(
+                                f"**{book_title} - {stage_name} ({user_display})**: {elapsed_str} - {status_text}"
+                            )
                         with col2:
                             pause_label = "Resume" if paused else "Pause"
                             if st.button(pause_label, key=f"summary_pause_{task_key}"):
@@ -1546,10 +1549,13 @@ def main():
     /* Consistent button styling */
     .stButton > button, .stDownloadButton > button {
         background-color: #EB5D0C;
-        color: white;
+        color: #ffffff;
         border: none;
     }
-    .stButton > button:hover, .stDownloadButton > button:hover {
+    .stButton > button:hover, .stDownloadButton > button:hover,
+    .stButton > button:active, .stDownloadButton > button:active,
+    .stButton > button:focus, .stDownloadButton > button:focus,
+    .stButton > button:disabled, .stDownloadButton > button:disabled {
         background-color: #2AA395;
         color: #ffffff;
     }
