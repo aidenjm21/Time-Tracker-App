@@ -1653,9 +1653,10 @@ def main():
         padding: 0 0.5rem;
     }
     /* Sidebar uses Streamlit secondary background */
-    [data-testid="stSidebar"],
-    section[data-testid="stSidebar"] > div:first-child {
-        background-color: var(--secondary-background-color) !important;
+    section[data-testid="stSidebar"],
+    section[data-testid="stSidebar"] > div:first-child,
+    div[data-testid="stSidebarContent"] {
+        background: var(--secondary-background-color) !important;
 
     }
 
