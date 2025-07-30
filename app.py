@@ -38,6 +38,7 @@ FIRST_NAME_TO_FULL = {name.split()[0].lower(): name for name in ALL_USERS_LIST}
 FIRST_NAME_TO_FULL.update({
     "beth": "Bethany Latham",
     "becca": "Rebecca Phillips-Bartlett",
+    "ker ker": "Ker Ker Lee",
 })
 
 def normalize_user_name(name):
@@ -1640,6 +1641,7 @@ def main():
         background-color: #2AA395;
     }
 
+
     /* Style tabs */
     div[data-testid="stTabs"] button[data-baseweb="tab"] {
         font-weight: bold;
@@ -1650,8 +1652,34 @@ def main():
     }
     div[data-testid="stTabs"] button[data-baseweb="tab"][aria-selected="true"] {
         color: #EB5D0C;
-        border-bottom: 3px solid #EB5D0C;
+
     }
+    
+/* Consistent button styling */
+.stButton > button,
+.stDownloadButton > button,
+button.st-emotion-cache-1h08hrp.e1e4lema2 {
+    background-color: #EB5D0C;
+    color: #ffffff;
+    border: none;
+}
+
+.stButton > button:hover,
+.stDownloadButton > button:hover,
+button.st-emotion-cache-1h08hrp.e1e4lema2:hover,
+.stButton > button:active,
+.stDownloadButton > button:active,
+button.st-emotion-cache-1h08hrp.e1e4lema2:active,
+.stButton > button:focus,
+.stDownloadButton > button:focus,
+button.st-emotion-cache-1h08hrp.e1e4lema2:focus,
+.stButton > button:disabled,
+.stDownloadButton > button:disabled,
+button.st-emotion-cache-1h08hrp.e1e4lema2:disabled {
+    background-color: #2AA395;
+    color: #ffffff;
+}
+
 
     </style>
     """,
@@ -1696,7 +1724,7 @@ def main():
 
     # Create content for each tab
     with add_book_tab:
-        st.markdown("### Add Book")
+
         st.header("Upload CSV")
         st.markdown(
             "Upload a CSV file with columns 'Card Name', 'Board', 'Tags' followed by stage/user and 'Stage Time' pairs."
@@ -1985,7 +2013,7 @@ def main():
             st.success(st.session_state.book_created_message)
 
     with book_progress_tab:
-        st.markdown("### Book Progress")
+
         # Header with hover clipboard functionality
         st.markdown(
             """
@@ -3233,7 +3261,7 @@ def main():
                 del st.session_state[flag]
 
     with reporting_tab:
-        st.markdown("### Reporting")
+
         st.markdown("Filter tasks by user, book, board, tag, and date range from all uploaded data.")
 
         # Get filter options from database
@@ -3409,7 +3437,6 @@ def main():
             st.info("Click 'Update Table' to load filtered results.")
 
     with archive_tab:
-        st.markdown("### Archive")
         st.markdown("View and manage archived books.")
 
         try:
