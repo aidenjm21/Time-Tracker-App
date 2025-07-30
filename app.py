@@ -13,12 +13,21 @@ import streamlit as st
 
 st.markdown("""
     <style>
-    :root {
+    body[data-theme="light"] {
         --secondary-background-color: #f0f2f6;
+    }
+
+    body[data-theme="dark"] {
+        --secondary-background-color: #262730;
+    }
+
+    /* Apply background using the CSS variable */
+    [data-testid="stSidebar"],
+    section[data-testid="stSidebar"] > div:first-child {
+        background-color: var(--secondary-background-color) !important;
     }
     </style>
 """, unsafe_allow_html=True)
-
 
 st.set_page_config(page_title="Book Production Time Tracking", page_icon="favicon.png")
 
