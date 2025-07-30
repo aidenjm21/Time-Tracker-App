@@ -1630,6 +1630,7 @@ def main():
     .stButton > button:active, .stDownloadButton > button:active,
     .stButton > button:focus, .stDownloadButton > button:focus,
     .stButton > button:disabled, .stDownloadButton > button:disabled {
+
         background-color: #2AA395;
         color: #ffffff;
     }
@@ -1717,6 +1718,7 @@ def main():
                         st.error(msg)
                 except Exception as e:
                     st.error(f"Error reading CSV: {str(e)}")
+
         with open("time_tracker_example.csv", "rb") as example_file:
 
             st.download_button(
