@@ -1646,7 +1646,6 @@ def main():
     }
     div[data-testid="stTabs"] button[data-baseweb="tab"][aria-selected="true"] {
         color: #EB5D0C;
-        border-bottom: 3px solid #EB5D0C;
     }
 
     </style>
