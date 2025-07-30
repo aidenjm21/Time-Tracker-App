@@ -1575,7 +1575,6 @@ def main():
         background-color: #F0F2F5;
     }
 
-
    /* Consistent button styling */
 .stButton > button,
 .stDownloadButton > button,
@@ -1600,7 +1599,6 @@ button.st-emotion-cache-1h08hrp.e1e4lema2:disabled {
     background-color: #2AA395;
     color: #ffffff;
 }
-
     /* Custom progress bar colour */
     div[data-testid="stProgress"] div[data-testid="stProgressBar"] > div {
         background-color: #2AA395;
