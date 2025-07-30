@@ -1634,33 +1634,6 @@ def main():
         color: #ffffff;
     }
 
-    /* Style radio selector as tabs and hide default controls */
-    div[role="radiogroup"] {
-        display: flex;
-        gap: 0;
-    }
-    div[role="radiogroup"] label[data-baseweb="radio"] {
-        background-color: #e0e0e0;
-        color: #000000;
-        padding: 0.25rem 1rem;
-        border: 1px solid #cccccc;
-        border-bottom: none;
-        border-radius: 3px 3px 0 0;
-        margin-right: 2px;
-        cursor: pointer;
-    }
-    div[role="radiogroup"] label[data-baseweb="radio"]:hover {
-        background-color: #f5f5f5;
-    }
-    div[role="radiogroup"] label[data-baseweb="radio"] input,
-    div[role="radiogroup"] label[data-baseweb="radio"] svg {
-        display: none;
-    }
-    div[role="radiogroup"] label[data-baseweb="radio"]:has(input:checked) {
-        background-color: #2AA395;
-        color: #ffffff;
-    }
-
     /* Custom progress bar colour */
     div[data-testid="stProgress"] div[data-testid="stProgressBar"] > div {
         background-color: #2AA395;
@@ -1745,17 +1718,18 @@ def main():
                 except Exception as e:
                     st.error(f"Error reading CSV: {str(e)}")
         with open("time_tracker_example.xlsx", "rb") as example_file:
+
             st.download_button(
-                label="Download example Excel format",
+                label="Download example csv format",
                 data=example_file,
-                file_name="time_tracker_example.xlsx",
+                file_name="time_tracker_example.csv",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             )
         st.markdown("---")
 
         # Manual Data Entry Form
         st.header("Manual Data Entry")
-        st.markdown("Add individual time tracking entries for detailed stage-specific analysis.")
+        st.markdown("*Add individual time tracking entries for detailed stage-specific analysis. Add the Card Name from Trello, the board it's from and any tags attached to the card. The Card Name is a required field.*")
 
         # Check if form should be cleared
         clear_form = st.session_state.get('clear_form', False)
@@ -1844,7 +1818,7 @@ def main():
 
         st.subheader("Task Assignment & Estimates")
         st.markdown(
-            "*Assign users to stages and set time estimates. All tasks start with 0 actual time - use the Book Completion tab to track actual work time.*"
+            "*Assign users to stages and set time estimates. You don't need to assign a user; that can be done later. Time should be added in hh:mm or decimal format. E.g. 1 hour and 30 minutes can be expressed as 1:30, 01:30 or 1.5.*"
         )
 
         # Define user groups for different types of work (alphabetically ordered)
