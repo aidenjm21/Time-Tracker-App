@@ -828,6 +828,7 @@ def display_active_timers_sidebar(engine):
                             status_text = "PAUSED" if paused else "RECORDING"
                             st.write(
                                 f"**{book_title} - {stage_name} ({user_display})**: **{elapsed_str}**/{estimate_str} - {status_text}"
+
                             )
                         with col2:
                             pause_label = "Resume" if paused else "Pause"
@@ -907,12 +908,14 @@ def get_task_completion(engine, card_name, user_name, list_name):
 
 def get_task_estimate(engine, card_name, user_name, list_name):
     """Return estimated time for a task in seconds."""
+
     try:
         with engine.connect() as conn:
             result = conn.execute(
                 text(
                     '''
                 SELECT MAX(card_estimate_seconds)
+
                 FROM trello_time_tracking
                 WHERE card_name = :card_name
                 AND list_name = :list_name
@@ -930,6 +933,7 @@ def get_task_estimate(engine, card_name, user_name, list_name):
             return int(row[0]) if row and row[0] else 0
     except Exception as e:
         st.error(f"Error getting task estimate: {str(e)}")
+
         return 0
 
 
