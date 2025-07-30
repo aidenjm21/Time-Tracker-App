@@ -818,9 +818,8 @@ def display_active_timers_sidebar(engine):
                         elapsed_seconds = accumulated + current_elapsed
                         elapsed_str = format_seconds_to_time(elapsed_seconds)
 
-                        total_prev = get_total_time_for_task(engine, book_title, user_name, stage_name)
-                        total_seconds = total_prev + elapsed_seconds
-                        total_str = format_seconds_to_time(total_seconds)
+                        estimate_seconds = get_task_estimate(engine, book_title, user_name, stage_name)
+                        estimate_str = format_seconds_to_time(estimate_seconds)
 
                         user_display = user_name if user_name and user_name != "Not set" else "Unassigned"
 
@@ -828,7 +827,8 @@ def display_active_timers_sidebar(engine):
                         with col1:
                             status_text = "PAUSED" if paused else "RECORDING"
                             st.write(
-                                f"**{book_title} - {stage_name} ({user_display})**: **{elapsed_str}**/{total_str} - {status_text}"
+                                f"**{book_title} - {stage_name} ({user_display})**: **{elapsed_str}**/{estimate_str} - {status_text}"
+
                             )
                         with col2:
                             pause_label = "Resume" if paused else "Pause"
@@ -906,14 +906,16 @@ def get_task_completion(engine, card_name, user_name, list_name):
         return False
 
 
-def get_total_time_for_task(engine, card_name, user_name, list_name):
-    """Return total time spent on a task in seconds."""
+def get_task_estimate(engine, card_name, user_name, list_name):
+    """Return estimated time for a task in seconds."""
+
     try:
         with engine.connect() as conn:
             result = conn.execute(
                 text(
                     '''
-                SELECT COALESCE(SUM(time_spent_seconds), 0)
+                SELECT MAX(card_estimate_seconds)
+
                 FROM trello_time_tracking
                 WHERE card_name = :card_name
                 AND list_name = :list_name
@@ -930,7 +932,8 @@ def get_total_time_for_task(engine, card_name, user_name, list_name):
             row = result.fetchone()
             return int(row[0]) if row and row[0] else 0
     except Exception as e:
-        st.error(f"Error getting total task time: {str(e)}")
+        st.error(f"Error getting task estimate: {str(e)}")
+
         return 0
 
 
