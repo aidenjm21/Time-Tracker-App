@@ -1657,6 +1657,7 @@ def main():
     section[data-testid="stSidebar"] > div:first-child,
     div[data-testid="stSidebarContent"] {
         background: var(--secondary-background-color) !important;
+
     }
 
     /* Consistent button styling */
