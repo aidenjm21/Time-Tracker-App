@@ -1681,7 +1681,7 @@ button.st-emotion-cache-1h08hrp.e1e4lema2:disabled {
 
         # Manual Data Entry Form
         st.header("Manual Data Entry")
-        st.markdown("*Add individual time tracking entries for detailed stage-specific analysis. Add the Card Name from Trello, the board it's from and any tags attatched to the card. The Card Name is a required field.*")
+        st.markdown("*Add individual time tracking entries for detailed stage-specific analysis. Add the Card Name from Trello, the board it's from and any tags attached to the card. The Card Name is a required field.*")
 
         # Check if form should be cleared
         clear_form = st.session_state.get('clear_form', False)
