@@ -1,31 +1,12 @@
-[build-system]
-requires = ["setuptools>=61.0"]
-build-backend = "setuptools.build_meta"
-
 [project]
-name = "time-tracker-app"
-version = "0.0.9"
-description = "An interactive web app built to track and report on the individual bookmaking staging"
-requires-python = ">=3.8"
-license = { text = "MIT" }
-
-authors = [
-    { name = "Aiden", email = "aiden@booklife.co.uk" }
-]
-
+name = "repl-nix-workspace"
+version = "0.1.0"
+description = "Add your description here"
+requires-python = ">=3.11"
 dependencies = [
-    "streamlit>=1.32.0",
-    "pandas",
-    "numpy"
+    "numpy>=2.3.1",
+    "pandas>=2.3.0",
+    "psycopg2-binary>=2.9.10",
+    "sqlalchemy>=2.0.41",
+    "streamlit>=1.46.1",
 ]
-
-
-[project.urls]
-Homepage = "https://www.booklifepublishing.co.uk"
-Repository = "https://github.com/aidenjm21/Time-Tracker-Appp"
-
-[tool.setuptools]
-package-dir = {"" = "src"}
-
-[tool.setuptools.packages.find]
-where = ["src"]
