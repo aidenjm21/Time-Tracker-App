@@ -1652,9 +1652,9 @@ def main():
     div[data-testid="column"] {
         padding: 0 0.5rem;
     }
-    /* Light grey sidebar background */
+    /* Sidebar uses Streamlit secondary background */
     [data-testid="stSidebar"] {
-        background-color: #F0F2F5;
+        background-color: var(--secondary-background-color);
     }
 
     /* Consistent button styling */
