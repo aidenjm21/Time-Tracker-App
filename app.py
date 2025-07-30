@@ -1583,53 +1583,11 @@ def main():
     div[role="radiogroup"] label[data-baseweb="radio"] {
         background-color: #EB5D0C;
         color: #ffffff;
-/* Button styling */
-.stButton > button, .stDownloadButton > button {
-    background-color: #EB5D0C;
-    color: #ffffff;
-    border: none;
-}
-
-.stButton > button:hover, .stDownloadButton > button:hover,
-.stButton > button:active, .stDownloadButton > button:active,
-.stButton > button:focus, .stDownloadButton > button:focus,
-.stButton > button:disabled, .stDownloadButton > button:disabled {
-    background-color: #2AA395;
-    color: #ffffff;
-}
-
-/* Style radio selector as tabs and hide default controls */
-div[role="radiogroup"] {
-    display: flex;
-    gap: 0;
-}
-
-div[role="radiogroup"] label[data-baseweb="radio"] {
-    background-color: #e0e0e0;
-    color: #000000;
-    padding: 0.25rem 1rem;
-    border: 1px solid #cccccc;
-    border-bottom: none;
-    border-radius: 3px 3px 0 0;
-    margin-right: 2px;
-    cursor: pointer;
-}
-
-div[role="radiogroup"] label[data-baseweb="radio"]:hover {
-    background-color: #f5f5f5;
-}
-
-div[role="radiogroup"] label[data-baseweb="radio"] input,
-div[role="radiogroup"] label[data-baseweb="radio"] svg {
-    display: none;
-}
-
-div[role="radiogroup"] label[data-baseweb="radio"]:has(input:checked) {
-    background-color: #ffffff;
-    border-bottom: 2px solid #ffffff;
-    font-weight: bold;
-}
-
+        padding: 0.25rem 1rem;
+        border-radius: 3px 3px 0 0;
+        margin-right: 2px;
+    }
+    div[role="radiogroup"] label[data-baseweb="radio"]:hover {
         background-color: #2AA395;
     }
     div[role="radiogroup"] label[data-baseweb="radio"] input {
@@ -1715,9 +1673,6 @@ button.st-emotion-cache-1h08hrp.e1e4lema2:disabled {
         key="tab_selector",
         horizontal=True,
     )
-
-    # Divider below the tab selector
-    st.markdown("---")
 
     # Update active tab when changed - force immediate update
     current_index = tab_names.index(selected_tab)
