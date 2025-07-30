@@ -13,25 +13,33 @@ import streamlit as st
 
 st.markdown("""
     <style>
-    /* Define CSS variable based on system theme */
-    @media (prefers-color-scheme: light) {
-        :root {
-            --secondary-background-color: #f0f2f6;
-        }
+    /* Fallback to light theme */
+    :root {
+        --secondary-background-color: #f0f2f6;
     }
 
-    @media (prefers-color-scheme: dark) {
-        :root {
-            --secondary-background-color: #262730;
-        }
-    }
-
-    /* Sidebar uses Streamlit secondary background */
     [data-testid="stSidebar"],
     section[data-testid="stSidebar"] > div:first-child {
         background-color: var(--secondary-background-color) !important;
     }
     </style>
+
+    <script>
+    // Wait for Streamlit to finish rendering
+    window.addEventListener('DOMContentLoaded', function () {
+        const sidebar = document.querySelector('[data-testid="stSidebar"]');
+        if (!sidebar) return;
+
+        const currentBg = getComputedStyle(sidebar).backgroundColor;
+
+        // Define your dark theme match colour (adjust as needed)
+        const darkThemeBg = "rgb(38, 39, 48)";  // #262730
+
+        if (currentBg === darkThemeBg) {
+            document.documentElement.style.setProperty('--secondary-background-color', darkThemeBg);
+        }
+    });
+    </script>
 """, unsafe_allow_html=True)
 
 st.set_page_config(page_title="Book Production Time Tracking", page_icon="favicon.png")
