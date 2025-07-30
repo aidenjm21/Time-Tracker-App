@@ -775,7 +775,10 @@ def display_active_timers_sidebar(engine):
 
                         col1, col2, col3 = st.columns([3, 1, 1])
                         with col1:
-                            st.write(f"**{book_title} - {stage_name} ({user_display})**: {elapsed_str}")
+                            status_text = "PAUSED" if paused else "RECORDING"
+                            st.write(
+                                f"**{book_title} - {stage_name} ({user_display})**: {elapsed_str} - {status_text}"
+                            )
                         with col2:
                             pause_label = "Resume" if paused else "Pause"
                             if st.button(pause_label, key=f"summary_pause_{task_key}"):
@@ -1542,31 +1545,6 @@ def main():
     [data-testid="stSidebar"] {
         background-color: #F0F2F5;
     }
-
-   /* Consistent button styling */
-.stButton > button,
-.stDownloadButton > button,
-button.st-emotion-cache-1h08hrp.e1e4lema2 {
-    background-color: #EB5D0C;
-    color: #ffffff;
-    border: none;
-}
-
-.stButton > button:hover,
-.stDownloadButton > button:hover,
-button.st-emotion-cache-1h08hrp.e1e4lema2:hover,
-.stButton > button:active,
-.stDownloadButton > button:active,
-button.st-emotion-cache-1h08hrp.e1e4lema2:active,
-.stButton > button:focus,
-.stDownloadButton > button:focus,
-button.st-emotion-cache-1h08hrp.e1e4lema2:focus,
-.stButton > button:disabled,
-.stDownloadButton > button:disabled,
-button.st-emotion-cache-1h08hrp.e1e4lema2:disabled {
-    background-color: #2AA395;
-    color: #ffffff;
-}
 
 
     /* Custom progress bar colour */
