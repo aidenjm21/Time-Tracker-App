@@ -1717,7 +1717,7 @@ def main():
                         st.error(msg)
                 except Exception as e:
                     st.error(f"Error reading CSV: {str(e)}")
-        with open("time_tracker_example.xlsx", "rb") as example_file:
+        with open("time_tracker_example.csv", "rb") as example_file:
 
             st.download_button(
                 label="Download example csv format",
