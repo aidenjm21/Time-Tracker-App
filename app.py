@@ -1649,9 +1649,31 @@ def main():
         color: #EB5D0C;
     }
     
-div[data-baseweb="tab-highlight"] {
-    background-color: #eb5d0c !important;
+/* Consistent button styling */
+.stButton > button,
+.stDownloadButton > button,
+button.st-emotion-cache-1h08hrp.e1e4lema2 {
+    background-color: #EB5D0C;
+    color: #ffffff;
+    border: none;
 }
+
+.stButton > button:hover,
+.stDownloadButton > button:hover,
+button.st-emotion-cache-1h08hrp.e1e4lema2:hover,
+.stButton > button:active,
+.stDownloadButton > button:active,
+button.st-emotion-cache-1h08hrp.e1e4lema2:active,
+.stButton > button:focus,
+.stDownloadButton > button:focus,
+button.st-emotion-cache-1h08hrp.e1e4lema2:focus,
+.stButton > button:disabled,
+.stDownloadButton > button:disabled,
+button.st-emotion-cache-1h08hrp.e1e4lema2:disabled {
+    background-color: #2AA395;
+    color: #ffffff;
+}
+
     </style>
     """,
         unsafe_allow_html=True,
