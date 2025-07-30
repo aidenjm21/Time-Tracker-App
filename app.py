@@ -9,6 +9,16 @@ import re
 import time
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import IntegrityError
+import streamlit as st
+
+st.markdown("""
+    <style>
+    :root {
+        --secondary-background-color: #f0f2f6;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
 
 st.set_page_config(page_title="Book Production Time Tracking", page_icon="favicon.png")
 
@@ -1652,10 +1662,12 @@ def main():
     div[data-testid="column"] {
         padding: 0 0.5rem;
     }
-    /* Sidebar uses Streamlit secondary background */
-    [data-testid="stSidebar"],
-    section[data-testid="stSidebar"] > div:first-child {
-        background-color: var(--secondary-background-color) !important;
+   /* Sidebar uses Streamlit secondary background */
+[data-testid="stSidebar"],
+section[data-testid="stSidebar"] > div:first-child {
+    background-color: var(--secondary-background-color) !important;
+}
+
 
     }
 
