@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "time-tracker-app"
+version = "0.0.9"
+description = "An interactive web app built to track and report on the individual bookmaking staging"
+requires-python = ">=3.8"
+license = { text = "MIT" }
+
+authors = [
+    { name = "Aiden", email = "aiden@booklife.co.uk" }
+]
+
+dependencies = [
+    "streamlit>=1.32.0",
+    "pandas",
+    "numpy"
+]
+
+
+[project.urls]
+Homepage = "https://www.booklifepublishing.co.uk"
+Repository = "https://github.com/aidenjm21/Time-Tracker-Appp"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
