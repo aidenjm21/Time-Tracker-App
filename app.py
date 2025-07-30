@@ -1641,18 +1641,12 @@ def main():
         background-color: #2AA395;
     }
 
-
-    /* Style tabs */
-    div[data-testid="stTabs"] button[data-baseweb="tab"] {
-        font-weight: bold;
-        font-size: calc(1em + 2pt);
-    }
+    /* Style tabs with brand colour when active or hovered */
     div[data-testid="stTabs"] button[data-baseweb="tab"]:hover {
         color: #EB5D0C;
     }
     div[data-testid="stTabs"] button[data-baseweb="tab"][aria-selected="true"] {
         color: #EB5D0C;
-
     }
     
 /* Consistent button styling */
@@ -1679,7 +1673,6 @@ button.st-emotion-cache-1h08hrp.e1e4lema2:disabled {
     background-color: #2AA395;
     color: #ffffff;
 }
-
 
     </style>
     """,
@@ -1724,7 +1717,6 @@ button.st-emotion-cache-1h08hrp.e1e4lema2:disabled {
 
     # Create content for each tab
     with add_book_tab:
-
         st.header("Upload CSV")
         st.markdown(
             "Upload a CSV file with columns 'Card Name', 'Board', 'Tags' followed by stage/user and 'Stage Time' pairs."
@@ -2013,7 +2005,6 @@ button.st-emotion-cache-1h08hrp.e1e4lema2:disabled {
             st.success(st.session_state.book_created_message)
 
     with book_progress_tab:
-
         # Header with hover clipboard functionality
         st.markdown(
             """
@@ -3261,7 +3252,7 @@ button.st-emotion-cache-1h08hrp.e1e4lema2:disabled {
                 del st.session_state[flag]
 
     with reporting_tab:
-
+        st.header("Reporting")
         st.markdown("Filter tasks by user, book, board, tag, and date range from all uploaded data.")
 
         # Get filter options from database
@@ -3437,6 +3428,7 @@ button.st-emotion-cache-1h08hrp.e1e4lema2:disabled {
             st.info("Click 'Update Table' to load filtered results.")
 
     with archive_tab:
+        st.header("Archive")
         st.markdown("View and manage archived books.")
 
         try:
