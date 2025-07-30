@@ -16,6 +16,51 @@ st.set_page_config(page_title="Book Production Time Tracking", page_icon="favico
 BST = timezone(timedelta(hours=1))
 UTC_PLUS_1 = BST  # Keep backward compatibility
 
+# Known full user names for matching CSV imports
+EDITORIAL_USERS_LIST = [
+    "Bethany Latham",
+    "Charis Mather",
+    "Noah Leatherland",
+    "Rebecca Phillips-Bartlett",
+]
+DESIGN_USERS_LIST = [
+    "Amelia Harris",
+    "Amy Li",
+    "Drue Rintoul",
+    "Jasmine Pointer",
+    "Ker Ker Lee",
+    "Rob Delph",
+]
+ALL_USERS_LIST = EDITORIAL_USERS_LIST + DESIGN_USERS_LIST
+
+# Map first names (and common short forms) to full user names
+FIRST_NAME_TO_FULL = {name.split()[0].lower(): name for name in ALL_USERS_LIST}
+FIRST_NAME_TO_FULL.update({
+    "beth": "Bethany Latham",
+    "becca": "Rebecca Phillips-Bartlett",
+})
+
+def normalize_user_name(name):
+    """Return a canonical user name from various CSV formats."""
+    if name is None:
+        return "Not set"
+    name = str(name).strip()
+    if name == "" or name == "Not set":
+        return "Not set"
+
+    lower = name.lower()
+    # Exact match to known users
+    for full in ALL_USERS_LIST:
+        if lower == full.lower():
+            return full
+
+    # Match by first name or short form
+    first = lower.split()[0]
+    if first in FIRST_NAME_TO_FULL:
+        return FIRST_NAME_TO_FULL[first]
+
+    return name
+
 
 @st.cache_resource
 def init_database():
@@ -1075,8 +1120,8 @@ def import_books_from_csv(engine, df):
                 estimate_seconds = int(round(hours * 60)) * 60
 
                 user_val = row.get(stage)
-                if pd.notna(user_val) and str(user_val).strip() and str(user_val).strip() != "Not set":
-                    final_user = str(user_val).strip()
+                if pd.notna(user_val):
+                    final_user = normalize_user_name(user_val)
                 else:
                     final_user = "Not set"
 
@@ -1575,30 +1620,20 @@ def main():
         background-color: #F0F2F5;
     }
 
-   /* Consistent button styling */
-.stButton > button,
-.stDownloadButton > button,
-button.st-emotion-cache-1h08hrp.e1e4lema2 {
-    background-color: #EB5D0C;
-    color: #ffffff;
-    border: none;
-}
+    /* Consistent button styling */
+    .stButton > button, .stDownloadButton > button {
+        background-color: #EB5D0C;
+        color: #ffffff;
+        border: none;
+    }
+    .stButton > button:hover, .stDownloadButton > button:hover,
+    .stButton > button:active, .stDownloadButton > button:active,
+    .stButton > button:focus, .stDownloadButton > button:focus,
+    .stButton > button:disabled, .stDownloadButton > button:disabled {
+        background-color: #2AA395;
+        color: #ffffff;
+    }
 
-.stButton > button:hover,
-.stDownloadButton > button:hover,
-button.st-emotion-cache-1h08hrp.e1e4lema2:hover,
-.stButton > button:active,
-.stDownloadButton > button:active,
-button.st-emotion-cache-1h08hrp.e1e4lema2:active,
-.stButton > button:focus,
-.stDownloadButton > button:focus,
-button.st-emotion-cache-1h08hrp.e1e4lema2:focus,
-.stButton > button:disabled,
-.stDownloadButton > button:disabled,
-button.st-emotion-cache-1h08hrp.e1e4lema2:disabled {
-    background-color: #2AA395;
-    color: #ffffff;
-}
     /* Custom progress bar colour */
     div[data-testid="stProgress"] div[data-testid="stProgressBar"] > div {
         background-color: #2AA395;
@@ -1641,9 +1676,18 @@ button.st-emotion-cache-1h08hrp.e1e4lema2:disabled {
     # Show active timers in sidebar regardless of selected tab
     display_active_timers_sidebar(engine)
 
-    # Create tabs for different views
+    # Create tabs for different views as a horizontal selection
     tab_names = ["Book Progress", "Add Book", "Archive", "Reporting"]
-    selected_tab = st.selectbox("Select Tab:", tab_names, index=st.session_state.active_tab, key="tab_selector")
+    selected_tab = st.radio(
+        "Select Tab:",
+        tab_names,
+        index=st.session_state.active_tab,
+        key="tab_selector",
+        horizontal=True,
+    )
+
+    # Divider below the tab selector
+    st.markdown("---")
 
     # Update active tab when changed - force immediate update
     current_index = tab_names.index(selected_tab)
