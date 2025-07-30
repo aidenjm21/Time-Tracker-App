@@ -16,6 +16,51 @@ st.set_page_config(page_title="Book Production Time Tracking", page_icon="favico
 BST = timezone(timedelta(hours=1))
 UTC_PLUS_1 = BST  # Keep backward compatibility
 
+# Known full user names for matching CSV imports
+EDITORIAL_USERS_LIST = [
+    "Bethany Latham",
+    "Charis Mather",
+    "Noah Leatherland",
+    "Rebecca Phillips-Bartlett",
+]
+DESIGN_USERS_LIST = [
+    "Amelia Harris",
+    "Amy Li",
+    "Drue Rintoul",
+    "Jasmine Pointer",
+    "Ker Ker Lee",
+    "Rob Delph",
+]
+ALL_USERS_LIST = EDITORIAL_USERS_LIST + DESIGN_USERS_LIST
+
+# Map first names (and common short forms) to full user names
+FIRST_NAME_TO_FULL = {name.split()[0].lower(): name for name in ALL_USERS_LIST}
+FIRST_NAME_TO_FULL.update({
+    "beth": "Bethany Latham",
+    "becca": "Rebecca Phillips-Bartlett",
+})
+
+def normalize_user_name(name):
+    """Return a canonical user name from various CSV formats."""
+    if name is None:
+        return "Not set"
+    name = str(name).strip()
+    if name == "" or name == "Not set":
+        return "Not set"
+
+    lower = name.lower()
+    # Exact match to known users
+    for full in ALL_USERS_LIST:
+        if lower == full.lower():
+            return full
+
+    # Match by first name or short form
+    first = lower.split()[0]
+    if first in FIRST_NAME_TO_FULL:
+        return FIRST_NAME_TO_FULL[first]
+
+    return name
+
 
 @st.cache_resource
 def init_database():
@@ -775,7 +820,10 @@ def display_active_timers_sidebar(engine):
 
                         col1, col2, col3 = st.columns([3, 1, 1])
                         with col1:
-                            st.write(f"**{book_title} - {stage_name} ({user_display})**: {elapsed_str}")
+                            status_text = "PAUSED" if paused else "RECORDING"
+                            st.write(
+                                f"**{book_title} - {stage_name} ({user_display})**: {elapsed_str} - {status_text}"
+                            )
                         with col2:
                             pause_label = "Resume" if paused else "Pause"
                             if st.button(pause_label, key=f"summary_pause_{task_key}"):
@@ -1005,7 +1053,7 @@ def add_stage_to_book(engine, card_name, stage_name, board_name=None, tag=None, 
                 ),
                 {
                     'card_name': card_name,
-                    'user_name': None,  # Unassigned initially
+                    'user_name': 'Not set',  # Unassigned initially
                     'list_name': stage_name,
                     'time_spent_seconds': 0,
                     'card_estimate_seconds': estimate_seconds,
@@ -1037,6 +1085,8 @@ def import_books_from_csv(engine, df):
 
     for _, row in df.iterrows():
         card_name = str(row.get("Card Name", "")).strip()
+        if not card_name:
+            card_name = "Not set"
         board_name = row.get("Board")
         board_name = str(board_name).strip() if pd.notna(board_name) else None
         tag_value = row.get("Tags")
@@ -1061,19 +1111,19 @@ def import_books_from_csv(engine, df):
                     continue
 
                 try:
-                    hours = float(str(time_val))
-                except ValueError:
+                    hours = parse_hours_minutes(time_val)
+                except Exception:
                     continue
                 if hours <= 0:
                     continue
 
-                estimate_seconds = int(hours * 3600)
+                estimate_seconds = int(round(hours * 60)) * 60
 
                 user_val = row.get(stage)
-                if pd.notna(user_val) and str(user_val).strip() and str(user_val).strip() != "Not set":
-                    final_user = str(user_val).strip()
+                if pd.notna(user_val):
+                    final_user = normalize_user_name(user_val)
                 else:
-                    final_user = None
+                    final_user = "Not set"
 
                 conn.execute(
                     text(
@@ -1224,6 +1274,33 @@ def format_seconds_to_time(seconds):
     minutes = (seconds % 3600) // 60
     secs = seconds % 60
     return f"{hours:02d}:{minutes:02d}:{secs:02d}"
+
+
+def parse_hours_minutes(value):
+    """Parse HH:MM or decimal hour strings to float hours."""
+    if value is None or value == "":
+        return 0.0
+
+    try:
+        if isinstance(value, (int, float)):
+            return float(value)
+
+        value = str(value).strip()
+
+        if ":" in value:
+            parts = value.split(":")
+            if len(parts) == 2:
+                hours = float(parts[0])
+                minutes = float(parts[1])
+                if minutes >= 60:
+                    st.warning("Minutes must be less than 60")
+                    return 0.0
+                return hours + minutes / 60
+
+        return float(value)
+    except ValueError:
+        st.warning("Use HH:MM or decimal hours (e.g., 2:30)")
+        return 0.0
 
 
 def calculate_timer_elapsed_time(start_time):
@@ -1546,10 +1623,40 @@ def main():
     /* Consistent button styling */
     .stButton > button, .stDownloadButton > button {
         background-color: #EB5D0C;
-        color: white;
+        color: #ffffff;
         border: none;
     }
-    .stButton > button:hover, .stDownloadButton > button:hover {
+    .stButton > button:hover, .stDownloadButton > button:hover,
+    .stButton > button:active, .stDownloadButton > button:active,
+    .stButton > button:focus, .stDownloadButton > button:focus,
+    .stButton > button:disabled, .stDownloadButton > button:disabled {
+        background-color: #2AA395;
+        color: #ffffff;
+    }
+
+    /* Style radio selector as tabs and hide default controls */
+    div[role="radiogroup"] {
+        display: flex;
+        gap: 0;
+    }
+    div[role="radiogroup"] label[data-baseweb="radio"] {
+        background-color: #e0e0e0;
+        color: #000000;
+        padding: 0.25rem 1rem;
+        border: 1px solid #cccccc;
+        border-bottom: none;
+        border-radius: 3px 3px 0 0;
+        margin-right: 2px;
+        cursor: pointer;
+    }
+    div[role="radiogroup"] label[data-baseweb="radio"]:hover {
+        background-color: #f5f5f5;
+    }
+    div[role="radiogroup"] label[data-baseweb="radio"] input,
+    div[role="radiogroup"] label[data-baseweb="radio"] svg {
+        display: none;
+    }
+    div[role="radiogroup"] label[data-baseweb="radio"]:has(input:checked) {
         background-color: #2AA395;
         color: #ffffff;
     }
@@ -1596,9 +1703,18 @@ def main():
     # Show active timers in sidebar regardless of selected tab
     display_active_timers_sidebar(engine)
 
-    # Create tabs for different views
+    # Create tabs for different views as a horizontal selection
     tab_names = ["Book Progress", "Add Book", "Archive", "Reporting"]
-    selected_tab = st.selectbox("Select Tab:", tab_names, index=st.session_state.active_tab, key="tab_selector")
+    selected_tab = st.radio(
+        "Select Tab:",
+        tab_names,
+        index=st.session_state.active_tab,
+        key="tab_selector",
+        horizontal=True,
+    )
+
+    # Divider below the tab selector
+    st.markdown("---")
 
     # Update active tab when changed - force immediate update
     current_index = tab_names.index(selected_tab)
@@ -1614,15 +1730,20 @@ def main():
         )
         uploaded_csv = st.file_uploader("Choose CSV file", type="csv", key="csv_upload")
         if uploaded_csv is not None:
-            try:
-                csv_df = pd.read_csv(uploaded_csv)
-                success, msg = import_books_from_csv(engine, csv_df)
-                if success:
-                    st.success(msg)
-                else:
-                    st.error(msg)
-            except Exception as e:
-                st.error(f"Error reading CSV: {str(e)}")
+            # Limit file size to 5MB
+            max_size = 5 * 1024 * 1024  # 5MB in bytes
+            if uploaded_csv.size > max_size:
+                st.error("File size exceeds 5MB limit")
+            else:
+                try:
+                    csv_df = pd.read_csv(uploaded_csv)
+                    success, msg = import_books_from_csv(engine, csv_df)
+                    if success:
+                        st.success(msg)
+                    else:
+                        st.error(msg)
+                except Exception as e:
+                    st.error(f"Error reading CSV: {str(e)}")
         with open("time_tracker_example.xlsx", "rb") as example_file:
             st.download_button(
                 label="Download example Excel format",
@@ -1787,19 +1908,18 @@ def main():
                 )
 
             with col2:
-                time_value = st.number_input(
+                time_input = st.text_input(
                     f"Time for {field_label}",
-                    min_value=0.0,
-                    step=0.1,
-                    format="%.1f",
                     key=f"time_{list_name.replace(' ', '_').lower()}",
                     label_visibility="collapsed",
+                    placeholder="HH:MM or hours",
                 )
+                time_value = parse_hours_minutes(time_input)
 
             # Handle user selection and calculate totals
             # Allow time entries with or without user assignment
             if time_value and time_value > 0:
-                final_user = selected_user if selected_user != "Not set" else None
+                final_user = selected_user if selected_user != "Not set" else "Not set"
 
                 # Store the entry (user can be None for unassigned tasks)
                 time_entries[list_name] = {'user': final_user, 'time_hours': time_value}
