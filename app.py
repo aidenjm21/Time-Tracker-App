@@ -1661,16 +1661,22 @@ button.st-emotion-cache-1h08hrp.e1e4lema2:disabled {
         )
         uploaded_csv = st.file_uploader("Choose CSV file", type="csv", key="csv_upload")
         if uploaded_csv is not None:
-            try:
-                csv_df = pd.read_csv(uploaded_csv)
-                success, msg = import_books_from_csv(engine, csv_df)
-                if success:
-                    st.success(msg)
-                else:
-                    st.error(msg)
-            except Exception as e:
-                st.error(f"Error reading CSV: {str(e)}")
-        with open("time_tracker_example.csv", "rb") as example_file:
+            # Limit file size to 5MB
+            max_size = 5 * 1024 * 1024  # 5MB in bytes
+            if uploaded_csv.size > max_size:
+                st.error("File size exceeds 5MB limit")
+            else:
+                try:
+                    csv_df = pd.read_csv(uploaded_csv)
+                    success, msg = import_books_from_csv(engine, csv_df)
+                    if success:
+                        st.success(msg)
+                    else:
+                        st.error(msg)
+                except Exception as e:
+                    st.error(f"Error reading CSV: {str(e)}")
+        with open("time_tracker_example.xlsx", "rb") as example_file:
+
             st.download_button(
                 label="Download example csv format",
                 data=example_file,
