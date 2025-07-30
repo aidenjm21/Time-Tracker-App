@@ -1741,7 +1741,7 @@ button.st-emotion-cache-1h08hrp.e1e4lema2:disabled {
 
         st.subheader("Task Assignment & Estimates")
         st.markdown(
-            "*Assign users to stages and set time estimates. All tasks start with 0 actual time - use the Book Completion tab to track actual work time.*"
+            "*Assign users to stages and set time estimates. You don't need to assign a user; that can be done later. Time should be added in decimal format. E.g. one hour is 1 and 2 hours and 30 minutes is 2.5.*"
         )
 
         # Define user groups for different types of work (alphabetically ordered)
