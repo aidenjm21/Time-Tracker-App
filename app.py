@@ -1229,6 +1229,33 @@ def format_seconds_to_time(seconds):
     return f"{hours:02d}:{minutes:02d}:{secs:02d}"
 
 
+def parse_hours_minutes(value):
+    """Parse HH:MM or decimal hour strings to float hours."""
+    if value is None or value == "":
+        return 0.0
+
+    try:
+        if isinstance(value, (int, float)):
+            return float(value)
+
+        value = str(value).strip()
+
+        if ":" in value:
+            parts = value.split(":")
+            if len(parts) == 2:
+                hours = float(parts[0])
+                minutes = float(parts[1])
+                if minutes >= 60:
+                    st.warning("Minutes must be less than 60")
+                    return 0.0
+                return hours + minutes / 60
+
+        return float(value)
+    except ValueError:
+        st.warning("Use HH:MM or decimal hours (e.g., 2:30)")
+        return 0.0
+
+
 def calculate_timer_elapsed_time(start_time):
     """Calculate elapsed time from start_time to now using UTC for accuracy"""
     if not start_time:
@@ -1805,14 +1832,13 @@ button.st-emotion-cache-1h08hrp.e1e4lema2:disabled {
                 )
 
             with col2:
-                time_value = st.number_input(
+                time_input = st.text_input(
                     f"Time for {field_label}",
-                    min_value=0.0,
-                    step=0.1,
-                    format="%.1f",
                     key=f"time_{list_name.replace(' ', '_').lower()}",
                     label_visibility="collapsed",
+                    placeholder="HH:MM or hours",
                 )
+                time_value = parse_hours_minutes(time_input)
 
             # Handle user selection and calculate totals
             # Allow time entries with or without user assignment
