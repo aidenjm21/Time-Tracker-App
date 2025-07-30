@@ -817,13 +817,18 @@ def display_active_timers_sidebar(engine):
                         current_elapsed = 0 if paused else calculate_timer_elapsed_time(start_time)
                         elapsed_seconds = accumulated + current_elapsed
                         elapsed_str = format_seconds_to_time(elapsed_seconds)
+
+                        total_prev = get_total_time_for_task(engine, book_title, user_name, stage_name)
+                        total_seconds = total_prev + elapsed_seconds
+                        total_str = format_seconds_to_time(total_seconds)
+
                         user_display = user_name if user_name and user_name != "Not set" else "Unassigned"
 
                         col1, col2, col3 = st.columns([3, 1, 1])
                         with col1:
                             status_text = "PAUSED" if paused else "RECORDING"
                             st.write(
-                                f"**{book_title} - {stage_name} ({user_display})**: {elapsed_str} - {status_text}"
+                                f"**{book_title} - {stage_name} ({user_display})**: **{elapsed_str}**/{total_str} - {status_text}"
                             )
                         with col2:
                             pause_label = "Resume" if paused else "Pause"
@@ -899,6 +904,34 @@ def get_task_completion(engine, card_name, user_name, list_name):
     except Exception as e:
         st.error(f"Error getting task completion: {str(e)}")
         return False
+
+
+def get_total_time_for_task(engine, card_name, user_name, list_name):
+    """Return total time spent on a task in seconds."""
+    try:
+        with engine.connect() as conn:
+            result = conn.execute(
+                text(
+                    '''
+                SELECT COALESCE(SUM(time_spent_seconds), 0)
+                FROM trello_time_tracking
+                WHERE card_name = :card_name
+                AND list_name = :list_name
+                AND COALESCE(user_name, 'Not set') = :user_name
+                AND archived = FALSE
+            '''
+                ),
+                {
+                    'card_name': card_name,
+                    'list_name': list_name,
+                    'user_name': user_name,
+                },
+            )
+            row = result.fetchone()
+            return int(row[0]) if row and row[0] else 0
+    except Exception as e:
+        st.error(f"Error getting total task time: {str(e)}")
+        return 0
 
 
 def check_all_tasks_completed(engine, card_name):
