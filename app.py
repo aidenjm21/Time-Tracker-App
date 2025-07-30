@@ -1650,10 +1650,6 @@ def main():
 
     # Database already initialized earlier
 
-    # Initialize session state for active tab
-    if 'active_tab' not in st.session_state:
-        st.session_state.active_tab = 0
-
     # Initialize timer session state
     if 'timers' not in st.session_state:
         st.session_state.timers = {}
@@ -1679,25 +1675,14 @@ def main():
 
     # Create tabs for different views as a horizontal selection
     tab_names = ["Book Progress", "Add Book", "Archive", "Reporting"]
-    selected_tab = st.radio(
-        "Select Tab:",
-        tab_names,
-        index=st.session_state.active_tab,
-        key="tab_selector",
-        horizontal=True,
-    )
+    book_progress_tab, add_book_tab, archive_tab, reporting_tab = st.tabs(tab_names, key="tab_selector")
 
     # Divider below the tab selector
     st.markdown("---")
 
-    # Update active tab when changed - force immediate update
-    current_index = tab_names.index(selected_tab)
-    if current_index != st.session_state.active_tab:
-        st.session_state.active_tab = current_index
-        st.rerun()
 
-    # Create individual tab sections based on selection
-    if selected_tab == "Add Book":
+    # Create content for each tab
+    with add_book_tab:
         st.header("Upload CSV")
         st.markdown(
             "Upload a CSV file with columns 'Card Name', 'Board', 'Tags' followed by stage/user and 'Stage Time' pairs."
@@ -1965,7 +1950,6 @@ def main():
                         conn.commit()
 
                     # Keep user on the Add Book tab
-                    st.session_state.active_tab = 1  # Add Book tab
 
                     if entries_added > 0:
                         # Store success message in session state for permanent display
@@ -1986,7 +1970,7 @@ def main():
         if 'book_created_message' in st.session_state:
             st.success(st.session_state.book_created_message)
 
-    elif selected_tab == "Book Progress":
+    with book_progress_tab:
         # Header with hover clipboard functionality
         st.markdown(
             """
@@ -3111,7 +3095,6 @@ def main():
                                                 conn.commit()
 
                                             # Keep user on the current tab
-                                            st.session_state.active_tab = 0  # Book Progress tab
                                             st.success(f"'{book_title}' has been archived successfully!")
                                             # Archive operation completed
                                         except Exception as e:
@@ -3151,7 +3134,6 @@ def main():
                                                 # Reset confirmation state
                                                 del st.session_state[confirm_key]
                                                 # Keep user on the Book Progress tab
-                                                st.session_state.active_tab = 0  # Book Progress tab
                                                 st.success(f"'{book_title}' has been permanently deleted!")
                                                 # Delete operation completed
                                             except Exception as e:
@@ -3235,7 +3217,7 @@ def main():
             if flag in st.session_state:
                 del st.session_state[flag]
 
-    elif selected_tab == "Reporting":
+    with reporting_tab:
         st.header("Reporting")
         st.markdown("Filter tasks by user, book, board, tag, and date range from all uploaded data.")
 
@@ -3411,7 +3393,7 @@ def main():
         elif 'filtered_tasks_displayed' not in st.session_state:
             st.info("Click 'Update Table' to load filtered results.")
 
-    elif selected_tab == "Archive":
+    with archive_tab:
         st.header("Archive")
         st.markdown("View and manage archived books.")
 
@@ -3536,7 +3518,6 @@ def main():
                                                 conn.commit()
 
                                             # Keep user on the Archive tab
-                                            st.session_state.active_tab = 2  # Archive tab
                                             st.success(f"'{book_title}' has been unarchived successfully!")
                                             st.rerun()
                                         except Exception as e:
@@ -3577,7 +3558,6 @@ def main():
                                                 # Reset confirmation state
                                                 del st.session_state[confirm_key]
                                                 # Keep user on the Archive tab
-                                                st.session_state.active_tab = 2  # Archive tab
                                                 st.success(f"'{book_title}' has been permanently deleted!")
                                                 st.rerun()
                                             except Exception as e:
