@@ -1641,11 +1641,11 @@ button.st-emotion-cache-1h08hrp.e1e4lema2:disabled {
                     st.error(msg)
             except Exception as e:
                 st.error(f"Error reading CSV: {str(e)}")
-        with open("time_tracker_example.xlsx", "rb") as example_file:
+        with open("time_tracker_example.csv", "rb") as example_file:
             st.download_button(
-                label="Download example Excel format",
+                label="Download example csv format",
                 data=example_file,
-                file_name="time_tracker_example.xlsx",
+                file_name="time_tracker_example.csv",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             )
         st.markdown("---")
