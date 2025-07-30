@@ -1575,28 +1575,6 @@ def main():
         background-color: #F0F2F5;
     }
 
-    /* Style radio selector to look like tabs */
-    div[role="radiogroup"] {
-        display: flex;
-        gap: 0;
-    }
-    div[role="radiogroup"] label[data-baseweb="radio"] {
-        background-color: #EB5D0C;
-        color: #ffffff;
-        padding: 0.25rem 1rem;
-        border-radius: 3px 3px 0 0;
-        margin-right: 2px;
-    }
-    div[role="radiogroup"] label[data-baseweb="radio"]:hover {
-        background-color: #2AA395;
-    }
-    div[role="radiogroup"] label[data-baseweb="radio"] input {
-        display: none;
-    }
-    div[role="radiogroup"] label[data-baseweb="radio"]:has(input:checked) {
-        background-color: #2AA395;
-    }
-
    /* Consistent button styling */
 .stButton > button,
 .stDownloadButton > button,
@@ -1621,7 +1599,6 @@ button.st-emotion-cache-1h08hrp.e1e4lema2:disabled {
     background-color: #2AA395;
     color: #ffffff;
 }
-
     /* Custom progress bar colour */
     div[data-testid="stProgress"] div[data-testid="stProgressBar"] > div {
         background-color: #2AA395;
@@ -1664,15 +1641,9 @@ button.st-emotion-cache-1h08hrp.e1e4lema2:disabled {
     # Show active timers in sidebar regardless of selected tab
     display_active_timers_sidebar(engine)
 
-    # Create tabs for different views as a horizontal selection
+    # Create tabs for different views
     tab_names = ["Book Progress", "Add Book", "Archive", "Reporting"]
-    selected_tab = st.radio(
-        "Select Tab:",
-        tab_names,
-        index=st.session_state.active_tab,
-        key="tab_selector",
-        horizontal=True,
-    )
+    selected_tab = st.selectbox("Select Tab:", tab_names, index=st.session_state.active_tab, key="tab_selector")
 
     # Update active tab when changed - force immediate update
     current_index = tab_names.index(selected_tab)
