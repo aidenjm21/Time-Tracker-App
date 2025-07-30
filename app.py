@@ -1653,8 +1653,10 @@ def main():
         padding: 0 0.5rem;
     }
     /* Sidebar uses Streamlit secondary background */
-    [data-testid="stSidebar"] {
-        background-color: var(--secondary-background-color);
+    [data-testid="stSidebar"],
+    section[data-testid="stSidebar"] > div:first-child {
+        background-color: var(--secondary-background-color) !important;
+
     }
 
     /* Consistent button styling */
