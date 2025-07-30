@@ -13,15 +13,20 @@ import streamlit as st
 
 st.markdown("""
     <style>
-    body[data-theme="light"] {
-        --secondary-background-color: #f0f2f6;
+    /* Define CSS variable based on system theme */
+    @media (prefers-color-scheme: light) {
+        :root {
+            --secondary-background-color: #f0f2f6;
+        }
     }
 
-    body[data-theme="dark"] {
-        --secondary-background-color: #262730;
+    @media (prefers-color-scheme: dark) {
+        :root {
+            --secondary-background-color: #262730;
+        }
     }
 
-    /* Apply background using the CSS variable */
+    /* Sidebar uses Streamlit secondary background */
     [data-testid="stSidebar"],
     section[data-testid="stSidebar"] > div:first-child {
         background-color: var(--secondary-background-color) !important;
