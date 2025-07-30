@@ -38,6 +38,7 @@ FIRST_NAME_TO_FULL = {name.split()[0].lower(): name for name in ALL_USERS_LIST}
 FIRST_NAME_TO_FULL.update({
     "beth": "Bethany Latham",
     "becca": "Rebecca Phillips-Bartlett",
+    "ker ker": "Ker Ker Lee",
 })
 
 def normalize_user_name(name):
@@ -1640,6 +1641,7 @@ def main():
         background-color: #2AA395;
     }
 
+
     /* Style tabs */
     div[data-testid="stTabs"] button[data-baseweb="tab"] {
         font-weight: bold;
@@ -1650,8 +1652,9 @@ def main():
     }
     div[data-testid="stTabs"] button[data-baseweb="tab"][aria-selected="true"] {
         color: #EB5D0C;
-        border-bottom: 3px solid #EB5D0C;
+
     }
+
 
     </style>
     """,
