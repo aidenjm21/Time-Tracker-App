@@ -1774,7 +1774,7 @@ button.st-emotion-cache-1h08hrp.e1e4lema2:disabled {
 
         st.subheader("Task Assignment & Estimates")
         st.markdown(
-            "*Assign users to stages and set time estimates. You don't need to assign a user; that can be done later. Time should be added in decimal format. E.g. one hour is 1 and 2 hours and 30 minutes is 2.5.*"
+            "*Assign users to stages and set time estimates. You don't need to assign a user; that can be done later. Time should be added in hh:mm or decimal format. E.g. 1 hour and 30 minutes can be expressed as 1:30, 01:30 or 1.5.*"
         )
 
         # Define user groups for different types of work (alphabetically ordered)
