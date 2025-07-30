@@ -9,6 +9,7 @@ import re
 import time
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import IntegrityError
+
   <style>
     [data-testid="stSidebar"],
     section[data-testid="stSidebar"] > div:first-child {
