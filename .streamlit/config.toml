@@ -10,11 +10,3 @@ backgroundColor = "#ffffff"
 secondaryBackgroundColor = "#f0f2f6"
 textColor = "#31333F"
 primaryColor = "#eb5d0c"
-
-[theme]
-base = "dark"
-backgroundColor = "#0E1117"
-secondaryBackgroundColor = "#262730"
-textColor = "#FAFAFA"
-primaryColor = "#2aa395"
-
