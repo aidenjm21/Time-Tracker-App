@@ -1675,7 +1675,7 @@ def main():
 
     # Create tabs for different views as a horizontal selection
     tab_names = ["Book Progress", "Add Book", "Archive", "Reporting"]
-    book_progress_tab, add_book_tab, archive_tab, reporting_tab = st.tabs(tab_names, key="tab_selector")
+    book_progress_tab, add_book_tab, archive_tab, reporting_tab = st.tabs(tab_names)
 
     # Divider below the tab selector
     st.markdown("---")
