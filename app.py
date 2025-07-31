@@ -1670,6 +1670,8 @@ section[data-testid="stSidebar"] > div:first-child {
     button[data-testid="stBaseButton-secondary"]:focus,
     button[data-testid="stBaseButton-secondary"]:disabled {
         color: #ffffff !important;
+        background-color: #EB5D0C !important;
+        border: none !important;
     }
     .stButton > button:hover, .stDownloadButton > button:hover,
     .stButton > button:active, .stDownloadButton > button:active,
@@ -1691,9 +1693,6 @@ section[data-testid="stSidebar"] > div:first-child {
     }
     div[data-testid="stTabs"] button[data-baseweb="tab"][aria-selected="true"] {
         color: #EB5D0C;
-    }
-    div[data-baseweb="tab-border"] {
-        background-color: #EB5D0C !important;
     }
     
 
