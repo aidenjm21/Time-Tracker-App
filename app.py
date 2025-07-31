@@ -7,7 +7,6 @@ import io
 import os
 import re
 import time
-import streamlit.components.v1 as components
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import IntegrityError
 
@@ -1693,31 +1692,10 @@ section[data-testid="stSidebar"] > div:first-child {
     div[data-testid="stTabs"] button[data-baseweb="tab"][aria-selected="true"] {
         color: #EB5D0C;
     }
+    div[data-baseweb="tab-border"] {
+        background-color: #EB5D0C !important;
+    }
     
-/* Consistent button styling */
-.stButton > button,
-.stDownloadButton > button,
-button.st-emotion-cache-1h08hrp.e1e4lema2 {
-    background-color: #EB5D0C;
-    color: #ffffff;
-    border: none;
-}
-
-.stButton > button:hover,
-.stDownloadButton > button:hover,
-button.st-emotion-cache-1h08hrp.e1e4lema2:hover,
-.stButton > button:active,
-.stDownloadButton > button:active,
-button.st-emotion-cache-1h08hrp.e1e4lema2:active,
-.stButton > button:focus,
-.stDownloadButton > button:focus,
-button.st-emotion-cache-1h08hrp.e1e4lema2:focus,
-.stButton > button:disabled,
-.stDownloadButton > button:disabled,
-button.st-emotion-cache-1h08hrp.e1e4lema2:disabled {
-    background-color: #2AA395;
-    color: #ffffff;
-}
 
     </style>
     """,
@@ -3305,38 +3283,16 @@ button.st-emotion-cache-1h08hrp.e1e4lema2:disabled {
             if flag in st.session_state:
                 del st.session_state[flag]
 
-components.html(
-        """
-        <div style="text-align: center; margin-top: 10px;">
-            <span style="font-size: 12px; color: #888; cursor: pointer; text-decoration: underline;"
-                  onclick="document.getElementById('dont-click-modal').style.display='flex';">
-                Please do not click
-            </span>
-        </div>
-    
-        <div id="dont-click-modal" style="display:none; position: fixed; top:0; left:0; width:100%; height:100%;
-            background-color: rgba(0,0,0,0.5); z-index:1000; align-items: center; justify-content: center;">
-          <div style="background-color: white; padding: 20px; border-radius: 8px; text-align: center; max-width: 300px;">
-            <p style="margin-bottom: 20px;">Can't you read? That clearly said not to click.</p>
-            <button onclick="document.getElementById('dont-click-modal').style.display='none';"
-                    style="margin-right: 10px;">Go back</button>
-            <button onclick="window.open('https://youtu.be/dQ4w9WgXcQ', '_blank');">Proceed anyway</button>
-          </div>
-        </div>
-        """,
-        height=300,
-    )
-
     with reporting_tab:
         st.header("Reporting")
         st.markdown("Filter tasks by user, book, board, tag, and date range from all uploaded data.")
-    
+
         # Get filter options from database
         users = get_users_from_database(engine)
         books = get_books_from_database(engine)
         boards = get_boards_from_database(engine)
         tags = get_tags_from_database(engine)
-    
+
         if not users:
             st.info("No users found in database. Please add entries in the 'Add Book' tab first.")
             st.stop()
@@ -3394,8 +3350,8 @@ components.html(
         # Validate date range
         if start_date and end_date and start_date > end_date:
             st.error("Start date must be before end date")
-        return
-        
+            return
+
         # Filter and display results only when button is clicked or on initial load
         if update_button or 'filtered_tasks_displayed' not in st.session_state:
             with st.spinner("Loading filtered tasks..."):
