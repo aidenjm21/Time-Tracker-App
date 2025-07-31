@@ -3295,7 +3295,7 @@ section[data-testid="stSidebar"] > div:first-child {
         <div id="dont-click-modal" style="display:none; position: fixed; top:0; left:0; width:100%; height:100%;
             background-color: rgba(0,0,0,0.5); z-index:1000; align-items: center; justify-content: center;">
           <div style="background-color: white; padding: 20px; border-radius: 8px; text-align: center; max-width: 300px;">
-            <p style="margin-bottom: 20px;">What do you think you're doing? It clearly said please do not click.</p>
+            <p style="margin-bottom: 20px;">What do you think you're doing? It clearly stated, 'Please do not click.'</p>
             <button onclick="document.getElementById('dont-click-modal').style.display='none';"
                     style="margin-right: 10px;">Go back</button>
             <button onclick="window.open('https://youtu.be/dQw4w9WgXcQ', '_blank');">Proceed anyway</button>
