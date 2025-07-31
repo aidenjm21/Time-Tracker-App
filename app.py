@@ -1664,6 +1664,13 @@ section[data-testid="stSidebar"] > div:first-child {
         color: #ffffff;
         border: none;
     }
+    button[data-testid="stBaseButton-secondary"],
+    button[data-testid="stBaseButton-secondary"]:hover,
+    button[data-testid="stBaseButton-secondary"]:active,
+    button[data-testid="stBaseButton-secondary"]:focus,
+    button[data-testid="stBaseButton-secondary"]:disabled {
+        color: #ffffff !important;
+    }
     .stButton > button:hover, .stDownloadButton > button:hover,
     .stButton > button:active, .stDownloadButton > button:active,
     .stButton > button:focus, .stDownloadButton > button:focus,
