@@ -7,6 +7,7 @@ import io
 import os
 import re
 import time
+import streamlit.components.v1 as components
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import IntegrityError
 
