@@ -1682,7 +1682,7 @@ section[data-testid="stSidebar"] > div:first-child {
 
     /* Custom progress bar colour */
     div[data-testid="stProgress"] div[data-testid="stProgressBar"] > div {
-        background-color: #2AA395;
+        background-color: #2AA395 !important;
     }
 
     /* Style tabs with brand colour when active or hovered */
