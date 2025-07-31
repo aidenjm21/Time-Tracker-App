@@ -3281,7 +3281,26 @@ section[data-testid="stSidebar"] > div:first-child {
         for flag in ['completion_changed', 'major_update_needed']:
             if flag in st.session_state:
                 del st.session_state[flag]
+                
+        st.markdown(
+            """
+            <div style="text-align: center; margin-top: 10px;">
+                <span style="font-size: 12px; color: #888; cursor: pointer; text-decoration: underline;"
+                      onclick="document.getElementById('dont-click-modal').style.display='flex';">
+                    Please do not click
+                </span>
+            </div>
 
+            <div id="dont-click-modal" style="display:none; position: fixed; top:0; left:0; width:100%; height:100%; background-color: rgba(0,0,0,0.5); z-index:1000; align-items: center; justify-content: center;">
+              <div style="background-color: white; padding: 20px; border-radius: 8px; text-align: center; max-width: 300px;">
+                <p style="margin-bottom: 20px;">Can't you read? That clearly said not to click.</p>
+                <button onclick="document.getElementById('dont-click-modal').style.display='none';" style="margin-right: 10px;">Go back</button>
+                <button onclick="window.open('https://youtu.be/dQ4w9WgXcQ', '_blank');">Proceed anyway</button>
+              </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
     with reporting_tab:
         st.header("Reporting")
         st.markdown("Filter tasks by user, book, board, tag, and date range from all uploaded data.")
