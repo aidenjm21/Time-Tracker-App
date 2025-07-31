@@ -3305,7 +3305,6 @@ button.st-emotion-cache-1h08hrp.e1e4lema2:disabled {
             if flag in st.session_state:
                 del st.session_state[flag]
 
-# Playful hidden popup using components.html
 components.html(
     """
     <div style="text-align: center; margin-top: 10px;">
@@ -3328,19 +3327,19 @@ components.html(
     height=300,
 )
 
- with reporting_tab:
-        st.header("Reporting")
-        st.markdown("Filter tasks by user, book, board, tag, and date range from all uploaded data.")
+with reporting_tab:
+    st.header("Reporting")
+    st.markdown("Filter tasks by user, book, board, tag, and date range from all uploaded data.")
 
-        # Get filter options from database
-        users = get_users_from_database(engine)
-        books = get_books_from_database(engine)
-        boards = get_boards_from_database(engine)
-        tags = get_tags_from_database(engine)
+    # Get filter options from database
+    users = get_users_from_database(engine)
+    books = get_books_from_database(engine)
+    boards = get_boards_from_database(engine)
+    tags = get_tags_from_database(engine)
 
-        if not users:
-            st.info("No users found in database. Please add entries in the 'Add Book' tab first.")
-            st.stop()
+    if not users:
+        st.info("No users found in database. Please add entries in the 'Add Book' tab first.")
+        st.stop()
 
         # Filter selection - organized in columns
         col1, col2 = st.columns(2)
