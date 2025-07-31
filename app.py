@@ -3394,7 +3394,6 @@ with reporting_tab:
         # Validate date range
         if start_date and end_date and start_date > end_date:
             st.error("Start date must be before end date")
-            return
 
         # Filter and display results only when button is clicked or on initial load
         if update_button or 'filtered_tasks_displayed' not in st.session_state:
