@@ -3305,9 +3305,6 @@ button.st-emotion-cache-1h08hrp.e1e4lema2:disabled {
             if flag in st.session_state:
                 del st.session_state[flag]
 
-        import streamlit as st
-import streamlit.components.v1 as components
-
 # Playful hidden popup using components.html
 components.html(
     """
