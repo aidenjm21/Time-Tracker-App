@@ -2352,8 +2352,12 @@ button.st-emotion-cache-1h08hrp.e1e4lema2:disabled {
 
                                         # Create a summary for the expander title showing all users and their progress
                                         stage_summary_parts = []
+                                        summary_users = set()
                                         for idx, user_task in user_aggregated.iterrows():
                                             user_name = user_task['User']
+                                            if user_name in summary_users:
+                                                continue
+                                            summary_users.add(user_name)
                                             actual_time = user_task['Time spent (s)']
 
                                             # Get estimated time from the database for this specific user/stage combination
@@ -2399,9 +2403,14 @@ button.st-emotion-cache-1h08hrp.e1e4lema2:disabled {
                                             st.session_state[stage_expanded_key] = stage_has_active_timer
 
                                         with st.expander(expander_title, expanded=st.session_state[stage_expanded_key]):
+                                            processed_tasks = set()
                                             # Show one task per user for this stage
                                             for idx, user_task in user_aggregated.iterrows():
                                                 user_name = user_task['User']
+                                                task_key = f"{book_title}_{stage_name}_{user_name}"
+                                                if task_key in processed_tasks:
+                                                    continue
+                                                processed_tasks.add(task_key)
                                                 actual_time = user_task['Time spent (s)']
                                                 task_key = f"{book_title}_{stage_name}_{user_name}"
 
