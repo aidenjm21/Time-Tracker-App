@@ -3331,7 +3331,7 @@ components.html(
     height=300,
 )
 
-    with reporting_tab:
+ with reporting_tab:
         st.header("Reporting")
         st.markdown("Filter tasks by user, book, board, tag, and date range from all uploaded data.")
 
