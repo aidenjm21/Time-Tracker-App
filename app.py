@@ -3433,6 +3433,21 @@ section[data-testid="stSidebar"] > div:first-child {
                 if active_filters:
                     left_col, right_col = st.columns([1, 3])
                     with left_col:
+                        clock_html = """
+                        <div id='report-clock' style='font-size:24px;font-weight:bold;margin-bottom:0.5rem;'></div>
+                        <script>
+                        function updateClock(){
+                            var now = new Date();
+                            var hh = String(now.getHours()).padStart(2,'0');
+                            var mm = String(now.getMinutes()).padStart(2,'0');
+                            var ss = String(now.getSeconds()).padStart(2,'0');
+                            document.getElementById('report-clock').innerHTML = hh + ':' + mm + ':' + ss;
+                        }
+                        setInterval(updateClock,1000);
+                        updateClock();
+                        </script>
+                        """
+                        components.html(clock_html, height=65)
                         with st.expander("Active Filters", expanded=False):
                             for f in active_filters:
                                 st.write(f)
