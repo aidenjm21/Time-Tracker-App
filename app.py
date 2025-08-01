@@ -801,18 +801,6 @@ def display_active_timers_sidebar(engine):
     """Display running timers in the sidebar on every page."""
     active_timer_count = sum(1 for running in st.session_state.timers.values() if running)
     with st.sidebar:
-        st.markdown(
-            """
-            <span id="local_time_display" style="font-size:20px;color:#032424"></span>
-            <script src="//widget.time.is/t.js"></script>
-            <script>
-                time_is_widget.init({
-                    local_time_display: { template: "TIME<br>" }
-                });
-            </script>
-            """,
-            unsafe_allow_html=True,
-        )
         st.write(f"**Active Timers ({active_timer_count})**")
         if active_timer_count == 0:
             st.write("No active timers")
