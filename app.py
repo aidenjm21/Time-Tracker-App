@@ -810,7 +810,7 @@ def display_active_timers_sidebar(engine):
             time_is_widget.init({Kings_Lynn_z716:{}});
             </script>
             """,
-            height=50,
+            height=30,
         )
         st.write(f"**Active Timers ({active_timer_count})**")
         if active_timer_count == 0:
