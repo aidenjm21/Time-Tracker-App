@@ -803,15 +803,20 @@ def display_active_timers_sidebar(engine):
     with st.sidebar:
         components.html(
             """
-           <div id="bst-time" style="font-size: inherit; color: inherit; font-family: inherit;"></div>
+           <div id="bst-time" style="
+    font-family: 'Source Sans', sans-serif;
+    font-size: 28px;
+    color: var(--text-color);
+    max-height: 50px;
+    overflow: hidden;
+"></div>
 
 <script>
 function updateBSTTime() {
     const now = new Date();
-    // Convert UTC to BST (UTC+1)
-    const bstOffset = 60; // minutes
+    const bstOffset = 60; // BST = UTC+1
     const bstDate = new Date(now.getTime() + bstOffset * 60000);
-    
+
     const options = {
         hour: '2-digit',
         minute: '2-digit',
@@ -820,15 +825,14 @@ function updateBSTTime() {
     };
     const timeString = bstDate.toLocaleTimeString('en-GB', options);
 
-    document.getElementById('bst-time').textContent = `Current BST Time: ${timeString}`;
+    document.getElementById('bst-time').textContent = timeString;
 }
 
-// Update every second
 setInterval(updateBSTTime, 1000);
-updateBSTTime(); // Initial call
+updateBSTTime();
 </script>
-
             """,
+            height=50
         )
         st.write(f"**Active Timers ({active_timer_count})**")
         if active_timer_count == 0:
