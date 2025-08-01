@@ -802,16 +802,16 @@ def display_active_timers_sidebar(engine):
     active_timer_count = sum(1 for running in st.session_state.timers.values() if running)
     with st.sidebar:
         st.markdown(
+            components.html(
             """
-            <span id="local_time_display" style="font-size:20px;color:#032424"></span>
+            <a href="https://time.is/Kings_Lynn" id="time_is_link" rel="nofollow" style="font-size:20px;color:032424">Time in Kings Lynn:</a>
+            <span id="Kings_Lynn_z716" style="font-size:20px;color:032424"></span>
             <script src="//widget.time.is/t.js"></script>
             <script>
-                time_is_widget.init({
-                    local_time_display: { template: "TIME<br>" }
-                });
+            time_is_widget.init({Kings_Lynn_z716:{}});
             </script>
             """,
-            unsafe_allow_html=True,
+            height=70,
         )
         st.write(f"**Active Timers ({active_timer_count})**")
         if active_timer_count == 0:
