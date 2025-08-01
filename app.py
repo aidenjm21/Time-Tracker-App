@@ -813,6 +813,7 @@ def display_active_timers_sidebar(engine):
             """,
             height=70,
         )
+        )
         st.write(f"**Active Timers ({active_timer_count})**")
         if active_timer_count == 0:
             st.write("No active timers")
