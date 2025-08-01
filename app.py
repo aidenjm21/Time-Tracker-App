@@ -832,7 +832,7 @@ setInterval(updateBSTTime, 1000);
 updateBSTTime();
 </script>
             """,
-            height=50
+            height=40
         )
         st.write(f"**Active Timers ({active_timer_count})**")
         if active_timer_count == 0:
