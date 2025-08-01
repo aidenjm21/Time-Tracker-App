@@ -803,8 +803,31 @@ def display_active_timers_sidebar(engine):
     with st.sidebar:
         components.html(
             """
-            <script src="https://cdn.logwork.com/widget/text.js"></script>
-            <a href="https://logwork.com/current-time-in-bristol-united-kingdom-bristol-city-of" class="clock-widget-text" data-timezone="Europe/London" data-language="en" data-textcolor="#032424" data-digitscolor="032424">Bristol, United Kingdom</a>
+           <div id="bst-time" style="font-size: inherit; color: inherit; font-family: inherit;"></div>
+
+<script>
+function updateBSTTime() {
+    const now = new Date();
+    // Convert UTC to BST (UTC+1)
+    const bstOffset = 60; // minutes
+    const bstDate = new Date(now.getTime() + bstOffset * 60000);
+    
+    const options = {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false,
+    };
+    const timeString = bstDate.toLocaleTimeString('en-GB', options);
+
+    document.getElementById('bst-time').textContent = `Current BST Time: ${timeString}`;
+}
+
+// Update every second
+setInterval(updateBSTTime, 1000);
+updateBSTTime(); // Initial call
+</script>
+
             """,
         )
         st.write(f"**Active Timers ({active_timer_count})**")
