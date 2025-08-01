@@ -801,40 +801,6 @@ def display_active_timers_sidebar(engine):
     """Display running timers in the sidebar on every page."""
     active_timer_count = sum(1 for running in st.session_state.timers.values() if running)
     with st.sidebar:
-        text_color = st.get_option("theme.textColor") or "#000000"
-        components.html(
-            f"""
-           <div id='bst-time' style="
-    font-family: 'Source Sans', sans-serif;
-    font-size: 28px;
-    color: {text_color};
-    max-height: 50px;
-    overflow: hidden;
-"></div>
-
-<script>
-function updateBSTTime() {{
-    const now = new Date();
-    const bstOffset = 60; // BST = UTC+1
-    const bstDate = new Date(now.getTime() + bstOffset * 60000);
-
-    const options = {{
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: false,
-    }};
-    const timeString = bstDate.toLocaleTimeString('en-GB', options);
-
-    document.getElementById('bst-time').textContent = timeString;
-}}
-
-setInterval(updateBSTTime, 1000);
-updateBSTTime();
-</script>
-            """,
-            height=40
-        )
         st.write(f"**Active Timers ({active_timer_count})**")
         if active_timer_count == 0:
             st.write("No active timers")
