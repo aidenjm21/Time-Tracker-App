@@ -801,6 +801,17 @@ def display_active_timers_sidebar(engine):
     """Display running timers in the sidebar on every page."""
     active_timer_count = sum(1 for running in st.session_state.timers.values() if running)
     with st.sidebar:
+        components.html(
+            """
+            <a href="https://time.is/Kings_Lynn" id="time_is_link" rel="nofollow" style="font-size:20px;color:032424"></a>
+            <span id="Kings_Lynn_z716" style="font-size:32px;color:032424"></span>
+            <script src="//widget.time.is/t.js"></script>
+            <script>
+            time_is_widget.init({Kings_Lynn_z716:{}});
+            </script>
+            """,
+            height=50,
+        )
         st.write(f"**Active Timers ({active_timer_count})**")
         if active_timer_count == 0:
             st.write("No active timers")
