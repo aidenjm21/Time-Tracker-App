@@ -3298,7 +3298,7 @@ section[data-testid="stSidebar"] > div:first-child {
             <p style="margin-bottom: 20px;">What do you think you're doing? It clearly stated, 'Please do not click.'</p>
             <button onclick="document.getElementById('dont-click-modal').style.display='none';"
                     style="margin-right: 10px;">Go back</button>
-            <button onclick="window.open('https://youtu.be/dQw4w9WgXcQ', '_blank');">Proceed anyway</button>
+            <button onclick="window.open('https://youtu.be/5T5BY1j2MkE', '_blank');">Proceed anyway</button>
           </div>
         </div>
         """,
