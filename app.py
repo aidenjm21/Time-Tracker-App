@@ -803,8 +803,8 @@ def display_active_timers_sidebar(engine):
     with st.sidebar:
         components.html(
             """
-            <a href="https://time.is/Kings_Lynn" id="time_is_link" rel="nofollow" style="font-size:20px;color:032424"></a>
-            <span id="Kings_Lynn_z716" style="font-size:32px;color:032424"></span>
+            <a href="https://time.is/Kings_Lynn" id="time_is_link" rel="nofollow" style="font-size:20px;color:032424;font-family:inherit;"></a>
+            <span id="Kings_Lynn_z716" style="font-size:32px;color:032424;font-family:inherit;"></span>
             <script src="//widget.time.is/t.js"></script>
             <script>
             time_is_widget.init({Kings_Lynn_z716:{}});
