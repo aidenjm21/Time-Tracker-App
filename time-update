@@ -1,0 +1,66 @@
+diff --git a/app.py b/app.py
+index ed49a34b7a86af8a50e671d7af22b48404475ee1..739826af2c55d36c0d2096ddf86138402db407cc 100644
+--- a/app.py
++++ b/app.py
+@@ -779,50 +779,61 @@ def stop_active_timer(engine, timer_key):
+                     'time_spent_seconds': elapsed_seconds,
+                     'date_started': (start_time or datetime.now(BST)).date(),
+                     'session_start_time': start_time or datetime.now(BST),
+                     'board_name': board_name,
+                 },
+             )
+             conn.execute(text('DELETE FROM active_timers WHERE timer_key = :timer_key'), {'timer_key': timer_key})
+             conn.commit()
+     except Exception as e:
+         st.error(f"Error saving timer data: {str(e)}")
+ 
+     st.session_state.timers[timer_key] = False
+     if timer_key in st.session_state.timer_start_times:
+         del st.session_state.timer_start_times[timer_key]
+     if timer_key in st.session_state.timer_accumulated_time:
+         del st.session_state.timer_accumulated_time[timer_key]
+     if timer_key in st.session_state.timer_paused:
+         del st.session_state.timer_paused[timer_key]
+     st.rerun()
+ 
+ 
+ def display_active_timers_sidebar(engine):
+     """Display running timers in the sidebar on every page."""
+     active_timer_count = sum(1 for running in st.session_state.timers.values() if running)
+     with st.sidebar:
++        components.html(
++            """
++            <a href="https://time.is/Kings_Lynn" id="time_is_link" rel="nofollow" style="font-size:20px;color:032424">Time in Kings Lynn:</a>
++            <span id="Kings_Lynn_z716" style="font-size:20px;color:032424"></span>
++            <script src="//widget.time.is/t.js"></script>
++            <script>
++            time_is_widget.init({Kings_Lynn_z716:{}});
++            </script>
++            """,
++            height=70,
++        )
+         st.write(f"**Active Timers ({active_timer_count})**")
+         if active_timer_count == 0:
+             st.write("No active timers")
+         else:
+             for task_key, is_running in st.session_state.timers.items():
+                 if is_running and task_key in st.session_state.timer_start_times:
+                     parts = task_key.split('_')
+                     if len(parts) >= 3:
+                         book_title = '_'.join(parts[:-2])
+                         stage_name = parts[-2]
+                         user_name = parts[-1]
+                         start_time = st.session_state.timer_start_times[task_key]
+                         accumulated = st.session_state.timer_accumulated_time.get(task_key, 0)
+                         paused = st.session_state.timer_paused.get(task_key, False)
+                         current_elapsed = 0 if paused else calculate_timer_elapsed_time(start_time)
+                         elapsed_seconds = accumulated + current_elapsed
+                         elapsed_str = format_seconds_to_time(elapsed_seconds)
+ 
+                         estimate_seconds = get_task_estimate(engine, book_title, user_name, stage_name)
+                         estimate_str = format_seconds_to_time(estimate_seconds)
+ 
+                         user_display = user_name if user_name and user_name != "Not set" else "Unassigned"
+ 
+                         col1, col2, col3 = st.columns([3, 1, 1])
+                         with col1:
