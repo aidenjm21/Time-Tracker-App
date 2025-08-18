@@ -27,13 +27,25 @@ st.markdown(
     """
     <style>
         [data-testid="stSidebar"] {
-            width: 40% !important;
             resize: horizontal;
             overflow: auto;
         }
     </style>
     """,
     unsafe_allow_html=True,
+)
+
+# Set default sidebar width via JavaScript so users can still resize it
+components.html(
+    """
+    <script>
+    const sidebar = window.parent.document.querySelector('section[data-testid="stSidebar"]');
+    if (sidebar) {
+        sidebar.style.width = '40%';
+    }
+    </script>
+    """,
+    height=0,
 )
 
 # Set BST timezone (UTC+1)
@@ -854,7 +866,11 @@ def display_active_timers_sidebar(engine):
                             components.html(
                                 f"""
 <style>
-body {{ font-family: 'Noto Sans', sans-serif; }}
+body {{
+  font-family: 'Noto Sans', sans-serif;
+  margin: 0;
+}}
+
 .timer-text {{
   white-space: normal;
   word-break: break-word;
@@ -877,7 +893,8 @@ function fmt(sec) {{
 function resizeIframe() {{
   var iframe = window.frameElement;
   if (iframe) {{
-    iframe.style.height = document.body.scrollHeight + 'px';
+    iframe.style.height = (document.body.scrollHeight + 4) + 'px';
+
   }}
 }}
 resizeIframe();
