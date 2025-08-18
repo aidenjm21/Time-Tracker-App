@@ -873,7 +873,6 @@ def display_active_timers_sidebar(engine):
                         with col1:
                             status_text = "PAUSED" if paused else "RECORDING"
                             sidebar_timer_id = f"sidebar_timer_{task_key}"
-                            text_color = st.get_option("theme.textColor")
                             components.html(
                                 f"""
 <style>
@@ -885,18 +884,22 @@ body {{
 .timer-text {{
   white-space: normal;
   word-break: break-word;
-  color: {text_color};
 
 }}
 </style>
 <div id='{sidebar_timer_id}' class='timer-text'><strong>{book_title} - {stage_name} ({user_display})</strong>: <strong>{elapsed_str}</strong>/{estimate_str} - {status_text}</div>
 <script>
-var font = window.parent.getComputedStyle(window.parent.document.body).getPropertyValue('font-family');
-document.getElementById('{sidebar_timer_id}').style.fontFamily = font;
+var elem = document.getElementById('{sidebar_timer_id}');
+function updateThemeStyles() {
+  var parentStyles = window.parent.getComputedStyle(window.parent.document.body);
+  elem.style.fontFamily = parentStyles.getPropertyValue('font-family');
+  elem.style.color = parentStyles.getPropertyValue('color');
+}
+updateThemeStyles();
+setInterval(updateThemeStyles, 1000);
 
 var elapsed = {elapsed_seconds};
 var paused = {str(paused).lower()};
-var elem = document.getElementById('{sidebar_timer_id}');
 function fmt(sec) {{
   var h = Math.floor(sec / 3600).toString().padStart(2, '0');
   var m = Math.floor((sec % 3600) / 60).toString().padStart(2, '0');
@@ -1406,19 +1409,23 @@ def format_seconds_to_time(seconds):
 def render_basic_js_timer(timer_id, status_label, elapsed_seconds, paused):
     """Render a simple JavaScript-based timer."""
     elapsed_str = format_seconds_to_time(elapsed_seconds)
-    text_color = st.get_option("theme.textColor")
     return f"""
 <style>
-body {{ font-family: 'Noto Sans', sans-serif; color: {text_color}; }}
+body {{ font-family: 'Noto Sans', sans-serif; }}
 </style>
-<div id='{timer_id}' style='color: {text_color};'><strong>{status_label}</strong> ({elapsed_str})</div>
+<div id='{timer_id}'><strong>{status_label}</strong> ({elapsed_str})</div>
 <script>
-var font = window.parent.getComputedStyle(window.parent.document.body).getPropertyValue('font-family');
-document.getElementById('{timer_id}').style.fontFamily = font;
+var elem = document.getElementById('{timer_id}');
+function updateThemeStyles() {
+  var parentStyles = window.parent.getComputedStyle(window.parent.document.body);
+  elem.style.fontFamily = parentStyles.getPropertyValue('font-family');
+  elem.style.color = parentStyles.getPropertyValue('color');
+}
+updateThemeStyles();
+setInterval(updateThemeStyles, 1000);
 
 var elapsed = {elapsed_seconds};
 var paused = {str(paused).lower()};
-var elem = document.getElementById('{timer_id}');
 function fmt(sec) {{
   var h = Math.floor(sec / 3600).toString().padStart(2, '0');
   var m = Math.floor((sec % 3600) / 60).toString().padStart(2, '0');
