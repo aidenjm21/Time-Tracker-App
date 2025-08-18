@@ -41,7 +41,7 @@ components.html(
     <script>
     const sidebar = window.parent.document.querySelector('section[data-testid="stSidebar"]');
     if (sidebar) {
-        sidebar.style.width = '40%';
+        sidebar.style.width = '45%';
     }
     </script>
     """,
