@@ -892,7 +892,7 @@ body {{
 <script>
 var elem = document.getElementById('{sidebar_timer_id}');
 
-function updateThemeStyles() {
+function updateThemeStyles()
   if (!elem) return;
 
   var parentStyles = window.parent.getComputedStyle(window.parent.document.body);
@@ -908,7 +908,6 @@ function updateThemeStyles() {
       sidebar.style.width = '45%';
     }
   }
-}
 
 // run theme + width sync periodically
 updateThemeStyles();
