@@ -846,7 +846,7 @@ def display_active_timers_sidebar(engine):
     """Display running timers in the sidebar on every page."""
     active_timer_count = sum(1 for running in st.session_state.timers.values() if running)
     with st.sidebar:
-        st.write(f"**Active Timers ({active_timer_count})**")
+        st.write(f"Active Timers ({active_timer_count})")
         if active_timer_count == 0:
             st.write("No active timers")
         else:
@@ -917,7 +917,7 @@ resizeIframe();
 if (!paused) {{
   setInterval(function() {{
     elapsed += 1;
-    elem.innerHTML = "{book_title} - {stage_name} ({user_display}):" + fmt(elapsed) + "</strong>/{estimate_str} - {status_text}";
+    elem.innerHTML = "{book_title} - {stage_name} ({user_display}): " + fmt(elapsed) + "{estimate_str} - {status_text}";
     resizeIframe();
   }}, 1000);
 }}
@@ -1413,7 +1413,7 @@ def render_basic_js_timer(timer_id, status_label, elapsed_seconds, paused):
 <style>
 body {{ font-family: 'Noto Sans', sans-serif; }}
 </style>
-<div id='{timer_id}'><strong>{status_label}</strong> ({elapsed_str})</div>
+<div id='{timer_id}'>{status_label} ({elapsed_str})</div>
 <script>
 var elem = document.getElementById('{timer_id}');
 function updateThemeStyles() {{
@@ -1435,7 +1435,7 @@ function fmt(sec) {{
 if (!paused) {{
   setInterval(function() {{
     elapsed += 1;
-    elem.innerHTML = "<strong>{status_label}</strong> (" + fmt(elapsed) + ")";
+    elem.innerHTML = "{status_label} (" + fmt(elapsed) + ")";
   }}, 1000);
 }}
 </script>
