@@ -849,6 +849,7 @@ body {{ font-family: 'Noto Sans', sans-serif; }}
 <script>
 var font = window.parent.getComputedStyle(window.parent.document.body).getPropertyValue('font-family');
 document.getElementById('{sidebar_timer_id}').style.fontFamily = font;
+
 var elapsed = {elapsed_seconds};
 var paused = {str(paused).lower()};
 var elem = document.getElementById('{sidebar_timer_id}');
@@ -867,6 +868,7 @@ if (!paused) {{
 </script>
 """,
                                 height=45,
+codex/separate-timer-display-and-calculation-yfzilg
                                 key=sidebar_timer_id,
                             )
                         with col2:
@@ -1354,6 +1356,7 @@ def render_basic_js_timer(timer_id, status_label, elapsed_seconds, paused):
     """Render a simple JavaScript-based timer."""
     elapsed_str = format_seconds_to_time(elapsed_seconds)
     return f"""
+ codex/separate-timer-display-and-calculation-yfzilg
 <style>
 body {{ font-family: 'Noto Sans', sans-serif; }}
 </style>
@@ -1361,6 +1364,7 @@ body {{ font-family: 'Noto Sans', sans-serif; }}
 <script>
 var font = window.parent.getComputedStyle(window.parent.document.body).getPropertyValue('font-family');
 document.getElementById('{timer_id}').style.fontFamily = font;
+
 var elapsed = {elapsed_seconds};
 var paused = {str(paused).lower()};
 var elem = document.getElementById('{timer_id}');
@@ -2697,7 +2701,9 @@ section[data-testid="stSidebar"] > div:first-child {
                                                             paused,
                                                         ),
                                                         height=40,
+codex/separate-timer-display-and-calculation-yfzilg
                                                         key=timer_id,
+
                                                     )
 
                                                     # Second row with pause and stop controls
