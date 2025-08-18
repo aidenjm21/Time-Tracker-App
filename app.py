@@ -830,13 +830,9 @@ def display_active_timers_sidebar(engine):
                             sidebar_timer_id = f"sidebar_timer_{task_key}"
                             components.html(
                                 f"""
-<style>
-body {{ font-family: var(--font, sans-serif); }}
-</style>
+
 <div id='{sidebar_timer_id}'><strong>{book_title} - {stage_name} ({user_display})</strong>: <strong>{elapsed_str}</strong>/{estimate_str} - {status_text}</div>
 <script>
-var font = window.parent.getComputedStyle(window.parent.document.body).getPropertyValue('font-family');
-document.getElementById('{sidebar_timer_id}').style.fontFamily = font;
 var elapsed = {elapsed_seconds};
 var paused = {str(paused).lower()};
 var elem = document.getElementById('{sidebar_timer_id}');
@@ -855,7 +851,6 @@ if (!paused) {{
 </script>
 """,
                                 height=45,
-                                key=sidebar_timer_id,
                             )
                         with col2:
                             pause_label = "Resume" if paused else "Pause"
@@ -1342,13 +1337,9 @@ def render_basic_js_timer(timer_id, status_label, elapsed_seconds, paused):
     """Render a simple JavaScript-based timer."""
     elapsed_str = format_seconds_to_time(elapsed_seconds)
     return f"""
-<style>
-body {{ font-family: var(--font, sans-serif); }}
-</style>
+
 <div id='{timer_id}'><strong>{status_label}</strong> ({elapsed_str})</div>
 <script>
-var font = window.parent.getComputedStyle(window.parent.document.body).getPropertyValue('font-family');
-document.getElementById('{timer_id}').style.fontFamily = font;
 var elapsed = {elapsed_seconds};
 var paused = {str(paused).lower()};
 var elem = document.getElementById('{timer_id}');
@@ -2685,7 +2676,7 @@ section[data-testid="stSidebar"] > div:first-child {
                                                             paused,
                                                         ),
                                                         height=40,
-                                                        key=timer_id,
+
                                                     )
 
                                                     # Second row with pause and stop controls
