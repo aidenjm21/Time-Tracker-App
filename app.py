@@ -23,6 +23,31 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+st.markdown(
+    """
+    <style>
+        [data-testid="stSidebar"] {
+            resize: horizontal;
+            overflow: auto;
+        }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+# Set default sidebar width via JavaScript so users can still resize it
+components.html(
+    """
+    <script>
+    const sidebar = window.parent.document.querySelector('section[data-testid="stSidebar"]');
+    if (sidebar) {
+        sidebar.style.width = '40%';
+    }
+    </script>
+    """,
+    height=0,
+)
+
 # Set BST timezone (UTC+1)
 BST = timezone(timedelta(hours=1))
 UTC_PLUS_1 = BST  # Keep backward compatibility
@@ -838,12 +863,21 @@ def display_active_timers_sidebar(engine):
                         with col1:
                             status_text = "PAUSED" if paused else "RECORDING"
                             sidebar_timer_id = f"sidebar_timer_{task_key}"
+                            text_color = st.get_option("theme.textColor")
                             components.html(
                                 f"""
 <style>
-body {{ font-family: 'Noto Sans', sans-serif; }}
+body {{
+  font-family: 'Noto Sans', sans-serif;
+  margin: 0;
+}}
+.timer-text {{
+  white-space: normal;
+  word-break: break-word;
+  color: {text_color};
+}}
 </style>
-<div id='{sidebar_timer_id}'><strong>{book_title} - {stage_name} ({user_display})</strong>: <strong>{elapsed_str}</strong>/{estimate_str} - {status_text}</div>
+<div id='{sidebar_timer_id}' class='timer-text'><strong>{book_title} - {stage_name} ({user_display})</strong>: <strong>{elapsed_str}</strong>/{estimate_str} - {status_text}</div>
 <script>
 var font = window.parent.getComputedStyle(window.parent.document.body).getPropertyValue('font-family');
 document.getElementById('{sidebar_timer_id}').style.fontFamily = font;
@@ -857,15 +891,23 @@ function fmt(sec) {{
   var s = Math.floor(sec % 60).toString().padStart(2, '0');
   return h + ':' + m + ':' + s;
 }}
+function resizeIframe() {{
+  var iframe = window.frameElement;
+  if (iframe) {{
+    iframe.style.height = (document.body.scrollHeight + 4) + 'px';
+  }}
+}}
+resizeIframe();
 if (!paused) {{
   setInterval(function() {{
     elapsed += 1;
     elem.innerHTML = "<strong>{book_title} - {stage_name} ({user_display})</strong>: <strong>" + fmt(elapsed) + "</strong>/{estimate_str} - {status_text}";
+    resizeIframe();
   }}, 1000);
 }}
 </script>
 """,
-                                height=45,
+                                height=0,
                             )
                         with col2:
                             pause_label = "Resume" if paused else "Pause"
@@ -1351,11 +1393,12 @@ def format_seconds_to_time(seconds):
 def render_basic_js_timer(timer_id, status_label, elapsed_seconds, paused):
     """Render a simple JavaScript-based timer."""
     elapsed_str = format_seconds_to_time(elapsed_seconds)
+    text_color = st.get_option("theme.textColor")
     return f"""
 <style>
-body {{ font-family: 'Noto Sans', sans-serif; }}
+body {{ font-family: 'Noto Sans', sans-serif; color: {text_color}; }}
 </style>
-<div id='{timer_id}'><strong>{status_label}</strong> ({elapsed_str})</div>
+<div id='{timer_id}' style='color: {text_color};'><strong>{status_label}</strong> ({elapsed_str})</div>
 <script>
 var font = window.parent.getComputedStyle(window.parent.document.body).getPropertyValue('font-family');
 document.getElementById('{timer_id}').style.fontFamily = font;
