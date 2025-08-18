@@ -886,7 +886,7 @@ body {{
   font-weight: bold;
 }}
 </style>
-<div id='{sidebar_timer_id}' class='timer-text'>{book_title} - {stage_name}<br>({user_display}):<br>{elapsed_str}/{estimate_str} - {status_text}</div>
+<div id='{sidebar_timer_id}' class='timer-text'>{book_title} - {stage_name}<br>{user_display}<br>{elapsed_str}/{estimate_str} - {status_text}</div>
 <script>
 var elem = document.getElementById('{sidebar_timer_id}');
 function updateThemeStyles() {{
