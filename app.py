@@ -41,9 +41,14 @@ components.html(
     <script>
     const sidebar = window.parent.document.querySelector('section[data-testid="stSidebar"]');
     if (sidebar) {
-        sidebar.style.width = '45%';
+        if (window.innerWidth <= 768) {
+            sidebar.style.width = '100%';
+        } else {
+            sidebar.style.width = '45%';
+        }
     }
-    </script>
+</script>
+
     """,
     height=0,
 )
