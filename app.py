@@ -916,7 +916,7 @@ resizeIframe();
 if (!paused) {{
   setInterval(function() {{
     elapsed += 1;
-    elem.innerHTML = "{book_title} - {stage_name} ({user_display}):<br>" + fmt(elapsed) + "/{estimate_str} - {status_text}";
+    elem.innerHTML = "{book_title} - {stage_name}<br>{user_display}<br>" + fmt(elapsed) + "/{estimate_str} - {status_text}";
     resizeIframe();
   }}, 1000);
 }}
