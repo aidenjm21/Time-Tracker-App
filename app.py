@@ -23,6 +23,19 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+st.markdown(
+    """
+    <style>
+        [data-testid="stSidebar"] {
+            width: 40% !important;
+            resize: horizontal;
+            overflow: auto;
+        }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
 # Set BST timezone (UTC+1)
 BST = timezone(timedelta(hours=1))
 UTC_PLUS_1 = BST  # Keep backward compatibility
@@ -842,8 +855,12 @@ def display_active_timers_sidebar(engine):
                                 f"""
 <style>
 body {{ font-family: 'Noto Sans', sans-serif; }}
+.timer-text {{
+  white-space: normal;
+  word-break: break-word;
+}}
 </style>
-<div id='{sidebar_timer_id}'><strong>{book_title} - {stage_name} ({user_display})</strong>: <strong>{elapsed_str}</strong>/{estimate_str} - {status_text}</div>
+<div id='{sidebar_timer_id}' class='timer-text'><strong>{book_title} - {stage_name} ({user_display})</strong>: <strong>{elapsed_str}</strong>/{estimate_str} - {status_text}</div>
 <script>
 var font = window.parent.getComputedStyle(window.parent.document.body).getPropertyValue('font-family');
 document.getElementById('{sidebar_timer_id}').style.fontFamily = font;
@@ -857,15 +874,23 @@ function fmt(sec) {{
   var s = Math.floor(sec % 60).toString().padStart(2, '0');
   return h + ':' + m + ':' + s;
 }}
+function resizeIframe() {{
+  var iframe = window.frameElement;
+  if (iframe) {{
+    iframe.style.height = document.body.scrollHeight + 'px';
+  }}
+}}
+resizeIframe();
 if (!paused) {{
   setInterval(function() {{
     elapsed += 1;
     elem.innerHTML = "<strong>{book_title} - {stage_name} ({user_display})</strong>: <strong>" + fmt(elapsed) + "</strong>/{estimate_str} - {status_text}";
+    resizeIframe();
   }}, 1000);
 }}
 </script>
 """,
-                                height=45,
+                                height=0,
                             )
                         with col2:
                             pause_label = "Resume" if paused else "Pause"
