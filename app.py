@@ -888,64 +888,43 @@ body {{
 }}
 </style>
 <div id='{sidebar_timer_id}' class='timer-text'><strong>{book_title} - {stage_name} ({user_display})</strong>: <strong>{elapsed_str}</strong>/{estimate_str} - {status_text}</div>
-
-script = f"""
 <script>
 var elem = document.getElementById('{sidebar_timer_id}');
 
-function updateThemeStyles() {{
-  if (!elem) return;
-
+function updateThemeStyles() {
   var parentStyles = window.parent.getComputedStyle(window.parent.document.body);
   elem.style.fontFamily = parentStyles.getPropertyValue('font-family');
   elem.style.color = parentStyles.getPropertyValue('color');
+}
+updateThemeStyles();
+setInterval(updateThemeStyles, 1000)
 
-  // Responsive width logic
-  var sidebar = window.parent.document.querySelector('section[data-testid="stSidebar"]');
-  if (sidebar) {{
-    if (window.innerWidth <= 768) {{
-      sidebar.style.width = '100%';
-    }} else {{
-      sidebar.style.width = '45%';
-    }}
-  }}
-}}
-
-// run theme + width sync periodically
 updateThemeStyles();
 setInterval(updateThemeStyles, 1000);
 
 var elapsed = {elapsed_seconds};
 var paused = {str(paused).lower()};
-
 function fmt(sec) {{
   var h = Math.floor(sec / 3600).toString().padStart(2, '0');
   var m = Math.floor((sec % 3600) / 60).toString().padStart(2, '0');
   var s = Math.floor(sec % 60).toString().padStart(2, '0');
   return h + ':' + m + ':' + s;
 }}
-
 function resizeIframe() {{
   var iframe = window.frameElement;
   if (iframe) {{
     iframe.style.height = (document.body.scrollHeight + 4) + 'px';
+
   }}
 }}
-
 resizeIframe();
-
 if (!paused) {{
   setInterval(function() {{
     elapsed += 1;
-    elem.innerHTML = "<strong>{book_title} - {stage_name} ({user_display})</strong>: <strong>" 
-      + fmt(elapsed) + "</strong>/{estimate_str} - {status_text}";
+    elem.innerHTML = "<strong>{book_title} - {stage_name} ({user_display})</strong>: <strong>" + fmt(elapsed) + "</strong>/{estimate_str} - {status_text}";
     resizeIframe();
   }}, 1000);
 }}
-
-// also update sidebar width if user resizes the browser
-window.addEventListener("resize", updateThemeStyles);
-
 </script>
 """,
                                 height=0,
@@ -1608,12 +1587,9 @@ def create_progress_bar_html(completion_percentage):
             <div style="background-color: #f0f0f0; border-radius: 10px; padding: 2px; width: 200px; height: 20px;">
                 <div style="background-color: {color}; width: {width}%; height: 16px; border-radius: 8px;"></div>
             </div>
-            html = f"""
-<div style="font-size: 12px; font-weight: bold; color: {color}; text-align: center;">
-    {completion_percentage:.1f}% complete
-</div>
-"""
-
+            <div style="font-size: 12px; font-weight: bold; color: {color}; text-align: center;">
+                {completion_percentage:.1f}% complete
+            </div>
         </div>
         """
     else:
@@ -1624,12 +1600,9 @@ def create_progress_bar_html(completion_percentage):
             <div style="background-color: #f0f0f0; border-radius: 10px; padding: 2px; width: 200px; height: 20px;">
                 <div style="background-color: #dc3545; width: 100%; height: 16px; border-radius: 8px;"></div>
             </div>
-            html = f"""
-<div style="font-size: 12px; font-weight: bold; color: #dc3545; text-align: center;">
-    {over_percentage:.1f}% over allocation
-</div>
-"""
-
+            <div style="font-size: 12px; font-weight: bold; color: #dc3545; text-align: center;">
+                {over_percentage:.1f}% over allocation
+            </div>
         </div>
         """
 
