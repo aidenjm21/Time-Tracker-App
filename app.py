@@ -603,6 +603,8 @@ def load_active_timers(engine):
                     st.session_state.timer_paused = {}
                 if 'timer_accumulated_time' not in st.session_state:
                     st.session_state.timer_accumulated_time = {}
+                if 'timer_session_counts' not in st.session_state:
+                    st.session_state.timer_session_counts = {}
 
                 # Ensure timezone-aware datetime for consistency
                 if start_time.tzinfo is None:
@@ -615,6 +617,7 @@ def load_active_timers(engine):
                 st.session_state.timer_start_times[timer_key] = start_time_with_tz
                 st.session_state.timer_paused[timer_key] = is_paused
                 st.session_state.timer_accumulated_time[timer_key] = accumulated_seconds
+                st.session_state.timer_session_counts.setdefault(timer_key, 0)
 
                 active_timers.append(
                     {
@@ -834,6 +837,8 @@ def stop_active_timer(engine, timer_key):
         del st.session_state.timer_accumulated_time[timer_key]
     if timer_key in st.session_state.timer_paused:
         del st.session_state.timer_paused[timer_key]
+    st.session_state.setdefault('timer_session_counts', {})
+    st.session_state.timer_session_counts[timer_key] = st.session_state.timer_session_counts.get(timer_key, 0) + 1
     st.rerun()
 
 
@@ -1832,6 +1837,8 @@ section[data-testid="stSidebar"] > div:first-child {
         st.session_state.timer_paused = {}
     if 'timer_accumulated_time' not in st.session_state:
         st.session_state.timer_accumulated_time = {}
+    if 'timer_session_counts' not in st.session_state:
+        st.session_state.timer_session_counts = {}
 
     # Recover any emergency saved times from previous session
     recover_emergency_saved_times(engine)
@@ -2515,6 +2522,7 @@ section[data-testid="stSidebar"] > div:first-child {
                                                 processed_tasks.add(task_key)
                                                 actual_time = user_task['Time spent (s)']
                                                 task_key = f"{book_title}_{stage_name}_{user_name}"
+                                                session_id = st.session_state.get('timer_session_counts', {}).get(task_key, 0)
 
                                                 # Get estimated time from the database for this specific user/stage combination
                                                 user_stage_data = stage_data[stage_data['User'] == user_name]
@@ -2571,8 +2579,8 @@ section[data-testid="stSidebar"] > div:first-child {
                                                     except ValueError:
                                                         current_index = 0  # Default to "Not set"
 
-                                                    # Use row index and user name so the key is always unique
-                                                    selectbox_key = f"reassign_{book_title}_{stage_name}_{user_name}_{idx}"
+                                                    # Use session counter to ensure the key is unique each run
+                                                    selectbox_key = f"reassign_{book_title}_{stage_name}_{user_name}_{session_id}"
                                                     new_user = st.selectbox(
                                                         f"User for {stage_name}:",
                                                         user_options,
@@ -2699,7 +2707,7 @@ section[data-testid="stSidebar"] > div:first-child {
                                                                         del st.session_state[key]
 
                                                                 # Store success message instead of immediate refresh
-                                                                success_key = f"reassign_success_{book_title}_{stage_name}_{user_name}_{idx}"
+                                                                success_key = f"reassign_success_{book_title}_{stage_name}_{user_name}_{session_id}"
                                                                 st.session_state[success_key] = (
                                                                     f"User reassigned from {current_user} to {new_user}"
                                                                 )
@@ -2733,7 +2741,7 @@ section[data-testid="stSidebar"] > div:first-child {
 
                                                     # Display recording status with a client-side timer
                                                     status_label = "Paused" if paused else "Recording"
-                                                    timer_id = f"timer_{task_key}_{idx}"
+                                                    timer_id = f"timer_{task_key}_{session_id}"
                                                     components.html(
                                                         render_basic_js_timer(
                                                             timer_id,
@@ -2753,7 +2761,7 @@ section[data-testid="stSidebar"] > div:first-child {
 
                                                         if st.button(
                                                             pause_label,
-                                                            key=f"pause_{task_key}_{idx}",
+                                                            key=f"pause_{task_key}_{session_id}",
                                                         ):
                                                             if paused:
                                                                 resume_time = datetime.utcnow().replace(tzinfo=timezone.utc).astimezone(BST)
@@ -2780,7 +2788,7 @@ section[data-testid="stSidebar"] > div:first-child {
                                                             st.rerun()
 
                                                     with timer_row2_col2:
-                                                        if st.button("Stop", key=f"stop_{task_key}_{idx}"):
+                                                        if st.button("Stop", key=f"stop_{task_key}_{session_id}"):
                                                             final_time = elapsed_seconds
                                                             stop_active_timer(engine, task_key)
 
@@ -2886,6 +2894,10 @@ section[data-testid="stSidebar"] > div:first-child {
                                                                     pass  # Ignore cleanup errors
 
                                                             # Clear timer states
+                                                            st.session_state.setdefault('timer_session_counts', {})
+                                                            st.session_state.timer_session_counts[task_key] = (
+                                                                st.session_state.timer_session_counts.get(task_key, 0) + 1
+                                                            )
                                                             if task_key in st.session_state.timer_start_times:
                                                                 del st.session_state.timer_start_times[task_key]
                                                             if task_key in st.session_state.timer_accumulated_time:
@@ -2898,7 +2910,7 @@ section[data-testid="stSidebar"] > div:first-child {
 
                                             else:
                                                 # Timer is not active - show Start button
-                                                if st.button("Start", key=f"start_{task_key}_{idx}"):
+                                                if st.button("Start", key=f"start_{task_key}_{session_id}"):
                                                     # Preserve expanded state before rerun
                                                     expanded_key = f"expanded_{book_title}"
                                                     st.session_state[expanded_key] = True
@@ -2940,7 +2952,7 @@ section[data-testid="stSidebar"] > div:first-child {
                                             st.write("**Manual Entry:**")
 
                                             # Create a form to handle Enter key properly
-                                            with st.form(key=f"time_form_{task_key}_{idx}"):
+                                            with st.form(key=f"time_form_{task_key}_{session_id}"):
                                                 manual_time = st.text_input(
                                                     "Add time (hh:mm:ss):", placeholder="01:30:00"
                                                 )
@@ -3090,7 +3102,7 @@ section[data-testid="stSidebar"] > div:first-child {
                                                 del st.session_state[completion_success_key]
 
                                             # User reassignment success message
-                                            reassign_success_key = f"reassign_success_{book_title}_{stage_name}_{user_name}_{idx}"
+                                            reassign_success_key = f"reassign_success_{book_title}_{stage_name}_{user_name}_{session_id}"
                                             if reassign_success_key in st.session_state:
                                                 st.success(st.session_state[reassign_success_key])
                                                 del st.session_state[reassign_success_key]
