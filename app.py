@@ -868,7 +868,6 @@ if (!paused) {{
 </script>
 """,
                                 height=45,
-                                key=sidebar_timer_id,
                             )
                         with col2:
                             pause_label = "Resume" if paused else "Pause"
@@ -2699,7 +2698,6 @@ section[data-testid="stSidebar"] > div:first-child {
                                                             paused,
                                                         ),
                                                         height=40,
-                                                        key=timer_id,
 
                                                     )
 
