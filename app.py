@@ -1624,9 +1624,12 @@ def create_progress_bar_html(completion_percentage):
             <div style="background-color: #f0f0f0; border-radius: 10px; padding: 2px; width: 200px; height: 20px;">
                 <div style="background-color: #dc3545; width: 100%; height: 16px; border-radius: 8px;"></div>
             </div>
-            <div style="font-size: 12px; font-weight: bold; color: #dc3545; text-align: center;">
-                {over_percentage:.1f}% over allocation
-            </div>
+            html = f"""
+<div style="font-size: 12px; font-weight: bold; color: #dc3545; text-align: center;">
+    {over_percentage:.1f}% over allocation
+</div>
+"""
+
         </div>
         """
 
