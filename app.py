@@ -846,7 +846,7 @@ def display_active_timers_sidebar(engine):
     """Display running timers in the sidebar on every page."""
     active_timer_count = sum(1 for running in st.session_state.timers.values() if running)
     with st.sidebar:
-        st.write(f"Active Timers ({active_timer_count})")
+        st.write(f"**Active Timers ({active_timer_count})**")
         if active_timer_count == 0:
             st.write("No active timers")
         else:
