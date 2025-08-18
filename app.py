@@ -868,7 +868,6 @@ if (!paused) {{
 </script>
 """,
                                 height=45,
-codex/separate-timer-display-and-calculation-yfzilg
                                 key=sidebar_timer_id,
                             )
                         with col2:
@@ -1356,7 +1355,6 @@ def render_basic_js_timer(timer_id, status_label, elapsed_seconds, paused):
     """Render a simple JavaScript-based timer."""
     elapsed_str = format_seconds_to_time(elapsed_seconds)
     return f"""
- codex/separate-timer-display-and-calculation-yfzilg
 <style>
 body {{ font-family: 'Noto Sans', sans-serif; }}
 </style>
@@ -2701,7 +2699,6 @@ section[data-testid="stSidebar"] > div:first-child {
                                                             paused,
                                                         ),
                                                         height=40,
-codex/separate-timer-display-and-calculation-yfzilg
                                                         key=timer_id,
 
                                                     )
