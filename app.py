@@ -827,9 +827,35 @@ def display_active_timers_sidebar(engine):
                         col1, col2, col3 = st.columns([3, 1, 1])
                         with col1:
                             status_text = "PAUSED" if paused else "RECORDING"
-                            st.write(
-                                f"**{book_title} - {stage_name} ({user_display})**: **{elapsed_str}**/{estimate_str} - {status_text}"
-
+                            sidebar_timer_id = f"sidebar_timer_{task_key}"
+                            components.html(
+                                f"""
+<style>
+body {{ font-family: var(--font, sans-serif); }}
+</style>
+<div id='{sidebar_timer_id}'><strong>{book_title} - {stage_name} ({user_display})</strong>: <strong>{elapsed_str}</strong>/{estimate_str} - {status_text}</div>
+<script>
+var font = window.parent.getComputedStyle(window.parent.document.body).getPropertyValue('font-family');
+document.getElementById('{sidebar_timer_id}').style.fontFamily = font;
+var elapsed = {elapsed_seconds};
+var paused = {str(paused).lower()};
+var elem = document.getElementById('{sidebar_timer_id}');
+function fmt(sec) {{
+  var h = Math.floor(sec / 3600).toString().padStart(2, '0');
+  var m = Math.floor((sec % 3600) / 60).toString().padStart(2, '0');
+  var s = Math.floor(sec % 60).toString().padStart(2, '0');
+  return h + ':' + m + ':' + s;
+}}
+if (!paused) {{
+  setInterval(function() {{
+    elapsed += 1;
+    elem.innerHTML = "<strong>{book_title} - {stage_name} ({user_display})</strong>: <strong>" + fmt(elapsed) + "</strong>/{estimate_str} - {status_text}";
+  }}, 1000);
+}}
+</script>
+""",
+                                height=45,
+                                key=sidebar_timer_id,
                             )
                         with col2:
                             pause_label = "Resume" if paused else "Pause"
@@ -850,8 +876,6 @@ def display_active_timers_sidebar(engine):
                             if st.button("Stop", key=f"summary_stop_{task_key}"):
                                 stop_active_timer(engine, task_key)
 
-        if st.button("Refresh Active Timers", key="refresh_active_timers_sidebar", type="secondary"):
-            st.rerun()
         st.markdown("---")
 
 
@@ -1312,6 +1336,36 @@ def format_seconds_to_time(seconds):
     minutes = (seconds % 3600) // 60
     secs = seconds % 60
     return f"{hours:02d}:{minutes:02d}:{secs:02d}"
+
+
+def render_basic_js_timer(timer_id, status_label, elapsed_seconds, paused):
+    """Render a simple JavaScript-based timer."""
+    elapsed_str = format_seconds_to_time(elapsed_seconds)
+    return f"""
+<style>
+body {{ font-family: var(--font, sans-serif); }}
+</style>
+<div id='{timer_id}'><strong>{status_label}</strong> ({elapsed_str})</div>
+<script>
+var font = window.parent.getComputedStyle(window.parent.document.body).getPropertyValue('font-family');
+document.getElementById('{timer_id}').style.fontFamily = font;
+var elapsed = {elapsed_seconds};
+var paused = {str(paused).lower()};
+var elem = document.getElementById('{timer_id}');
+function fmt(sec) {{
+  var h = Math.floor(sec / 3600).toString().padStart(2, '0');
+  var m = Math.floor((sec % 3600) / 60).toString().padStart(2, '0');
+  var s = Math.floor(sec % 60).toString().padStart(2, '0');
+  return h + ':' + m + ':' + s;
+}}
+if (!paused) {{
+  setInterval(function() {{
+    elapsed += 1;
+    elem.innerHTML = "<strong>{status_label}</strong> (" + fmt(elapsed) + ")";
+  }}, 1000);
+}}
+</script>
+"""
 
 
 def parse_hours_minutes(value):
@@ -2620,22 +2674,19 @@ section[data-testid="stSidebar"] > div:first-child {
                                                     elapsed_seconds = accumulated + current_elapsed
                                                     elapsed_str = format_seconds_to_time(elapsed_seconds)
 
-                                                    # Display recording status with layout - first row shows status and refresh
-                                                    timer_row1_col1, timer_row1_col2 = st.columns([2, 1.5])
-                                                    # Placeholders kept for compatibility
-                                                    timer_row1_col3 = timer_row1_col1
-                                                    timer_row1_col4 = timer_row1_col2
-                                                    with timer_row1_col1:
-                                                        status_label = "Paused" if paused else "Recording"
-                                                        st.write(f"**{status_label}** ({elapsed_str})")
-
-                                                    with timer_row1_col2:
-                                                        if st.button(
-                                                            "Refresh",
-                                                            key=f"refresh_timer_{task_key}_{idx}",
-                                                            type="secondary",
-                                                        ):
-                                                            st.rerun()
+                                                    # Display recording status with a client-side timer
+                                                    status_label = "Paused" if paused else "Recording"
+                                                    timer_id = f"timer_{task_key}_{idx}"
+                                                    components.html(
+                                                        render_basic_js_timer(
+                                                            timer_id,
+                                                            status_label,
+                                                            elapsed_seconds,
+                                                            paused,
+                                                        ),
+                                                        height=40,
+                                                        key=timer_id,
+                                                    )
 
                                                     # Second row with pause and stop controls
                                                     timer_row2_col1, timer_row2_col2 = st.columns([1.5, 1])
