@@ -870,6 +870,7 @@ body {{
   font-family: 'Noto Sans', sans-serif;
   margin: 0;
 }}
+
 .timer-text {{
   white-space: normal;
   word-break: break-word;
@@ -893,6 +894,7 @@ function resizeIframe() {{
   var iframe = window.frameElement;
   if (iframe) {{
     iframe.style.height = (document.body.scrollHeight + 4) + 'px';
+
   }}
 }}
 resizeIframe();
