@@ -13,6 +13,18 @@ from sqlalchemy.exc import IntegrityError
 
 st.set_page_config(page_title="Book Production Time Tracking", page_icon="favicon.png")
 
+st.markdown(
+    """
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Grandstander:ital,wght@0,100..900;1,100..900&family=Noto+Sans:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
+<style>
+body, .stApp, .stApp * { font-family: 'Noto Sans', sans-serif; }
+</style>
+""",
+    unsafe_allow_html=True,
+)
+
 # Set BST timezone (UTC+1)
 BST = timezone(timedelta(hours=1))
 UTC_PLUS_1 = BST  # Keep backward compatibility
@@ -830,9 +842,14 @@ def display_active_timers_sidebar(engine):
                             sidebar_timer_id = f"sidebar_timer_{task_key}"
                             components.html(
                                 f"""
-
+<style>
+body {{ font-family: 'Noto Sans', sans-serif; }}
+</style>
 <div id='{sidebar_timer_id}'><strong>{book_title} - {stage_name} ({user_display})</strong>: <strong>{elapsed_str}</strong>/{estimate_str} - {status_text}</div>
 <script>
+var font = window.parent.getComputedStyle(window.parent.document.body).getPropertyValue('font-family');
+document.getElementById('{sidebar_timer_id}').style.fontFamily = font;
+
 var elapsed = {elapsed_seconds};
 var paused = {str(paused).lower()};
 var elem = document.getElementById('{sidebar_timer_id}');
@@ -851,6 +868,8 @@ if (!paused) {{
 </script>
 """,
                                 height=45,
+codex/separate-timer-display-and-calculation-yfzilg
+                                key=sidebar_timer_id,
                             )
                         with col2:
                             pause_label = "Resume" if paused else "Pause"
@@ -1337,9 +1356,15 @@ def render_basic_js_timer(timer_id, status_label, elapsed_seconds, paused):
     """Render a simple JavaScript-based timer."""
     elapsed_str = format_seconds_to_time(elapsed_seconds)
     return f"""
-
+ codex/separate-timer-display-and-calculation-yfzilg
+<style>
+body {{ font-family: 'Noto Sans', sans-serif; }}
+</style>
 <div id='{timer_id}'><strong>{status_label}</strong> ({elapsed_str})</div>
 <script>
+var font = window.parent.getComputedStyle(window.parent.document.body).getPropertyValue('font-family');
+document.getElementById('{timer_id}').style.fontFamily = font;
+
 var elapsed = {elapsed_seconds};
 var paused = {str(paused).lower()};
 var elem = document.getElementById('{timer_id}');
@@ -2676,6 +2701,8 @@ section[data-testid="stSidebar"] > div:first-child {
                                                             paused,
                                                         ),
                                                         height=40,
+codex/separate-timer-display-and-calculation-yfzilg
+                                                        key=timer_id,
 
                                                     )
 
