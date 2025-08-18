@@ -889,23 +889,14 @@ body {{
 </style>
 <div id='{sidebar_timer_id}' class='timer-text'><strong>{book_title} - {stage_name} ({user_display})</strong>: <strong>{elapsed_str}</strong>/{estimate_str} - {status_text}</div>
 <script>
-<script>
-  var elem = document.getElementById('{sidebar_timer_id}');
-
-  function updateThemeStyles() {
-    if (!elem) return; // stop if element doesn't exist
-
-    var parentStyles = window.parent.getComputedStyle(window.parent.document.body);
-    elem.style.fontFamily = parentStyles.getPropertyValue('font-family');
-    elem.style.color = parentStyles.getPropertyValue('color');
-  }
-
-  // Run once when loaded
-  document.addEventListener("DOMContentLoaded", updateThemeStyles);
-
-  // Optionally re-run if the parent styles change on resize
-  window.addEventListener("resize", updateThemeStyles);
-</script>
+var elem = document.getElementById('{sidebar_timer_id}');
+function updateThemeStyles() {
+  var parentStyles = window.parent.getComputedStyle(window.parent.document.body);
+  elem.style.fontFamily = parentStyles.getPropertyValue('font-family');
+  elem.style.color = parentStyles.getPropertyValue('color');
+}
+updateThemeStyles();
+setInterval(updateThemeStyles, 1000)
 
 updateThemeStyles();
 setInterval(updateThemeStyles, 1000);
