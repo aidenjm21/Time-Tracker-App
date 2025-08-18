@@ -884,10 +884,10 @@ body {{
 .timer-text {{
   white-space: normal;
   word-break: break-word;
-
+  font-weight: bold;
 }}
 </style>
-<div id='{sidebar_timer_id}' class='timer-text'>{book_title} - {stage_name} ({user_display}): {elapsed_str}{estimate_str} - {status_text}</div>
+<div id='{sidebar_timer_id}' class='timer-text'>{book_title} - {stage_name} ({user_display}): {elapsed_str}/{estimate_str} - {status_text}</div>
 <script>
 var elem = document.getElementById('{sidebar_timer_id}');
 function updateThemeStyles() {{
@@ -917,7 +917,7 @@ resizeIframe();
 if (!paused) {{
   setInterval(function() {{
     elapsed += 1;
-    elem.innerHTML = "{book_title} - {stage_name} ({user_display}):" + fmt(elapsed) + "</strong>/{estimate_str} - {status_text}";
+    elem.innerHTML = "{book_title} - {stage_name} ({user_display}):" + fmt(elapsed) + "/{estimate_str} - {status_text}";
     resizeIframe();
   }}, 1000);
 }}
