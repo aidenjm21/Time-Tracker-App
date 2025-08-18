@@ -465,26 +465,15 @@ def emergency_stop_all_timers(engine):
                             for attempt in range(3):
                                 try:
                                     with engine.connect() as conn:
-                                        # Save the time entry
-                                        conn.execute(
-                                            text(
-                                                '''
-                                            INSERT INTO trello_time_tracking
-                                            (card_name, user_name, list_name, time_spent_seconds,
-                                             date_started, session_start_time, board_name)
-                                            VALUES (:card_name, :user_name, :list_name, :time_spent_seconds,
-                                                   :date_started, :session_start_time, :board_name)
-                                        '''
-                                            ),
-                                            {
-                                                'card_name': card_name,
-                                                'user_name': user_name,
-                                                'list_name': list_name,
-                                                'time_spent_seconds': elapsed_seconds,
-                                                'date_started': start_time.date(),
-                                                'session_start_time': start_time,
-                                                'board_name': 'Manual Entry',
-                                            },
+                                        upsert_time_entry(
+                                            conn,
+                                            card_name,
+                                            user_name,
+                                            list_name,
+                                            elapsed_seconds,
+                                            start_time.date(),
+                                            start_time,
+                                            'Manual Entry',
                                         )
 
                                         # Remove from active timers table
@@ -536,25 +525,15 @@ def recover_emergency_saved_times(engine):
         for saved_time in st.session_state.emergency_saved_times:
             try:
                 with engine.connect() as conn:
-                    conn.execute(
-                        text(
-                            '''
-                        INSERT INTO trello_time_tracking
-                        (card_name, user_name, list_name, time_spent_seconds,
-                         date_started, session_start_time, board_name)
-                        VALUES (:card_name, :user_name, :list_name, :time_spent_seconds,
-                               :date_started, :session_start_time, :board_name)
-                    '''
-                        ),
-                        {
-                            'card_name': saved_time['card_name'],
-                            'user_name': saved_time['user_name'],
-                            'list_name': saved_time['list_name'],
-                            'time_spent_seconds': saved_time['elapsed_seconds'],
-                            'date_started': saved_time['start_time'].date(),
-                            'session_start_time': saved_time['start_time'],
-                            'board_name': 'Manual Entry',
-                        },
+                    upsert_time_entry(
+                        conn,
+                        saved_time['card_name'],
+                        saved_time['user_name'],
+                        saved_time['list_name'],
+                        saved_time['elapsed_seconds'],
+                        saved_time['start_time'].date(),
+                        saved_time['start_time'],
+                        'Manual Entry',
                     )
                     conn.commit()
                     saved_count += 1
@@ -762,6 +741,82 @@ def remove_active_timer(engine, timer_key):
         st.error(f"Error removing active timer: {str(e)}")
 
 
+def upsert_time_entry(
+    conn,
+    card_name,
+    user_name,
+    list_name,
+    elapsed_seconds,
+    date_started,
+    session_start_time,
+    board_name,
+    tag=None,
+):
+    """Insert or update a time entry without creating duplicate tasks."""
+    existing = conn.execute(
+        text(
+            '''
+            SELECT id, time_spent_seconds FROM trello_time_tracking
+            WHERE card_name = :card_name
+              AND list_name = :list_name
+              AND date_started = :date_started
+              AND COALESCE(user_name, 'Not set') = COALESCE(:user_name, 'Not set')
+            '''
+        ),
+        {
+            'card_name': card_name,
+            'user_name': user_name,
+            'list_name': list_name,
+            'date_started': date_started,
+        },
+    ).fetchone()
+
+    if existing:
+        total_seconds = (existing.time_spent_seconds or 0) + elapsed_seconds
+        conn.execute(
+            text(
+                '''
+                UPDATE trello_time_tracking
+                SET time_spent_seconds = :time_spent_seconds,
+                    session_start_time = :session_start_time,
+                    board_name = :board_name,
+                    tag = COALESCE(:tag, tag),
+                    created_at = CURRENT_TIMESTAMP
+                WHERE id = :id
+                '''
+            ),
+            {
+                'time_spent_seconds': total_seconds,
+                'session_start_time': session_start_time,
+                'board_name': board_name,
+                'tag': tag,
+                'id': existing.id,
+            },
+        )
+    else:
+        conn.execute(
+            text(
+                '''
+                INSERT INTO trello_time_tracking
+                (card_name, user_name, list_name, time_spent_seconds,
+                 date_started, session_start_time, board_name, tag)
+                VALUES (:card_name, :user_name, :list_name, :time_spent_seconds,
+                        :date_started, :session_start_time, :board_name, :tag)
+                '''
+            ),
+            {
+                'card_name': card_name,
+                'user_name': user_name,
+                'list_name': list_name,
+                'time_spent_seconds': elapsed_seconds,
+                'date_started': date_started,
+                'session_start_time': session_start_time,
+                'board_name': board_name,
+                'tag': tag,
+            },
+        )
+
+
 def stop_active_timer(engine, timer_key):
     """Stop a running timer and save its elapsed time."""
     if timer_key not in st.session_state.get('timers', {}):
@@ -797,32 +852,20 @@ def stop_active_timer(engine, timer_key):
 
     try:
         with engine.connect() as conn:
-            conn.execute(
-                text(
-                    '''
-                INSERT INTO trello_time_tracking
-                (card_name, user_name, list_name, time_spent_seconds,
-                 date_started, session_start_time, board_name)
-                VALUES (:card_name, :user_name, :list_name, :time_spent_seconds,
-                        :date_started, :session_start_time, :board_name)
-                ON CONFLICT (card_name, user_name, list_name, date_started, time_spent_seconds)
-                DO UPDATE SET
-                    session_start_time = EXCLUDED.session_start_time,
-                    board_name = EXCLUDED.board_name,
-                    created_at = CURRENT_TIMESTAMP
-            '''
-                ),
-                {
-                    'card_name': card_name,
-                    'user_name': user_name,
-                    'list_name': list_name,
-                    'time_spent_seconds': elapsed_seconds,
-                    'date_started': (start_time or datetime.now(BST)).date(),
-                    'session_start_time': start_time or datetime.now(BST),
-                    'board_name': board_name,
-                },
+            upsert_time_entry(
+                conn,
+                card_name,
+                user_name,
+                list_name,
+                elapsed_seconds,
+                (start_time or datetime.now(BST)).date(),
+                start_time or datetime.now(BST),
+                board_name,
             )
-            conn.execute(text('DELETE FROM active_timers WHERE timer_key = :timer_key'), {'timer_key': timer_key})
+            conn.execute(
+                text('DELETE FROM active_timers WHERE timer_key = :timer_key'),
+                {'timer_key': timer_key},
+            )
             conn.commit()
     except Exception as e:
         st.error(f"Error saving timer data: {str(e)}")
@@ -2812,33 +2855,16 @@ section[data-testid="stSidebar"] > div:first-child {
                                                                     )
 
                                                                     with engine.connect() as conn:
-                                                                        # Use ON CONFLICT to handle duplicate entries by updating existing records
-                                                                        conn.execute(
-                                                                            text(
-                                                                                '''
-                                            INSERT INTO trello_time_tracking
-                                            (card_name, user_name, list_name, time_spent_seconds,
-                                             date_started, session_start_time, board_name, tag)
-                                            VALUES (:card_name, :user_name, :list_name, :time_spent_seconds,
-                                                   :date_started, :session_start_time, :board_name, :tag)
-                                            ON CONFLICT (card_name, user_name, list_name, date_started, time_spent_seconds)
-                                            DO UPDATE SET
-                                                session_start_time = EXCLUDED.session_start_time,
-                                                board_name = EXCLUDED.board_name,
-                                                tag = EXCLUDED.tag,
-                                                created_at = CURRENT_TIMESTAMP
-                                        '''
-                                                                            ),
-                                                                            {
-                                                                                'card_name': book_title,
-                                                                                'user_name': user_name,
-                                                                                'list_name': stage_name,
-                                                                                'time_spent_seconds': final_time,
-                                                                                'date_started': timer_start_time.date(),
-                                                                                'session_start_time': timer_start_time,
-                                                                                'board_name': board_name,
-                                                                                'tag': existing_tag,
-                                                                            },
+                                                                        upsert_time_entry(
+                                                                            conn,
+                                                                            book_title,
+                                                                            user_name,
+                                                                            stage_name,
+                                                                            final_time,
+                                                                            timer_start_time.date(),
+                                                                            timer_start_time,
+                                                                            board_name,
+                                                                            existing_tag,
                                                                         )
 
                                                                         # Remove from active timers
