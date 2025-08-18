@@ -890,6 +890,7 @@ body {{
 <div id='{sidebar_timer_id}' class='timer-text'><strong>{book_title} - {stage_name} ({user_display})</strong>: <strong>{elapsed_str}</strong>/{estimate_str} - {status_text}</div>
 <script>
 var elem = document.getElementById('{sidebar_timer_id}');
+
 function updateThemeStyles() {
   var parentStyles = window.parent.getComputedStyle(window.parent.document.body);
   elem.style.fontFamily = parentStyles.getPropertyValue('font-family');
@@ -1419,11 +1420,13 @@ body {{ font-family: 'Noto Sans', sans-serif; }}
 <div id='{timer_id}'><strong>{status_label}</strong> ({elapsed_str})</div>
 <script>
 var elem = document.getElementById('{timer_id}');
+
 function updateThemeStyles() {
   var parentStyles = window.parent.getComputedStyle(window.parent.document.body);
   elem.style.fontFamily = parentStyles.getPropertyValue('font-family');
   elem.style.color = parentStyles.getPropertyValue('color');
 }
+
 updateThemeStyles();
 setInterval(updateThemeStyles, 1000);
 
