@@ -56,6 +56,22 @@ components.html(
 BST = timezone(timedelta(hours=1))
 UTC_PLUS_1 = BST  # Keep backward compatibility
 
+# Error logging: capture all messages passed to st.error
+if "error_log" not in st.session_state:
+    st.session_state.error_log = []
+
+_original_st_error = st.error
+
+
+def log_error(message, *args, **kwargs):
+    """Log error messages with timestamp and display them."""
+    timestamp = datetime.now(BST).strftime("%Y-%m-%d %H:%M:%S")
+    st.session_state.error_log.append({"time": timestamp, "message": message})
+    _original_st_error(message, *args, **kwargs)
+
+
+st.error = log_error
+
 # Known full user names for matching CSV imports
 EDITORIAL_USERS_LIST = [
     "Bethany Latham",
@@ -1860,8 +1876,14 @@ section[data-testid="stSidebar"] > div:first-child {
     display_active_timers_sidebar(engine)
 
     # Create tabs for different views as a horizontal selection
-    tab_names = ["Book Progress", "Add Book", "Archive", "Reporting"]
-    book_progress_tab, add_book_tab, archive_tab, reporting_tab = st.tabs(tab_names)
+    tab_names = ["Book Progress", "Add Book", "Archive", "Reporting", "Error Log"]
+    (
+        book_progress_tab,
+        add_book_tab,
+        archive_tab,
+        reporting_tab,
+        error_log_tab,
+    ) = st.tabs(tab_names)
 
     # Divider below the tab selector
     st.markdown("---")
@@ -3789,6 +3811,30 @@ section[data-testid="stSidebar"] > div:first-child {
 
         except Exception as e:
             st.error(f"Error accessing archived data: {str(e)}")
+    with error_log_tab:
+        st.header("Error Log")
+        password_input = st.text_input(
+            "Enter password",
+            type="password",
+            key="error_log_password",
+        )
+        if password_input == "nan":
+            if st.session_state.error_log:
+                df_log = pd.DataFrame(st.session_state.error_log)
+                st.dataframe(df_log, use_container_width=True, hide_index=True)
+                csv = df_log.to_csv(index=False).encode("utf-8")
+                st.download_button(
+                    "Download Error Log",
+                    csv,
+                    "error_log.csv",
+                    "text/csv",
+                )
+            else:
+                st.info("No errors logged yet.")
+        elif password_input:
+            st.warning("Incorrect password")
+        else:
+            st.info("Enter password to view logs")
 
 
 if __name__ == "__main__":
