@@ -1412,16 +1412,8 @@ body {{ font-family: 'Noto Sans', sans-serif; }}
 </style>
 <div id='{timer_id}'><strong>{status_label}</strong> ({elapsed_str})</div>
 <script>
-var elem = document.getElementById('{timer_id}');
-
-function updateThemeStyles() {
-  var parentStyles = window.parent.getComputedStyle(window.parent.document.body);
-  elem.style.fontFamily = parentStyles.getPropertyValue('font-family');
-  elem.style.color = parentStyles.getPropertyValue('color');
-}
-
-updateThemeStyles();
-setInterval(updateThemeStyles, 1000);
+var font = window.parent.getComputedStyle(window.parent.document.body).getPropertyValue('font-family');
+document.getElementById('{timer_id}').style.fontFamily = font;
 
 var elapsed = {elapsed_seconds};
 var paused = {str(paused).lower()};
