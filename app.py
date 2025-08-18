@@ -889,10 +889,11 @@ body {{
 </style>
 <div id='{sidebar_timer_id}' class='timer-text'><strong>{book_title} - {stage_name} ({user_display})</strong>: <strong>{elapsed_str}</strong>/{estimate_str} - {status_text}</div>
 
+script = f"""
 <script>
 var elem = document.getElementById('{sidebar_timer_id}');
 
-function updateThemeStyles()
+function updateThemeStyles() {{
   if (!elem) return;
 
   var parentStyles = window.parent.getComputedStyle(window.parent.document.body);
@@ -901,13 +902,14 @@ function updateThemeStyles()
 
   // Responsive width logic
   var sidebar = window.parent.document.querySelector('section[data-testid="stSidebar"]');
-  if (sidebar) {
-    if (window.innerWidth <= 768) {
+  if (sidebar) {{
+    if (window.innerWidth <= 768) {{
       sidebar.style.width = '100%';
-    } else {
+    }} else {{
       sidebar.style.width = '45%';
-    }
-  }
+    }}
+  }}
+}}
 
 // run theme + width sync periodically
 updateThemeStyles();
@@ -916,36 +918,35 @@ setInterval(updateThemeStyles, 1000);
 var elapsed = {elapsed_seconds};
 var paused = {str(paused).lower()};
 
-function fmt(sec) {
+function fmt(sec) {{
   var h = Math.floor(sec / 3600).toString().padStart(2, '0');
   var m = Math.floor((sec % 3600) / 60).toString().padStart(2, '0');
   var s = Math.floor(sec % 60).toString().padStart(2, '0');
   return h + ':' + m + ':' + s;
-}
+}}
 
-function resizeIframe() {
+function resizeIframe() {{
   var iframe = window.frameElement;
-  if (iframe) {
+  if (iframe) {{
     iframe.style.height = (document.body.scrollHeight + 4) + 'px';
-  }
-}
+  }}
+}}
 
 resizeIframe();
 
-if (!paused) {
-  setInterval(function() {
+if (!paused) {{
+  setInterval(function() {{
     elapsed += 1;
     elem.innerHTML = "<strong>{book_title} - {stage_name} ({user_display})</strong>: <strong>" 
       + fmt(elapsed) + "</strong>/{estimate_str} - {status_text}";
     resizeIframe();
-  }, 1000);
-}
+  }}, 1000);
+}}
 
 // also update sidebar width if user resizes the browser
 window.addEventListener("resize", updateThemeStyles);
 
 </script>
-
 """,
                                 height=0,
                             )
