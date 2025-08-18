@@ -868,8 +868,8 @@ def display_active_timers_sidebar(engine):
 
                         user_display = user_name if user_name and user_name != "Not set" else "Unassigned"
 
-                        col1, col2, col3 = st.columns([3, 1, 1])
-                        with col1:
+                        text_col, button_col = st.columns([3, 2], gap="small")
+                        with text_col:
                             status_text = "PAUSED" if paused else "RECORDING"
                             sidebar_timer_id = f"sidebar_timer_{task_key}"
                             components.html(
@@ -924,24 +924,26 @@ if (!paused) {{
 """,
                                 height=0,
                             )
-                        with col2:
-                            pause_label = "Resume" if paused else "Pause"
-                            if st.button(pause_label, key=f"summary_pause_{task_key}"):
-                                if paused:
-                                    resume_time = datetime.utcnow().replace(tzinfo=timezone.utc).astimezone(BST)
-                                    st.session_state.timer_start_times[task_key] = resume_time
-                                    st.session_state.timer_paused[task_key] = False
-                                    update_active_timer_state(engine, task_key, accumulated, False, resume_time)
-                                else:
-                                    elapsed_since_start = calculate_timer_elapsed_time(start_time)
-                                    new_accum = accumulated + elapsed_since_start
-                                    st.session_state.timer_accumulated_time[task_key] = new_accum
-                                    st.session_state.timer_paused[task_key] = True
-                                    update_active_timer_state(engine, task_key, new_accum, True)
-                                st.rerun()
-                        with col3:
-                            if st.button("Stop", key=f"summary_stop_{task_key}"):
-                                stop_active_timer(engine, task_key)
+                        with button_col:
+                            pause_col, stop_col = st.columns(2, gap="small")
+                            with pause_col:
+                                pause_label = "Resume" if paused else "Pause"
+                                if st.button(pause_label, key=f"summary_pause_{task_key}"):
+                                    if paused:
+                                        resume_time = datetime.utcnow().replace(tzinfo=timezone.utc).astimezone(BST)
+                                        st.session_state.timer_start_times[task_key] = resume_time
+                                        st.session_state.timer_paused[task_key] = False
+                                        update_active_timer_state(engine, task_key, accumulated, False, resume_time)
+                                    else:
+                                        elapsed_since_start = calculate_timer_elapsed_time(start_time)
+                                        new_accum = accumulated + elapsed_since_start
+                                        st.session_state.timer_accumulated_time[task_key] = new_accum
+                                        st.session_state.timer_paused[task_key] = True
+                                        update_active_timer_state(engine, task_key, new_accum, True)
+                                    st.rerun()
+                            with stop_col:
+                                if st.button("Stop", key=f"summary_stop_{task_key}"):
+                                    stop_active_timer(engine, task_key)
 
         st.markdown("---")
 
