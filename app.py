@@ -17,7 +17,7 @@ st.markdown(
     """
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans:ital,wght@0,100..900;1,100..900&family=Source+Sans+3:ital,wght@0,200..900;1,200..900&display=swap" rel="stylesheet">
 </style>
 """,
     unsafe_allow_html=True,
@@ -41,7 +41,7 @@ components.html(
     <script>
     const sidebar = window.parent.document.querySelector('section[data-testid="stSidebar"]');
     if (sidebar) {
-        sidebar.style.width = '40%';
+        sidebar.style.width = '45%';
     }
     </script>
     """,
@@ -871,10 +871,12 @@ body {{
   font-family: 'Noto Sans', sans-serif;
   margin: 0;
 }}
+
 .timer-text {{
   white-space: normal;
   word-break: break-word;
   color: {text_color};
+
 }}
 </style>
 <div id='{sidebar_timer_id}' class='timer-text'><strong>{book_title} - {stage_name} ({user_display})</strong>: <strong>{elapsed_str}</strong>/{estimate_str} - {status_text}</div>
@@ -895,6 +897,7 @@ function resizeIframe() {{
   var iframe = window.frameElement;
   if (iframe) {{
     iframe.style.height = (document.body.scrollHeight + 4) + 'px';
+
   }}
 }}
 resizeIframe();
