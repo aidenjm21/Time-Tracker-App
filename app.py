@@ -889,15 +889,8 @@ body {{
 </style>
 <div id='{sidebar_timer_id}' class='timer-text'><strong>{book_title} - {stage_name} ({user_display})</strong>: <strong>{elapsed_str}</strong>/{estimate_str} - {status_text}</div>
 <script>
-var elem = document.getElementById('{sidebar_timer_id}');
-
-function updateThemeStyles() {
-  var parentStyles = window.parent.getComputedStyle(window.parent.document.body);
-  elem.style.fontFamily = parentStyles.getPropertyValue('font-family');
-  elem.style.color = parentStyles.getPropertyValue('color');
-}
-updateThemeStyles();
-setInterval(updateThemeStyles, 1000)
+var font = window.parent.getComputedStyle(window.parent.document.body).getPropertyValue('font-family');
+document.getElementById('{sidebar_timer_id}').style.fontFamily = font;
 
 updateThemeStyles();
 setInterval(updateThemeStyles, 1000);
