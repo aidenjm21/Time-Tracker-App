@@ -830,6 +830,7 @@ def display_active_timers_sidebar(engine):
                             sidebar_timer_id = f"sidebar_timer_{task_key}"
                             components.html(
                                 f"""
+
 <div id='{sidebar_timer_id}'><strong>{book_title} - {stage_name} ({user_display})</strong>: <strong>{elapsed_str}</strong>/{estimate_str} - {status_text}</div>
 <script>
 var elapsed = {elapsed_seconds};
@@ -1336,6 +1337,7 @@ def render_basic_js_timer(timer_id, status_label, elapsed_seconds, paused):
     """Render a simple JavaScript-based timer."""
     elapsed_str = format_seconds_to_time(elapsed_seconds)
     return f"""
+
 <div id='{timer_id}'><strong>{status_label}</strong> ({elapsed_str})</div>
 <script>
 var elapsed = {elapsed_seconds};
@@ -2674,6 +2676,7 @@ section[data-testid="stSidebar"] > div:first-child {
                                                             paused,
                                                         ),
                                                         height=40,
+
                                                     )
 
                                                     # Second row with pause and stop controls
