@@ -863,6 +863,7 @@ def display_active_timers_sidebar(engine):
                         with col1:
                             status_text = "PAUSED" if paused else "RECORDING"
                             sidebar_timer_id = f"sidebar_timer_{task_key}"
+                            text_color = st.get_option("theme.textColor")
                             components.html(
                                 f"""
 <style>
@@ -874,6 +875,8 @@ body {{
 .timer-text {{
   white-space: normal;
   word-break: break-word;
+  color: {text_color};
+
 }}
 </style>
 <div id='{sidebar_timer_id}' class='timer-text'><strong>{book_title} - {stage_name} ({user_display})</strong>: <strong>{elapsed_str}</strong>/{estimate_str} - {status_text}</div>
@@ -1393,11 +1396,12 @@ def format_seconds_to_time(seconds):
 def render_basic_js_timer(timer_id, status_label, elapsed_seconds, paused):
     """Render a simple JavaScript-based timer."""
     elapsed_str = format_seconds_to_time(elapsed_seconds)
+    text_color = st.get_option("theme.textColor")
     return f"""
 <style>
-body {{ font-family: 'Noto Sans', sans-serif; }}
+body {{ font-family: 'Noto Sans', sans-serif; color: {text_color}; }}
 </style>
-<div id='{timer_id}'><strong>{status_label}</strong> ({elapsed_str})</div>
+<div id='{timer_id}' style='color: {text_color};'><strong>{status_label}</strong> ({elapsed_str})</div>
 <script>
 var font = window.parent.getComputedStyle(window.parent.document.body).getPropertyValue('font-family');
 document.getElementById('{timer_id}').style.fontFamily = font;
