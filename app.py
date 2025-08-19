@@ -3319,9 +3319,9 @@ def main():
 
         except SQLAlchemyError as e:
             timestamp = datetime.now(BST).strftime("%Y-%m-%d %H:%M:%S")
-            error_message = f"Database error: {type(e).__name__}: {e}"
+
             st.session_state.error_log.append(
-                {"time": timestamp, "message": error_message}
+                {"time": timestamp, "message": f"Database error: {str(e)}"}
             )
             try:
                 import traceback
@@ -3339,7 +3339,8 @@ def main():
             timestamp = datetime.now(BST).strftime("%Y-%m-%d %H:%M:%S")
             error_message = f"{type(e).__name__}: {e}"
             st.session_state.error_log.append(
-                {"time": timestamp, "message": error_message}
+
+                {"time": timestamp, "message": str(e)}
             )
             try:
                 import traceback
