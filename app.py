@@ -69,11 +69,18 @@ if "error_log" not in st.session_state:
 
 _original_st_error = st.error
 
+# Placeholder messages shown to users but not helpful in the error log
+PLACEHOLDER_ERRORS = {
+    "An unexpected error occurred, please see the error log for more details",
+    "Database error, please see the error log for more details",
+}
+
 
 def log_error(message, *args, **kwargs):
     """Log error messages with timestamp and display them."""
     timestamp = datetime.now(BST).strftime("%Y-%m-%d %H:%M:%S")
-    st.session_state.error_log.append({"time": timestamp, "message": message})
+    if message not in PLACEHOLDER_ERRORS:
+        st.session_state.error_log.append({"time": timestamp, "message": message})
     _original_st_error(message, *args, **kwargs)
 
 
@@ -3312,6 +3319,7 @@ def main():
 
         except SQLAlchemyError as e:
             timestamp = datetime.now(BST).strftime("%Y-%m-%d %H:%M:%S")
+
             st.session_state.error_log.append(
                 {"time": timestamp, "message": f"Database error: {str(e)}"}
             )
@@ -3329,7 +3337,9 @@ def main():
             )
         except Exception as e:
             timestamp = datetime.now(BST).strftime("%Y-%m-%d %H:%M:%S")
+            error_message = f"{type(e).__name__}: {e}"
             st.session_state.error_log.append(
+
                 {"time": timestamp, "message": str(e)}
             )
             try:
