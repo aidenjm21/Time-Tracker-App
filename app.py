@@ -13,44 +13,51 @@ from sqlalchemy.exc import IntegrityError
 
 st.set_page_config(page_title="Book Production Time Tracking", page_icon="favicon.png")
 
-st.markdown(
-    """
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,200..900;1,200..900&display=swap" rel="stylesheet">
-""",
-    unsafe_allow_html=True,
-)
-
-st.markdown(
-    """
-    <style>
-        [data-testid="stSidebar"] {
-            resize: horizontal;
-            overflow: auto;
-        }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
-
-# Set default sidebar width via JavaScript so users can still resize it
 components.html(
     """
     <script>
-    const sidebar = window.parent.document.querySelector('section[data-testid="stSidebar"]');
-    if (sidebar) {
-        if (window.innerWidth <= 768) {
-            sidebar.style.width = '100%';
-        } else {
-            sidebar.style.width = '45%';
+    (function() {
+        const doc = window.parent.document;
+        const head = doc.head;
+
+        // Load Google Fonts
+        const link1 = doc.createElement('link');
+        link1.rel = 'preconnect';
+        link1.href = 'https://fonts.googleapis.com';
+        head.appendChild(link1);
+
+        const link2 = doc.createElement('link');
+        link2.rel = 'preconnect';
+        link2.href = 'https://fonts.gstatic.com';
+        link2.crossOrigin = 'anonymous';
+        head.appendChild(link2);
+
+        const link3 = doc.createElement('link');
+        link3.rel = 'stylesheet';
+        link3.href = 'https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,200..900;1,200..900&display=swap';
+        head.appendChild(link3);
+
+        // Allow sidebar to be resizable
+        const style = doc.createElement('style');
+        style.textContent = '[data-testid="stSidebar"] { resize: horizontal; overflow: auto; }';
+        head.appendChild(style);
+
+        // Set default sidebar width so users can still resize it
+        const sidebar = doc.querySelector('section[data-testid="stSidebar"]');
+        if (sidebar) {
+            if (window.innerWidth <= 768) {
+                sidebar.style.width = '100%';
+            } else {
+                sidebar.style.width = '45%';
+            }
         }
-    }
-</script>
+    })();
+    </script>
 
     """,
     height=0,
 )
+
 
 # Set BST timezone (UTC+1)
 BST = timezone(timedelta(hours=1))
