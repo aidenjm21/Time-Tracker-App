@@ -20,12 +20,6 @@ components.html(
         const doc = window.parent.document;
         const head = doc.head;
 
-        // Hide this component's container so it doesn't affect layout
-        const frame = window.frameElement;
-        if (frame && frame.parentElement) {
-            frame.parentElement.style.display = 'none';
-        }
-
         // Load Google Fonts
         const link1 = doc.createElement('link');
         link1.rel = 'preconnect';
@@ -43,60 +37,9 @@ components.html(
         link3.href = 'https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,200..900;1,200..900&display=swap';
         head.appendChild(link3);
 
-        // Global styles and resizable sidebar
+        // Allow sidebar to be resizable
         const style = doc.createElement('style');
-        style.textContent = `
-[data-testid="stSidebar"] { resize: horizontal; overflow: auto; }
-
-.main .block-container {
-    padding-top: 1rem;
-    padding-bottom: 1rem;
-    padding-left: 1rem;
-    padding-right: 1rem;
-}
-.stExpander > div:first-child {
-    padding: 0.5rem 0;
-}
-.element-container {
-    margin-bottom: 0.5rem;
-}
-div[data-testid="column"] {
-    padding: 0 0.5rem;
-}
-section[data-testid="stSidebar"] > div:first-child {
-    background-color: var(--secondary-background-color);
-}
-.stButton > button, .stDownloadButton > button {
-    background-color: #EB5D0C;
-    color: #ffffff;
-    border: none;
-}
-button[data-testid="stBaseButton-secondary"],
-button[data-testid="stBaseButton-secondary"]:hover,
-button[data-testid="stBaseButton-secondary"]:active,
-button[data-testid="stBaseButton-secondary"]:focus,
-button[data-testid="stBaseButton-secondary"]:disabled {
-    color: #ffffff !important;
-    background-color: #EB5D0C !important;
-    border: none !important;
-}
-.stButton > button:hover, .stDownloadButton > button:hover,
-.stButton > button:active, .stDownloadButton > button:active,
-.stButton > button:focus, .stDownloadButton > button:focus,
-.stButton > button:disabled, .stDownloadButton > button:disabled {
-    background-color: #2AA395;
-    color: #ffffff;
-}
-div[data-testid="stProgress"] div[data-testid="stProgressBar"] > div {
-    background-color: #2AA395 !important;
-}
-div[data-testid="stTabs"] button[data-baseweb="tab"]:hover {
-    color: #EB5D0C;
-}
-div[data-testid="stTabs"] button[data-baseweb="tab"][aria-selected="true"] {
-    color: #EB5D0C;
-}
-`;
+        style.textContent = '[data-testid="stSidebar"] { resize: horizontal; overflow: auto; }';
         head.appendChild(style);
 
         // Set default sidebar width so users can still resize it
