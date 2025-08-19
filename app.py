@@ -9,7 +9,7 @@ import re
 import time
 import streamlit.components.v1 as components
 from sqlalchemy import create_engine, text
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 st.set_page_config(page_title="Book Production Time Tracking", page_icon="favicon.png")
 
@@ -2546,8 +2546,8 @@ def main():
                                                     except ValueError:
                                                         current_index = 0  # Default to "Not set"
 
-                                                    # Use session counter to ensure the key is unique each run
-                                                    selectbox_key = f"reassign_{book_title}_{stage_name}_{user_name}_{session_id}"
+                                                    # Use session counter and loop index to ensure the key is unique each run
+                                                    selectbox_key = f"reassign_{book_title}_{stage_name}_{user_name}_{session_id}_{idx}"
                                                     new_user = st.selectbox(
                                                         f"User for {stage_name}:",
                                                         user_options,
@@ -2674,7 +2674,7 @@ def main():
                                                                         del st.session_state[key]
 
                                                                 # Store success message instead of immediate refresh
-                                                                success_key = f"reassign_success_{book_title}_{stage_name}_{user_name}_{session_id}"
+                                                                success_key = f"reassign_success_{book_title}_{stage_name}_{user_name}_{session_id}_{idx}"
                                                                 st.session_state[success_key] = (
                                                                     f"User reassigned from {current_user} to {new_user}"
                                                                 )
@@ -3069,7 +3069,7 @@ def main():
                                                 del st.session_state[completion_success_key]
 
                                             # User reassignment success message
-                                            reassign_success_key = f"reassign_success_{book_title}_{stage_name}_{user_name}_{session_id}"
+                                            reassign_success_key = f"reassign_success_{book_title}_{stage_name}_{user_name}_{session_id}_{idx}"
                                             if reassign_success_key in st.session_state:
                                                 st.success(st.session_state[reassign_success_key])
                                                 del st.session_state[reassign_success_key]
@@ -3310,10 +3310,10 @@ def main():
                             st.session_state.book_page += 1
                             st.rerun()
 
-        except Exception as e:
+        except SQLAlchemyError as e:
             timestamp = datetime.now(BST).strftime("%Y-%m-%d %H:%M:%S")
             st.session_state.error_log.append(
-                {"time": timestamp, "message": f"Error accessing database: {str(e)}"}
+                {"time": timestamp, "message": f"Database error: {str(e)}"}
             )
             try:
                 import traceback
@@ -3325,7 +3325,24 @@ def main():
             except Exception:
                 pass
             _original_st_error(
-                "Error occurred, please see the error log for more details"
+                "Database error, please see the error log for more details"
+            )
+        except Exception as e:
+            timestamp = datetime.now(BST).strftime("%Y-%m-%d %H:%M:%S")
+            st.session_state.error_log.append(
+                {"time": timestamp, "message": str(e)}
+            )
+            try:
+                import traceback
+
+                error_details = traceback.format_exc().split("\n")[-3:-1]
+                st.session_state.error_log.append(
+                    {"time": timestamp, "message": f"Location: {' '.join(error_details)}"}
+                )
+            except Exception:
+                pass
+            _original_st_error(
+                "An unexpected error occurred, please see the error log for more details"
             )
 
         # Add table showing all books with their boards below the book cards
