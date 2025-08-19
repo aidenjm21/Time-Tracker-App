@@ -3311,15 +3311,22 @@ def main():
                             st.rerun()
 
         except Exception as e:
-            st.error(f"Error accessing database: {str(e)}")
-            # Add simplified debug info
+            timestamp = datetime.now(BST).strftime("%Y-%m-%d %H:%M:%S")
+            st.session_state.error_log.append(
+                {"time": timestamp, "message": f"Error accessing database: {str(e)}"}
+            )
             try:
                 import traceback
 
-                error_details = traceback.format_exc().split('\n')[-3:-1]  # Get last 2 lines
-                st.error(f"Location: {' '.join(error_details)}")
-            except:
-                pass  # Ignore debug errors
+                error_details = traceback.format_exc().split("\n")[-3:-1]
+                st.session_state.error_log.append(
+                    {"time": timestamp, "message": f"Location: {' '.join(error_details)}"}
+                )
+            except Exception:
+                pass
+            _original_st_error(
+                "Error occurred, please see the error log for more details"
+            )
 
         # Add table showing all books with their boards below the book cards
         st.markdown("---")
