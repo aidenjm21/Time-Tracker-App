@@ -8,9 +8,7 @@ import streamlit.components.v1 as components
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import SQLAlchemyError
 
-# Expect in .streamlit/secrets.toml:
-# [database]
-# url = "postgresql://appuser:Booklife01@192.168.1.128:5433/appdb"
+MediaFileStorageError: Bad filename '...png'. (No media file with id '...')
 
 @st.cache_resource
 def get_engine():
