@@ -3,25 +3,28 @@ import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta, timezone
 from collections import Counter
-import io
-import os
-import re
-import time
+import io, os, re, time
 import streamlit.components.v1 as components
-from sqlalchemy import create_engine, text
-import streamlit as st
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import SQLAlchemyError
 
-db_url = st.secrets["database"]["url"]
-engine = create_engine(db_url, pool_pre_ping=True)
+# Expect in .streamlit/secrets.toml:
+# [database]
+# url = "postgresql://appuser:Booklife01@192.168.1.128:5433/appdb"
+
+@st.cache_resource
+def get_engine():
+    return create_engine(st.secrets["database"]["url"], pool_pre_ping=True)
+
+engine = get_engine()
 
 try:
     with engine.connect() as conn:
-        st.write("DB OK:", conn.execute(text("SELECT current_user, current_database()")).one())
+        user, db = conn.execute(text("SELECT current_user, current_database()")).one()
+        st.success(f"DB OK, user={user}, db={db}")
 except SQLAlchemyError as e:
     st.error(f"DB connection failed, {e}")
-
+    st.stop()
 
 st.set_page_config(page_title="Book Production Time Tracking", page_icon="favicon.png")
 
