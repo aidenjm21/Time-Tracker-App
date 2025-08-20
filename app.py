@@ -11,6 +11,18 @@ import streamlit.components.v1 as components
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
+# Read the URL (as your app expects)
+db_url = st.secrets["database"]["url"]
+
+# Create SQLAlchemy engine
+engine = create_engine(db_url, pool_pre_ping=True)
+
+# Test a query
+with engine.begin() as conn:
+    df = pd.read_sql(text("SELECT * FROM your_table LIMIT 5"), conn)
+
+st.dataframe(df)
+
 st.set_page_config(page_title="Book Production Time Tracking", page_icon="favicon.png")
 
 components.html(
