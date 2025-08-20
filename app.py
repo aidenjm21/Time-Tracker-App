@@ -13,20 +13,6 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 import streamlit as st
 from sqlalchemy import create_engine, text
 
-# Load the connection string from secrets.toml
-db_url = st.secrets["database"]["url"]
-
-# Example: postgresql://appuser:change_me_now@192.168.1.128:5433/appdb
-engine = create_engine(db_url)
-
-# Quick test
-try:
-    with engine.connect() as conn:
-        result = conn.execute(text("SELECT version();"))
-        st.write("Connected to:", result.scalar())
-except Exception as e:
-    st.error(f"Database connection failed: {e}")
-
 st.set_page_config(page_title="Book Production Time Tracking", page_icon="favicon.png")
 
 components.html(
