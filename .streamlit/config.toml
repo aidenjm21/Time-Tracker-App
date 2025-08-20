@@ -5,10 +5,6 @@ port = 8501
 maxUploadSize = 5
 
 [theme]
-base="light"
-primaryColor="#eb5d0c"
-
-[theme]
 base="dark"
 primaryColor="#eb5d0c"
 backgroundColor="#353535"
