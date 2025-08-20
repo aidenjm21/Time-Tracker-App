@@ -8,8 +8,6 @@ import streamlit.components.v1 as components
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import SQLAlchemyError
 
-MediaFileStorageError: Bad filename '...png'. (No media file with id '...')
-
 @st.cache_resource
 def get_engine():
     return create_engine(st.secrets["database"]["url"], pool_pre_ping=True)
