@@ -1,42 +1,15 @@
-# 1) Page config must be first
 import streamlit as st
-st.set_page_config(page_title="Book Production Time Tracking", page_icon="favicon.png")
-
-# 2) Imports
 import pandas as pd
-from sqlalchemy import create_engine, text
-from sqlalchemy.exc import SQLAlchemyError
+import numpy as np
+from datetime import datetime, timedelta, timezone
+from collections import Counter
+import io
 import os
-
-# 3) Read URL from env or secrets
-def _get_db_url():
-    return os.getenv("DATABASE_URL") or st.secrets["database"]["url"]
-
-# 4) Cache the engine so it persists across reruns
-@st.cache_resource
-def get_engine():
-    return create_engine(_get_db_url(), pool_pre_ping=True)
-
-# 5) Use the engine and handle errors
-try:
-    engine = get_engine()
-    with engine.begin() as conn:
-        # Replace your_table with a real table name
-        df = pd.read_sql(text("SELECT * FROM your_table LIMIT 5"), conn)
-    st.success("Connected to database")
-    st.dataframe(df)
-except KeyError:
-    st.error("Database URL not configured. Add [database].url to .streamlit/secrets.toml or set DATABASE_URL.")
-    st.stop()
-except SQLAlchemyError as e:
-    st.error("Could not connect to database, please check host, port, db, user, password, and network access.")
-    st.exception(e)
-    st.stop()
-
-# 6) If you want to embed HTML, pass some content
-# import streamlit.components.v1 as components
-# components.html("<p>Hello</p>", height=50)
-
+import re
+import time
+import streamlit.components.v1 as components
+from sqlalchemy import create_engine, text
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 st.set_page_config(page_title="Book Production Time Tracking", page_icon="favicon.png")
 
