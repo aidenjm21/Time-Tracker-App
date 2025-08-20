@@ -3,24 +3,13 @@ import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta, timezone
 from collections import Counter
-import io, os, re, time
+import io
+import os
+import re
+import time
 import streamlit.components.v1 as components
 from sqlalchemy import create_engine, text
-from sqlalchemy.exc import SQLAlchemyError
-
-@st.cache_resource
-def get_engine():
-    return create_engine(st.secrets["database"]["url"], pool_pre_ping=True)
-
-engine = get_engine()
-
-try:
-    with engine.connect() as conn:
-        user, db = conn.execute(text("SELECT current_user, current_database()")).one()
-        st.success(f"DB OK, user={user}, db={db}")
-except SQLAlchemyError as e:
-    st.error(f"DB connection failed, {e}")
-    st.stop()
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 st.set_page_config(page_title="Book Production Time Tracking", page_icon="favicon.png")
 
