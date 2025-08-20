@@ -9,9 +9,19 @@ import re
 import time
 import streamlit.components.v1 as components
 from sqlalchemy import create_engine, text
-from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 import streamlit as st
 from sqlalchemy import create_engine, text
+from sqlalchemy.exc import SQLAlchemyError
+
+db_url = st.secrets["database"]["url"]
+engine = create_engine(db_url, pool_pre_ping=True)
+
+try:
+    with engine.connect() as conn:
+        st.write("DB OK:", conn.execute(text("SELECT current_user, current_database()")).one())
+except SQLAlchemyError as e:
+    st.error(f"DB connection failed, {e}")
+
 
 st.set_page_config(page_title="Book Production Time Tracking", page_icon="favicon.png")
 
