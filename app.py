@@ -607,7 +607,94 @@ def recover_emergency_saved_times(engine):
 
         # Clear the emergency saved times
         st.session_state.emergency_saved_times = []
+def finalize_stale_active_timers(engine):
+    """Stop any timers left in the active_timers table and record them.
 
+    This runs on startup to recover sessions that were active when the app
+    last shut down unexpectedly.
+    """
+    try:
+        with engine.connect() as conn:
+            result = conn.execute(
+                text(
+                    '''
+                SELECT timer_key, card_name, user_name, list_name, board_name,
+                       start_time, accumulated_seconds, is_paused
+                FROM active_timers
+            '''
+                )
+            )
+
+            rows = result.fetchall()
+            stopped = 0
+            now = datetime.now(BST)
+            for row in rows:
+                (
+                    timer_key,
+                    card_name,
+                    user_name,
+                    list_name,
+                    board_name,
+                    start_time,
+                    accumulated,
+                    is_paused,
+                ) = row
+
+                accumulated = accumulated or 0
+                if start_time.tzinfo is None:
+                    start_time = start_time.replace(tzinfo=BST)
+                else:
+                    start_time = start_time.astimezone(BST)
+
+                elapsed = accumulated
+                if not is_paused:
+                    elapsed += int((now - start_time).total_seconds())
+
+                if elapsed <= 0:
+                    conn.execute(
+                        text('DELETE FROM active_timers WHERE timer_key = :timer_key'),
+                        {'timer_key': timer_key},
+                    )
+                    continue
+
+                conn.execute(
+                    text(
+                        '''
+                    INSERT INTO trello_time_tracking
+                    (card_name, user_name, list_name, time_spent_seconds,
+                     date_started, session_start_time, board_name)
+                    VALUES (:card_name, :user_name, :list_name, :time_spent_seconds,
+                            :date_started, :session_start_time, :board_name)
+                    ON CONFLICT (card_name, user_name, list_name, date_started, time_spent_seconds)
+                    DO UPDATE SET session_start_time = EXCLUDED.session_start_time,
+                                  board_name = EXCLUDED.board_name,
+                                  created_at = CURRENT_TIMESTAMP
+                '''
+                    ),
+                    {
+                        'card_name': card_name,
+                        'user_name': user_name,
+                        'list_name': list_name,
+                        'time_spent_seconds': elapsed,
+                        'date_started': start_time.date(),
+                        'session_start_time': start_time,
+                        'board_name': board_name or 'Manual Entry',
+                    },
+                )
+                conn.execute(
+                    text('DELETE FROM active_timers WHERE timer_key = :timer_key'),
+                    {'timer_key': timer_key},
+                )
+                stopped += 1
+
+            conn.commit()
+
+        if stopped > 0:
+            st.warning(
+                f"Stopped {stopped} active timer(s) from previous session due to unexpected shutdown."
+            )
+    except Exception as e:
+        st.error(f"Failed to finalise active timers: {str(e)}")
 
 def load_active_timers(engine):
     """Load active timers from database - simplified version"""
