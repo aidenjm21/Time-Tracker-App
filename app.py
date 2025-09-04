@@ -910,10 +910,12 @@ def display_active_timers_sidebar(engine):
 
                         user_display = user_name if user_name and user_name != "Not set" else "Unassigned"
 
+                        session_id = st.session_state.get('timer_session_counts', {}).get(task_key, 0)
+                                                                                          
                         col1, col2, col3 = st.columns([3, 1, 1])
                         with col1:
                             status_text = "PAUSED" if paused else "RECORDING"
-                            sidebar_timer_id = f"sidebar_timer_{task_key}"
+                            sidebar_timer_id = f"sidebar_timer_{task_key}_{session_id}"
                             components.html(
                                 f"""
 <style>
@@ -968,7 +970,7 @@ if (!paused) {{
                             )
                         with col2:
                             pause_label = "Resume" if paused else "Pause"
-                            if st.button(pause_label, key=f"summary_pause_{task_key}"):
+                            if st.button(pause_label, key=f"summary_pause_{task_key}_{session_id}"):
                                 if paused:
                                     resume_time = datetime.utcnow().replace(tzinfo=timezone.utc).astimezone(BST)
                                     st.session_state.timer_start_times[task_key] = resume_time
@@ -982,7 +984,7 @@ if (!paused) {{
                                     update_active_timer_state(engine, task_key, new_accum, True)
                                 st.rerun()
                         with col3:
-                            if st.button("Stop", key=f"summary_stop_{task_key}"):
+                            if st.button("Stop", key=f"summary_stop_{task_key}_{session_id}"):
                                 stop_active_timer(engine, task_key)
 
         st.markdown("---")
