@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta, timezone
 from collections import Counter
+import hashlib
 import io
 import os
 import re
@@ -11,10 +12,19 @@ import streamlit.components.v1 as components
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
+# Small helper for deterministic, compact unique IDs for widget keys
+def stable_hash(*values) -> str:
+    s = "||".join("" if v is None else str(v) for v in values)
+    return hashlib.md5(s.encode()).hexdigest()[:8]
+
 st.set_page_config(page_title="Book Production Time Tracking", page_icon="favicon.png")
 
 components.html(
     """
+    <style>
+      /* Kill default margins inside the iframe so no extra space sneaks in */
+      html, body { margin: 0; padding: 0; height: 10px; overflow: hidden; }
+    </style>
     <script>
     (function() {
         const doc = window.parent.document;
@@ -51,13 +61,20 @@ components.html(
                 sidebar.style.width = '45%';
             }
         }
+
+        // Clamp THIS component's iframe height to 10px
+        const me = window.frameElement;
+        if (me) {
+            me.style.height = '10px';
+            me.style.maxHeight = '10px';
+            me.style.minHeight = '0';
+            me.style.overflow = 'hidden';
+        }
     })();
     </script>
-
     """,
-    height=0,
+    height=10,
 )
-
 
 # Set BST timezone (UTC+1)
 BST = timezone(timedelta(hours=1))
@@ -75,14 +92,12 @@ PLACEHOLDER_ERRORS = {
     "Database error, please see the error log for more details",
 }
 
-
 def log_error(message, *args, **kwargs):
     """Log error messages with timestamp and display them."""
     timestamp = datetime.now(BST).strftime("%Y-%m-%d %H:%M:%S")
     if message not in PLACEHOLDER_ERRORS:
         st.session_state.error_log.append({"time": timestamp, "message": message})
     _original_st_error(message, *args, **kwargs)
-
 
 st.error = log_error
 
@@ -91,7 +106,6 @@ EDITORIAL_USERS_LIST = [
     "Bethany Latham",
     "Charis Mather",
     "Noah Leatherland",
-    "Rebecca Phillips-Bartlett",
 ]
 DESIGN_USERS_LIST = [
     "Amelia Harris",
@@ -107,7 +121,6 @@ ALL_USERS_LIST = EDITORIAL_USERS_LIST + DESIGN_USERS_LIST
 FIRST_NAME_TO_FULL = {name.split()[0].lower(): name for name in ALL_USERS_LIST}
 FIRST_NAME_TO_FULL.update({
     "beth": "Bethany Latham",
-    "becca": "Rebecca Phillips-Bartlett",
     "ker ker": "Ker Ker Lee",
 })
 
@@ -131,7 +144,6 @@ def normalize_user_name(name):
         return FIRST_NAME_TO_FULL[first]
 
     return name
-
 
 @st.cache_resource
 def init_database():
