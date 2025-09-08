@@ -1366,7 +1366,8 @@ def add_stage_to_book(engine, card_name, stage_name, board_name=None, tag=None, 
                 ),
                 {
                     'card_name': card_name,
-                    'user_name': 'Not set',  # Unassigned initially
+                    # Store NULL for unassigned stages so assignment can update correctly
+                    'user_name': None,
                     'list_name': stage_name,
                     'time_spent_seconds': 0,
                     'card_estimate_seconds': estimate_seconds,
@@ -1967,7 +1968,7 @@ def main():
                 passwords = st.secrets.get("passwords", {})
                 if passwords.get(full_name) == password_input:
                     st.session_state.logged_in_user = full_name
-                    st.rerun()
+                    # No manual rerun needed; Streamlit reruns automatically on widget interaction
                 else:
                     st.error("Invalid username or password")
 
@@ -2841,7 +2842,7 @@ def main():
                                                                     new_user if new_user != "Not set" else None
                                                                 )
                                                                 old_user_value = (
-                                                                    user_name if user_name != "Not set" else None
+                                                                    user_name if user_name != "Not set" else "Not set"
                                                                 )
 
                                                                 conn.execute(
@@ -2851,8 +2852,8 @@ def main():
                                                                         SET user_name = :new_user
                                                                         WHERE card_name = :card_name
                                                                         AND list_name = :list_name
-                                                                        AND COALESCE(user_name, '') = COALESCE(:old_user, '')
-                                                                    '''
+                                                                        AND COALESCE(user_name, 'Not set') = COALESCE(:old_user, 'Not set')
+                                                                        '''
                                                                     ),
                                                                     {
                                                                         'new_user': new_user_value,
@@ -3433,7 +3434,7 @@ def main():
                                                             INSERT INTO trello_time_tracking
                                                             (card_name, user_name, list_name, time_spent_seconds,
                                                              card_estimate_seconds, board_name, archived, created_at)
-                                                            VALUES (:card_name, 'Not set', 'No tasks assigned', 0,
+                                                            VALUES (:card_name, NULL, 'No tasks assigned', 0,
                                                                    0, 'Manual Entry', TRUE, NOW())
                                                         '''
                                                         ),
