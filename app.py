@@ -1065,40 +1065,29 @@ body {{
 <div id='{sidebar_timer_id}' class='timer-text'>{book_title} - {stage_name}<br>{user_display}<br>{elapsed_str}/{estimate_str} - {status_text}</div>
 <script>
 var elem = document.getElementById('{sidebar_timer_id}');
-function updateThemeStyles() {{
-  var parentStyles = window.parent.getComputedStyle(window.parent.document.body);
-  elem.style.fontFamily = parentStyles.getPropertyValue('font-family');
-  elem.style.color = parentStyles.getPropertyValue('color');
-}}
-updateThemeStyles();
-setInterval(updateThemeStyles, 1000);
-
-var elapsed = {elapsed_seconds};
-var paused = {str(paused).lower()};
-function fmt(sec) {{
-  var h = Math.floor(sec / 3600).toString().padStart(2, '0');
-  var m = Math.floor((sec % 3600) / 60).toString().padStart(2, '0');
-  var s = Math.floor(sec % 60).toString().padStart(2, '0');
-  return h + ':' + m + ':' + s;
-}}
-function resizeIframe() {{
-  var iframe = window.frameElement;
-  if (iframe) {{
-    iframe.style.height = (document.body.scrollHeight + 4) + 'px';
-
+  function updateThemeStyles() {{
+    var parentStyles = window.parent.getComputedStyle(window.parent.document.body);
+    elem.style.fontFamily = parentStyles.getPropertyValue('font-family');
+    elem.style.color = parentStyles.getPropertyValue('color');
   }}
-}}
-resizeIframe();
-if (!paused) {{
-  setInterval(function() {{
-    elapsed += 1;
-    elem.innerHTML = "{book_title} - {stage_name}<br>{user_display}<br>" + fmt(elapsed) + "/{estimate_str} - {status_text}";
-    resizeIframe();
-  }}, 1000);
-}}
-</script>
-""",
-                                height=0,
+  updateThemeStyles();
+  var elapsed = {elapsed_seconds};
+  var paused = {str(paused).lower()};
+  function fmt(sec) {{
+    var h = Math.floor(sec / 3600).toString().padStart(2, '0');
+    var m = Math.floor((sec % 3600) / 60).toString().padStart(2, '0');
+    var s = Math.floor(sec % 60).toString().padStart(2, '0');
+    return h + ':' + m + ':' + s;
+  }}
+    if (!paused) {{
+      setInterval(function() {{
+        elapsed += 1;
+        elem.innerHTML = "{book_title} - {stage_name}<br>{user_display}<br>" + fmt(elapsed) + "/{estimate_str} - {status_text}";
+      }}, 1000);
+    }}
+    </script>
+    """,
+                                height=80,
                             )
                         with col2:
                             pause_label = "Resume" if paused else "Pause"
@@ -1612,7 +1601,6 @@ function updateThemeStyles() {{
   elem.style.color = parentStyles.getPropertyValue('color');
 }}
 updateThemeStyles();
-setInterval(updateThemeStyles, 1000);
 
 var elapsed = {elapsed_seconds};
 var paused = {str(paused).lower()};
