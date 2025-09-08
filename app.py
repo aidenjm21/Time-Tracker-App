@@ -1089,22 +1089,36 @@ if (!paused) {{
                             )
                         with col2:
                             pause_label = "Resume" if paused else "Pause"
-                            if st.button(pause_label, key=f"summary_pause_{task_key}_{session_id}"):
-                                if paused:
-                                    resume_time = datetime.utcnow().replace(tzinfo=timezone.utc).astimezone(BST)
-                                    st.session_state.timer_start_times[task_key] = resume_time
-                                    st.session_state.timer_paused[task_key] = False
-                                    update_active_timer_state(engine, task_key, accumulated, False, resume_time)
-                                else:
-                                    elapsed_since_start = calculate_timer_elapsed_time(start_time)
-                                    new_accum = accumulated + elapsed_since_start
-                                    st.session_state.timer_accumulated_time[task_key] = new_accum
-                                    st.session_state.timer_paused[task_key] = True
-                                    update_active_timer_state(engine, task_key, new_accum, True)
-                                st.rerun()
+                            if st.session_state.logged_in_user == user_name:
+                                if st.button(pause_label, key=f"summary_pause_{task_key}_{session_id}"):
+                                    if paused:
+                                        resume_time = datetime.utcnow().replace(tzinfo=timezone.utc).astimezone(BST)
+                                        st.session_state.timer_start_times[task_key] = resume_time
+                                        st.session_state.timer_paused[task_key] = False
+                                        update_active_timer_state(engine, task_key, accumulated, False, resume_time)
+                                    else:
+                                        elapsed_since_start = calculate_timer_elapsed_time(start_time)
+                                        new_accum = accumulated + elapsed_since_start
+                                        st.session_state.timer_accumulated_time[task_key] = new_accum
+                                        st.session_state.timer_paused[task_key] = True
+                                        update_active_timer_state(engine, task_key, new_accum, True)
+                                    st.rerun()
+                            else:
+                                st.button(
+                                    pause_label,
+                                    key=f"summary_pause_disabled_{task_key}_{session_id}",
+                                    disabled=True,
+                                )
                         with col3:
-                            if st.button("Stop", key=f"summary_stop_{task_key}_{session_id}"):
-                                stop_active_timer(engine, task_key)
+                            if st.session_state.logged_in_user == user_name:
+                                if st.button("Stop", key=f"summary_stop_{task_key}_{session_id}"):
+                                    stop_active_timer(engine, task_key)
+                            else:
+                                st.button(
+                                    "Stop",
+                                    key=f"summary_stop_disabled_{task_key}_{session_id}",
+                                    disabled=True,
+                                )
 
         st.markdown("---")
 
@@ -1918,11 +1932,48 @@ def process_user_task_breakdown(df):
 
 
 def main():
+    """Main entry point for the Streamlit app with authentication."""
+
+    # --- Simple login system ---
+    if "logged_in_user" not in st.session_state:
+        st.session_state.logged_in_user = None
+
+    if st.session_state.logged_in_user is None:
+        # Blur background when login dialog is active
+        st.markdown(
+            """
+            <style>
+            [data-testid="stDialogOverlay"] {
+                backdrop-filter: blur(5px);
+            }
+            </style>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        @st.dialog("Login", width="small")
+        def login_dialog():
+            user_input = st.text_input("User")
+            password_input = st.text_input("Password", type="password")
+            if st.button("Login"):
+                full_name = normalize_user_name(user_input)
+                passwords = st.secrets.get("passwords", {})
+                if passwords.get(full_name) == password_input:
+                    st.session_state.logged_in_user = full_name
+                    st.rerun()
+                else:
+                    st.error("Invalid username or password")
+
+        login_dialog()
+        st.stop()
+
     # Initialise database connection
     engine = init_database()
     if not engine:
         st.error("Could not connect to database. Please check your configuration.")
         return
+
+    st.sidebar.success(f"Logged in as {st.session_state.logged_in_user}")
 
     st.title("Book Production Time Tracking")
     st.markdown("Track time spent on different stages of book production with detailed stage-specific analysis.")
@@ -2830,25 +2881,28 @@ def main():
                                             st.write("")
 
                                         with col3:
-                                            # Start/Stop timer button with timer display
-                                            if task_key not in st.session_state.timers:
-                                                st.session_state.timers[task_key] = False
+                                            if st.session_state.logged_in_user != user_name:
+                                                st.caption(f"{user_name} only")
+                                            else:
+                                                # Start/Stop timer button with timer display
+                                                if task_key not in st.session_state.timers:
+                                                    st.session_state.timers[task_key] = False
 
-                                            # Timer controls and display
-                                            if st.session_state.timers[task_key]:
-                                                # Timer is active - show simple stop control
-                                                if task_key in st.session_state.timer_start_times:
+                                                # Timer controls and display
+                                                if st.session_state.timers[task_key]:
+                                                    # Timer is active - show simple stop control
+                                                    if task_key in st.session_state.timer_start_times:
 
-                                                    # Simple timer calculation
-                                                    start_time = st.session_state.timer_start_times[task_key]
-                                                    base_time = st.session_state.timer_base_times.get(task_key, 0)
-                                                    accumulated = st.session_state.timer_accumulated_time.get(task_key, 0)
-                                                    paused = st.session_state.timer_paused.get(task_key, False)
+                                                        # Simple timer calculation
+                                                        start_time = st.session_state.timer_start_times[task_key]
+                                                        base_time = st.session_state.timer_base_times.get(task_key, 0)
+                                                        accumulated = st.session_state.timer_accumulated_time.get(task_key, 0)
+                                                        paused = st.session_state.timer_paused.get(task_key, False)
 
-                                                    current_elapsed = 0 if paused else calculate_timer_elapsed_time(start_time)
-                                                   
-                                                    session_elapsed = accumulated + current_elapsed
-                                                    display_elapsed = base_time + session_elapsed
+                                                        current_elapsed = 0 if paused else calculate_timer_elapsed_time(start_time)
+
+                                                        session_elapsed = accumulated + current_elapsed
+                                                        display_elapsed = base_time + session_elapsed
 
                                                     # Display recording status with a client-side timer
                                                     status_label = "Paused" if paused else "Recording"
@@ -3020,45 +3074,45 @@ def main():
                                                             # Refresh the interface so totals update immediately
                                                             st.rerun()
 
-                                            else:
-                                                # Timer is not active - show Start button
-                                                if st.button("Start", key=f"start_{task_key}_{session_id}"):
-                                                    # Preserve expanded state before rerun
-                                                    expanded_key = f"expanded_{book_title}"
-                                                    st.session_state[expanded_key] = True
+                                                else:
+                                                    # Timer is not active - show Start button
+                                                    if st.button("Start", key=f"start_{task_key}_{session_id}"):
+                                                        # Preserve expanded state before rerun
+                                                        expanded_key = f"expanded_{book_title}"
+                                                        st.session_state[expanded_key] = True
 
-                                                    # Also preserve stage expanded state
-                                                    stage_expanded_key = f"stage_expanded_{book_title}_{stage_name}"
-                                                    st.session_state[stage_expanded_key] = True
+                                                        # Also preserve stage expanded state
+                                                        stage_expanded_key = f"stage_expanded_{book_title}_{stage_name}"
+                                                        st.session_state[stage_expanded_key] = True
 
-                                                    # Start timer - use UTC for consistency
-                                                    start_time_utc = datetime.utcnow().replace(tzinfo=timezone.utc)
-                                                    # Convert to BST for display/storage but keep UTC calculation base
-                                                    start_time_bst = start_time_utc.astimezone(BST)
-                                                    st.session_state.timers[task_key] = True
-                                                    st.session_state.timer_start_times[task_key] = start_time_bst
-                                                    st.session_state.timer_paused[task_key] = False
-                                                    existing_seconds = int(actual_time)
-                                                    st.session_state.timer_accumulated_time[task_key] = 0
-                                                    st.session_state.timer_base_times[task_key] = existing_seconds
+                                                        # Start timer - use UTC for consistency
+                                                        start_time_utc = datetime.utcnow().replace(tzinfo=timezone.utc)
+                                                        # Convert to BST for display/storage but keep UTC calculation base
+                                                        start_time_bst = start_time_utc.astimezone(BST)
+                                                        st.session_state.timers[task_key] = True
+                                                        st.session_state.timer_start_times[task_key] = start_time_bst
+                                                        st.session_state.timer_paused[task_key] = False
+                                                        existing_seconds = int(actual_time)
+                                                        st.session_state.timer_accumulated_time[task_key] = 0
+                                                        st.session_state.timer_base_times[task_key] = existing_seconds
 
-                                                    # Save to database for persistence
-                                                    user_original_data = stage_data[
-                                                        stage_data['User'] == user_name
-                                                    ].iloc[0]
-                                                    board_name = user_original_data['Board']
+                                                        # Save to database for persistence
+                                                        user_original_data = stage_data[
+                                                            stage_data['User'] == user_name
+                                                        ].iloc[0]
+                                                        board_name = user_original_data['Board']
 
-                                                    save_active_timer(
-                                                        engine,
-                                                        task_key,
-                                                        book_title,
-                                                        user_name if user_name != "Not set" else None,
-                                                        stage_name,
-                                                        board_name,
-                                                        start_time_bst,
-                                                        accumulated_seconds=0,
-                                                        is_paused=False,
-                                                    )
+                                                        save_active_timer(
+                                                            engine,
+                                                            task_key,
+                                                            book_title,
+                                                            user_name if user_name != "Not set" else None,
+                                                            stage_name,
+                                                            board_name,
+                                                            start_time_bst,
+                                                            accumulated_seconds=0,
+                                                            is_paused=False,
+                                                        )
 
                                                     st.rerun()
 
