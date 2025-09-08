@@ -1968,7 +1968,8 @@ def main():
                 passwords = st.secrets.get("passwords", {})
                 if passwords.get(full_name) == password_input:
                     st.session_state.logged_in_user = full_name
-                    # No manual rerun needed; Streamlit reruns automatically on widget interaction
+                    # Trigger a rerun so the app continues past the login dialog
+                    st.rerun()
                 else:
                     st.error("Invalid username or password")
 
