@@ -133,6 +133,8 @@ def normalize_user_name(name):
         return "Not set"
 
     lower = name.lower()
+    if lower == "admin":
+        return "admin"
     # Exact match to known users
     for full in ALL_USERS_LIST:
         if lower == full.lower():
@@ -144,6 +146,11 @@ def normalize_user_name(name):
         return FIRST_NAME_TO_FULL[first]
 
     return name
+
+
+def is_admin():
+    """Check if the current logged in user is the admin."""
+    return st.session_state.get("logged_in_user") == "admin"
 
 @st.cache_resource
 def init_database():
@@ -1089,7 +1096,7 @@ if (!paused) {{
                             )
                         with col2:
                             pause_label = "Resume" if paused else "Pause"
-                            if st.session_state.logged_in_user == user_name:
+                            if is_admin() or st.session_state.logged_in_user == user_name:
                                 if st.button(pause_label, key=f"summary_pause_{task_key}_{session_id}"):
                                     if paused:
                                         resume_time = datetime.utcnow().replace(tzinfo=timezone.utc).astimezone(BST)
@@ -1110,7 +1117,7 @@ if (!paused) {{
                                     disabled=True,
                                 )
                         with col3:
-                            if st.session_state.logged_in_user == user_name:
+                            if is_admin() or st.session_state.logged_in_user == user_name:
                                 if st.button("Stop", key=f"summary_stop_{task_key}_{session_id}"):
                                     stop_active_timer(engine, task_key)
                             else:
@@ -2881,7 +2888,7 @@ def main():
                                             st.write("")
 
                                         with col3:
-                                            if st.session_state.logged_in_user != user_name:
+                                            if not (is_admin() or st.session_state.logged_in_user == user_name):
                                                 st.caption(f"{user_name} only")
                                             else:
                                                 # Start/Stop timer button with timer display
