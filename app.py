@@ -731,6 +731,8 @@ def load_active_timers(engine):
                     st.session_state.timer_paused = {}
                 if 'timer_accumulated_time' not in st.session_state:
                     st.session_state.timer_accumulated_time = {}
+                if 'timer_base_times' not in st.session_state:
+                    st.session_state.timer_base_times = {}
                 if 'timer_session_counts' not in st.session_state:
                     st.session_state.timer_session_counts = {}
 
@@ -746,7 +748,8 @@ def load_active_timers(engine):
                 st.session_state.timer_paused[timer_key] = is_paused
                 st.session_state.timer_accumulated_time[timer_key] = accumulated_seconds
                 st.session_state.timer_session_counts.setdefault(timer_key, 0)
-
+                total_base = get_total_time_spent(engine, card_name, user_name, list_name)
+                st.session_state.timer_base_times[timer_key] = total_base
                 active_timers.append(
                     {
                         'timer_key': timer_key,
@@ -829,7 +832,32 @@ def save_active_timer(
     except Exception as e:
         st.error(f"Error saving active timer: {str(e)}")
 
-
+def get_total_time_spent(engine, card_name, user_name, list_name):
+    """Return total seconds already tracked for a task."""
+    try:
+        with engine.connect() as conn:
+            result = conn.execute(
+                text(
+                    '''
+                SELECT COALESCE(SUM(time_spent_seconds), 0)
+                FROM trello_time_tracking
+                WHERE card_name = :card_name
+                  AND list_name = :list_name
+                  AND COALESCE(user_name, '') = COALESCE(:user_name, '')
+            '''
+                ),
+                {
+                    'card_name': card_name,
+                    'list_name': list_name,
+                    'user_name': user_name if user_name != "Not set" else None,
+                },
+            )
+            total = result.scalar() or 0
+            return int(total)
+    except Exception as e:
+        st.error(f"Error fetching total time: {str(e)}")
+        return 0
+    
 def update_active_timer_state(
     engine, timer_key, accumulated_seconds, is_paused, start_time=None
 ):
@@ -965,6 +993,8 @@ def stop_active_timer(engine, timer_key):
         del st.session_state.timer_accumulated_time[timer_key]
     if timer_key in st.session_state.timer_paused:
         del st.session_state.timer_paused[timer_key]
+    if 'timer_base_times' in st.session_state and timer_key in st.session_state.timer_base_times:
+        del st.session_state.timer_base_times[timer_key]
     st.session_state.setdefault('timer_session_counts', {})
     st.session_state.timer_session_counts[timer_key] = st.session_state.timer_session_counts.get(timer_key, 0) + 1
     st.rerun()
@@ -986,10 +1016,12 @@ def display_active_timers_sidebar(engine):
                         stage_name = parts[-2]
                         user_name = parts[-1]
                         start_time = st.session_state.timer_start_times[task_key]
+                        base_time = st.session_state.timer_base_times.get(task_key, 0)
                         accumulated = st.session_state.timer_accumulated_time.get(task_key, 0)
                         paused = st.session_state.timer_paused.get(task_key, False)
                         current_elapsed = 0 if paused else calculate_timer_elapsed_time(start_time)
-                        elapsed_seconds = accumulated + current_elapsed
+                        session_elapsed = accumulated + current_elapsed
+                        elapsed_seconds = base_time + session_elapsed
                         elapsed_str = format_seconds_to_time(elapsed_seconds)
 
                         estimate_seconds = get_task_estimate(engine, book_title, user_name, stage_name)
@@ -1906,6 +1938,8 @@ def main():
         st.session_state.timer_paused = {}
     if 'timer_accumulated_time' not in st.session_state:
         st.session_state.timer_accumulated_time = {}
+    if 'timer_base_times' not in st.session_state:
+        st.session_state.timer_base_times = {}
     if 'timer_session_counts' not in st.session_state:
         st.session_state.timer_session_counts = {}
 
@@ -2807,12 +2841,14 @@ def main():
 
                                                     # Simple timer calculation
                                                     start_time = st.session_state.timer_start_times[task_key]
+                                                    base_time = st.session_state.timer_base_times.get(task_key, 0)
                                                     accumulated = st.session_state.timer_accumulated_time.get(task_key, 0)
                                                     paused = st.session_state.timer_paused.get(task_key, False)
 
                                                     current_elapsed = 0 if paused else calculate_timer_elapsed_time(start_time)
-                                                    elapsed_seconds = accumulated + current_elapsed
-                                                    elapsed_str = format_seconds_to_time(elapsed_seconds)
+                                                   
+                                                    session_elapsed = accumulated + current_elapsed
+                                                    display_elapsed = base_time + session_elapsed
 
                                                     # Display recording status with a client-side timer
                                                     status_label = "Paused" if paused else "Recording"
@@ -2821,7 +2857,7 @@ def main():
                                                         render_basic_js_timer(
                                                             timer_id,
                                                             status_label,
-                                                            elapsed_seconds,
+                                                            display_elapsed,
                                                             paused,
                                                         ),
                                                         height=40,
@@ -2864,7 +2900,7 @@ def main():
 
                                                     with timer_row2_col2:
                                                         if st.button("Stop", key=f"stop_{task_key}_{session_id}"):
-                                                            final_time = elapsed_seconds
+                                                            final_time = session_elapsed
                                                             stop_active_timer(engine, task_key)
 
                                                             # Keep expanded states
@@ -2935,9 +2971,9 @@ def main():
 
                                                                     # Store success message for display at bottom
                                                                     success_msg_key = f"timer_success_{task_key}"
+                                                                    session_str = format_seconds_to_time(final_time)
                                                                     st.session_state[success_msg_key] = (
-                                                                        f"Added {elapsed_str} to {book_title} - {stage_name}"
-                                                                    )
+                                                                        f"Added {session_str} to {book_title} - {stage_name}"                                                                    )
 
                                                                     # Timer stopped successfully
                                                                 except Exception as e:
@@ -2979,7 +3015,8 @@ def main():
                                                                 del st.session_state.timer_accumulated_time[task_key]
                                                             if task_key in st.session_state.timer_paused:
                                                                 del st.session_state.timer_paused[task_key]
-
+                                                            if task_key in st.session_state.timer_base_times:
+                                                                del st.session_state.timer_base_times[task_key]
                                                             # Refresh the interface so totals update immediately
                                                             st.rerun()
 
@@ -3001,7 +3038,9 @@ def main():
                                                     st.session_state.timers[task_key] = True
                                                     st.session_state.timer_start_times[task_key] = start_time_bst
                                                     st.session_state.timer_paused[task_key] = False
+                                                    existing_seconds = int(actual_time)
                                                     st.session_state.timer_accumulated_time[task_key] = 0
+                                                    st.session_state.timer_base_times[task_key] = existing_seconds
 
                                                     # Save to database for persistence
                                                     user_original_data = stage_data[
