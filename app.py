@@ -84,7 +84,9 @@ UTC_PLUS_1 = BST  # Keep backward compatibility
 if "error_log" not in st.session_state:
     st.session_state.error_log = []
 
-_original_st_error = st.error
+if "_original_st_error" not in st.session_state:
+    # Preserve the original st.error so our wrapper doesn't wrap itself
+    st.session_state._original_st_error = st.error
 
 # Placeholder messages shown to users but not helpful in the error log
 PLACEHOLDER_ERRORS = {
@@ -92,14 +94,18 @@ PLACEHOLDER_ERRORS = {
     "Database error, please see the error log for more details",
 }
 
+
 def log_error(message, *args, **kwargs):
     """Log error messages with timestamp and display them."""
     timestamp = datetime.now(BST).strftime("%Y-%m-%d %H:%M:%S")
     if message not in PLACEHOLDER_ERRORS:
         st.session_state.error_log.append({"time": timestamp, "message": message})
-    _original_st_error(message, *args, **kwargs)
+    st.session_state._original_st_error(message, *args, **kwargs)
 
-st.error = log_error
+
+# Replace Streamlit's error function with our logger, but only once
+if st.error != log_error:
+    st.error = log_error
 
 # Known full user names for matching CSV imports
 EDITORIAL_USERS_LIST = [
@@ -1947,32 +1953,18 @@ def main():
         st.session_state.logged_in_user = None
 
     if st.session_state.logged_in_user is None:
-        # Blur background when login dialog is active
-        st.markdown(
-            """
-            <style>
-            [data-testid="stDialogOverlay"] {
-                backdrop-filter: blur(5px);
-            }
-            </style>
-            """,
-            unsafe_allow_html=True,
-        )
-
-        @st.dialog("Login", width="small")
-        def login_dialog():
+        st.title("Login")
+        with st.form("login_form", clear_on_submit=True):
             user_input = st.text_input("User")
             password_input = st.text_input("Password", type="password")
-            if st.button("Login"):
-                full_name = normalize_user_name(user_input)
-                passwords = st.secrets.get("passwords", {})
-                if passwords.get(full_name) == password_input:
-                    st.session_state.logged_in_user = full_name
-                    # No manual rerun needed; Streamlit reruns automatically on widget interaction
-                else:
-                    st.error("Invalid username or password")
-
-        login_dialog()
+            submitted = st.form_submit_button("Login")
+        if submitted:
+            full_name = normalize_user_name(user_input)
+            passwords = st.secrets.get("passwords", {})
+            if passwords.get(full_name) == password_input:
+                st.session_state.logged_in_user = full_name
+            else:
+                st.error("Invalid username or password")
         st.stop()
 
     # Initialise database connection
