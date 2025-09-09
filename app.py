@@ -1203,6 +1203,9 @@ if (!paused) {{
                         stop_active_timer(engine, task_key)
 
         st.markdown("---")
+        if ss_get("authenticated") and st.button("Log Out"):
+            st.session_state.clear()
+            st.rerun()
 
 
 def update_task_completion(engine, card_name, user_name, list_name, completed):
