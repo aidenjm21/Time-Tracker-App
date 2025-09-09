@@ -84,7 +84,9 @@ UTC_PLUS_1 = BST  # Keep backward compatibility
 if "error_log" not in st.session_state:
     st.session_state.error_log = []
 
-_original_st_error = st.error
+# Preserve the original Streamlit error function across reruns
+if "_original_st_error" not in st.session_state:
+    st.session_state._original_st_error = st.error
 
 # Placeholder messages shown to users but not helpful in the error log
 PLACEHOLDER_ERRORS = {
@@ -97,7 +99,7 @@ def log_error(message, *args, **kwargs):
     timestamp = datetime.now(BST).strftime("%Y-%m-%d %H:%M:%S")
     if message not in PLACEHOLDER_ERRORS:
         st.session_state.error_log.append({"time": timestamp, "message": message})
-    _original_st_error(message, *args, **kwargs)
+    return st.session_state._original_st_error(message, *args, **kwargs)
 
 st.error = log_error
 
@@ -3485,7 +3487,7 @@ def main():
                 )
             except Exception:
                 pass
-            _original_st_error(
+            st.session_state._original_st_error(
                 "Database error, please see the error log for more details"
             )
         except Exception as e:
@@ -3504,7 +3506,7 @@ def main():
                 )
             except Exception:
                 pass
-            _original_st_error(
+            st.session_state._original_st_error(
                 "An unexpected error occurred, please see the error log for more details"
             )
 
