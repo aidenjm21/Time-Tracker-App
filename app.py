@@ -214,6 +214,7 @@ def require_login():
                 st.error("Invalid username or password")
 
     login_dialog()
+
     st.stop()
 
 @st.cache_resource
