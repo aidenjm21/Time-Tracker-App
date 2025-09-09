@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 from collections import Counter
 import hashlib
 import io
@@ -22,7 +23,6 @@ st.set_page_config(page_title="Book Production Time Tracking", page_icon="favico
 components.html(
     """
     <style>
-      /* Kill default margins inside the iframe so no extra space sneaks in */
       html, body { margin: 0; padding: 0; height: 10px; overflow: hidden; }
     </style>
     <script>
@@ -30,7 +30,6 @@ components.html(
         const doc = window.parent.document;
         const head = doc.head;
 
-        // Load Google Fonts
         const link1 = doc.createElement('link');
         link1.rel = 'preconnect';
         link1.href = 'https://fonts.googleapis.com';
@@ -47,22 +46,16 @@ components.html(
         link3.href = 'https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,200..900;1,200..900&display=swap';
         head.appendChild(link3);
 
-        // Allow sidebar to be resizable
         const style = doc.createElement('style');
         style.textContent = '[data-testid="stSidebar"] { resize: horizontal; overflow: auto; }';
         head.appendChild(style);
 
-        // Set default sidebar width so users can still resize it
         const sidebar = doc.querySelector('section[data-testid="stSidebar"]');
         if (sidebar) {
-            if (window.innerWidth <= 768) {
-                sidebar.style.width = '100%';
-            } else {
-                sidebar.style.width = '45%';
-            }
+            if (window.innerWidth <= 768) { sidebar.style.width = '100%'; }
+            else { sidebar.style.width = '45%'; }
         }
 
-        // Clamp THIS component's iframe height to 10px
         const me = window.frameElement;
         if (me) {
             me.style.height = '10px';
@@ -76,32 +69,63 @@ components.html(
     height=10,
 )
 
-# Set BST timezone (UTC+1)
-BST = timezone(timedelta(hours=1))
-UTC_PLUS_1 = BST  # Keep backward compatibility
+# Timezones
+BST = timezone(timedelta(hours=1))            # legacy fixed offset for any old code that expects it
+UTC_PLUS_1 = BST
+LONDON_TZ = ZoneInfo("Europe/London")         # proper DST handling
 
-# Error logging: capture all messages passed to st.error
+# Helpers to safely read and write session state without attribute access
+def ss_get(key, default=None):
+    return st.session_state[key] if key in st.session_state else default
+
+def ss_set(key, value):
+    st.session_state[key] = value
+
+# Capture the true Streamlit error function before any patching
+_ORIG_ST_ERROR = st.error
+
+# One-time initial state
 if "error_log" not in st.session_state:
-    st.session_state.error_log = []
-
-# Preserve the original Streamlit error function across reruns
-if "_original_st_error" not in st.session_state:
-    st.session_state._original_st_error = st.error
-
-# Placeholder messages shown to users but not helpful in the error log
-PLACEHOLDER_ERRORS = {
-    "An unexpected error occurred, please see the error log for more details",
-    "Database error, please see the error log for more details",
-}
+    ss_set("error_log", [])
+if "_orig_st_error" not in st.session_state:
+    ss_set("_orig_st_error", _ORIG_ST_ERROR)
+if "_error_patched" not in st.session_state:
+    ss_set("_error_patched", False)
+if "_logging_error" not in st.session_state:
+    ss_set("_logging_error", False)
 
 def log_error(message, *args, **kwargs):
-    """Log error messages with timestamp and display them."""
-    timestamp = datetime.now(BST).strftime("%Y-%m-%d %H:%M:%S")
-    if message not in PLACEHOLDER_ERRORS:
-        st.session_state.error_log.append({"time": timestamp, "message": message})
-    return st.session_state._original_st_error(message, *args, **kwargs)
+    """Log error messages with timestamp and display them without recursion."""
+    if ss_get("_logging_error", False):
+        # Already in the middle of logging, call the true original directly
+        orig = ss_get("_orig_st_error", _ORIG_ST_ERROR)
+        return orig(message, *args, **kwargs)
 
-st.error = log_error
+    ss_set("_logging_error", True)
+    try:
+        timestamp = datetime.now(LONDON_TZ).strftime("%Y-%m-%d %H:%M:%S")
+
+        # Best effort to avoid logging noisy placeholders
+        try:
+            if message not in PLACEHOLDER_ERRORS:
+                st.session_state.error_log.append({"time": timestamp, "message": str(message)})
+        except NameError:
+            st.session_state.error_log.append({"time": timestamp, "message": str(message)})
+
+        # Resolve the original safely
+        orig = ss_get("_orig_st_error", _ORIG_ST_ERROR)
+        if orig is log_error:
+            orig = _ORIG_ST_ERROR
+
+        return orig(message, *args, **kwargs)
+    finally:
+        ss_set("_logging_error", False)
+
+# Patch exactly once per session
+if not ss_get("_error_patched", False):
+    st.error = log_error
+    ss_set("_error_patched", True)
+
 
 # Known full user names for matching CSV imports
 EDITORIAL_USERS_LIST = [
@@ -159,6 +183,25 @@ def normalize_user_name(name):
         return FIRST_NAME_TO_FULL[first]
 
     return name
+
+def require_login():
+    """Simple username/password check before accessing the app."""
+    if st.session_state.get("authenticated"):
+        return st.session_state["user"]
+
+    st.title("Log In")
+    username = st.text_input("Username")
+    password = st.text_input("Password", type="password")
+    if st.button("Log In"):
+        key = username.strip().lower()
+        full_name = FIRST_NAME_TO_FULL.get(key)
+        if full_name and st.secrets.get("passwords", {}).get(full_name) == password:
+            st.session_state["authenticated"] = True
+            st.session_state["user"] = full_name
+            st.experimental_rerun()
+        else:
+            st.error("Invalid username or password")
+    st.stop()
 
 @st.cache_resource
 def init_database():
@@ -1467,16 +1510,20 @@ def get_filtered_tasks_from_database(
     try:
         query = '''
             WITH task_summary AS (
-                SELECT card_name, list_name, COALESCE(user_name, 'Not set') as user_name, board_name, tag,
-                       SUM(time_spent_seconds) as total_time,
-                       MAX(card_estimate_seconds) as estimated_seconds,
-                       MIN(CASE WHEN session_start_time IS NOT NULL THEN session_start_time END) as first_session
+                SELECT card_name,
+                       list_name,
+                       COALESCE(user_name, 'Not set') AS user_name,
+                       board_name,
+                       tag,
+                       SUM(time_spent_seconds) AS total_time,
+                       MAX(card_estimate_seconds) AS estimated_seconds,
+                       MIN(CASE WHEN session_start_time IS NOT NULL THEN session_start_time END) AS first_session
                 FROM trello_time_tracking
                 WHERE 1=1
         '''
         params = {}
 
-        # Add filters based on provided parameters
+        # Filters
         if user_name and user_name != "All Users":
             query += ' AND COALESCE(user_name, \'Not set\') = :user_name'
             params['user_name'] = user_name
@@ -1492,9 +1539,9 @@ def get_filtered_tasks_from_database(
         if tag_name and tag_name != "All Tags":
             query += ' AND (tag = :tag_name OR tag LIKE :tag_name_pattern1 OR tag LIKE :tag_name_pattern2 OR tag LIKE :tag_name_pattern3)'
             params['tag_name'] = tag_name
-            params['tag_name_pattern1'] = f'{tag_name},%'  # Tag at start
-            params['tag_name_pattern2'] = f'%, {tag_name},%'  # Tag in middle
-            params['tag_name_pattern3'] = f'%, {tag_name}'  # Tag at end
+            params['tag_name_pattern1'] = f'{tag_name},%'
+            params['tag_name_pattern2'] = f'%, {tag_name},%'
+            params['tag_name_pattern3'] = f'%, {tag_name}'
 
         query += '''
                 GROUP BY card_name, list_name, COALESCE(user_name, 'Not set'), board_name, tag
@@ -1503,19 +1550,19 @@ def get_filtered_tasks_from_database(
             FROM task_summary
         '''
 
-        # Add date filtering to the main query if needed
-        if start_date or end_date:
-            date_conditions = []
-            if start_date:
-                date_conditions.append('first_session >= :start_date')
-                params['start_date'] = start_date
-            if end_date:
-                date_conditions.append('first_session <= :end_date')
-                params['end_date'] = end_date
+        # Date filtering
+        date_conditions = []  # initialise so it always exists
+        if start_date:
+            date_conditions.append('first_session >= :start_date')
+            params['start_date'] = start_date
+        if end_date:
+            date_conditions.append('first_session <= :end_date')
+            params['end_date'] = end_date
 
         if date_conditions:
             query += ' WHERE ' + ' AND '.join(date_conditions)
 
+        # Order by book then stage order
         stage_order_sql = "CASE list_name " + " ".join(
             f"WHEN '{stage}' THEN {i}" for i, stage in enumerate(STAGE_ORDER, start=1)
         ) + " ELSE 999 END"
@@ -1531,16 +1578,14 @@ def get_filtered_tasks_from_database(
                 board_name = row[3]
                 tag = row[4]
                 first_session = row[5]
-                total_time = row[6]
-                estimated_time = row[7] if row[7] else 0
+                total_time = row[6] or 0
+                estimated_time = row[7] or 0
 
                 if first_session:
-                    # Format as DD/MM/YYYY HH:MM
                     date_time_str = first_session.strftime('%d/%m/%Y %H:%M')
                 else:
                     date_time_str = 'Manual Entry'
 
-                # Calculate completion percentage
                 if estimated_time > 0:
                     completion_ratio = total_time / estimated_time
                     if completion_ratio <= 1.0:
@@ -1568,7 +1613,6 @@ def get_filtered_tasks_from_database(
     except Exception as e:
         st.error(f"Error fetching user tasks: {str(e)}")
         return pd.DataFrame()
-
 
 def format_seconds_to_time(seconds):
     """Convert seconds to hh:mm:ss format"""
