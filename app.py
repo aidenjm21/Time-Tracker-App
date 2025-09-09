@@ -161,6 +161,7 @@ FIRST_NAME_TO_FULL = {name.split()[0].lower(): name for name in ALL_USERS_LIST}
 FIRST_NAME_TO_FULL.update({
     "beth": "Bethany Latham",
     "ker ker": "Ker Ker Lee",
+    "admin": "admin",
 })
 
 def normalize_user_name(name):
@@ -185,22 +186,35 @@ def normalize_user_name(name):
     return name
 
 def require_login():
-    """Simple username/password check before accessing the app."""
+    """Authenticate user with a modal popup and blur the background."""
     if st.session_state.get("authenticated"):
         return st.session_state["user"]
 
-    st.title("Log In")
-    username = st.text_input("Username")
-    password = st.text_input("Password", type="password")
-    if st.button("Log In"):
-        key = username.strip().lower()
-        full_name = FIRST_NAME_TO_FULL.get(key)
-        if full_name and st.secrets.get("passwords", {}).get(full_name) == password:
-            st.session_state["authenticated"] = True
-            st.session_state["user"] = full_name
-            st.experimental_rerun()
-        else:
-            st.error("Invalid username or password")
+    # Blur the app while login dialog is shown
+    st.markdown(
+        """
+        <style>
+        div[data-testid="stAppViewContainer"] {filter: blur(6px);}
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    @st.dialog("Sign In")
+    def login_dialog():
+        username = st.text_input("User")
+        password = st.text_input("Password", type="password")
+        if st.button("Log In"):
+            key = username.strip().split()[0].lower()
+            full_name = FIRST_NAME_TO_FULL.get(key)
+            if full_name and st.secrets.get("passwords", {}).get(full_name) == password:
+                st.session_state["authenticated"] = True
+                st.session_state["user"] = full_name
+                st.rerun()
+            else:
+                st.error("Invalid username or password")
+
+    login_dialog()
     st.stop()
 
 @st.cache_resource
@@ -754,12 +768,12 @@ def finalize_stale_active_timers(engine):
     except Exception as e:
         st.error(f"Failed to finalise active timers: {str(e)}")
 
-def load_active_timers(engine):
-    """Load active timers from database - simplified version"""
+def load_active_timers(engine, current_user):
+    """Load active timers for the current user from database."""
     try:
         with engine.connect() as conn:
-            result = conn.execute(
-                text(
+            if current_user and current_user.lower() == "admin":
+                query = text(
                     '''
                 SELECT timer_key, card_name, user_name, list_name, board_name,
                        start_time, accumulated_seconds, is_paused
@@ -767,7 +781,18 @@ def load_active_timers(engine):
                 ORDER BY start_time DESC
             '''
                 )
-            )
+                result = conn.execute(query)
+            else:
+                query = text(
+                    '''
+                SELECT timer_key, card_name, user_name, list_name, board_name,
+                       start_time, accumulated_seconds, is_paused
+                FROM active_timers
+                WHERE user_name = :user_name
+                ORDER BY start_time DESC
+            '''
+                )
+                result = conn.execute(query, {"user_name": current_user})
 
             active_timers = []
             for row in result:
@@ -1060,7 +1085,13 @@ def stop_active_timer(engine, timer_key):
 
 def display_active_timers_sidebar(engine):
     """Display running timers in the sidebar on every page."""
-    active_timer_count = sum(1 for running in st.session_state.timers.values() if running)
+    current_user = ss_get("user")
+    is_admin = current_user and current_user.lower() == "admin"
+    active_timer_count = sum(
+        1
+        for key, running in st.session_state.timers.items()
+        if running and (is_admin or key.split('_')[-1] == current_user)
+    )
     with st.sidebar:
         st.write(f"**Active Timers ({active_timer_count})**")
         if active_timer_count == 0:
@@ -1071,7 +1102,7 @@ def display_active_timers_sidebar(engine):
             for task_key, is_running in st.session_state.timers.items():
                 if is_running and task_key in st.session_state.timer_start_times:
                     parts = task_key.split('_')
-                    if len(parts) >= 3:
+                    if len(parts) >= 3 and (is_admin or parts[-1] == current_user):
                         book_title = '_'.join(parts[:-2])
                         stage_name = parts[-2]
                         running.append((book_title, stage_name, task_key))
@@ -2009,7 +2040,7 @@ def main():
 
     # Load and restore active timers from database on every page load
     # This ensures timers are always properly restored even if session state is lost
-    active_timers = load_active_timers(engine)
+    active_timers = load_active_timers(engine, user_fullname)
     if active_timers and 'timers_loaded' not in st.session_state:
         st.info(f"Restored {len(active_timers)} active timer(s) from previous session.")
         st.session_state.timers_loaded = True
@@ -2891,6 +2922,12 @@ def main():
                                             st.write("")
 
                                         with col3:
+                                            current_user = ss_get("user")
+                                            if user_name != current_user and (
+                                                not current_user or current_user.lower() != "admin"
+                                            ):
+                                                st.caption("Login as assigned user to control timer")
+                                                continue
                                             # Start/Stop timer button with timer display
                                             if task_key not in st.session_state.timers:
                                                 st.session_state.timers[task_key] = False
