@@ -2220,7 +2220,6 @@ def main():
             "Bethany Latham",
             "Charis Mather",
             "Noah Leatherland",
-            "Rebecca Phillips-Bartlett",
         ]
         design_users = [
             "Not set",
@@ -2786,7 +2785,6 @@ def main():
                                                             "Bethany Latham",
                                                             "Charis Mather",
                                                             "Noah Leatherland",
-                                                            "Rebecca Phillips-Bartlett",
                                                         ]
                                                     else:  # Design stages
                                                         user_options = [
