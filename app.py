@@ -786,15 +786,15 @@ def finalize_stale_active_timers(engine):
         st.error(f"Failed to finalise active timers: {str(e)}")
 
 def load_active_timers(engine, current_user):
-    """Load active timers for the current user.
+    """Load all active timers into session state.
 
-    Admin users can view all active timers without filtering by user name."""
+    Timers started by other users are included so everyone can see currently
+    running work in the sidebar. The caller's identity is only used elsewhere
+    to determine whether timers are interactive or read‑only."""
     try:
         with engine.connect() as conn:
-            params = {}
-
-            if current_user and current_user.lower() == "admin":
-                query = text(
+            result = conn.execute(
+                text(
                     '''
                 SELECT timer_key, card_name, user_name, list_name, board_name,
                        start_time, accumulated_seconds, is_paused
@@ -802,18 +802,16 @@ def load_active_timers(engine, current_user):
                 ORDER BY start_time DESC
             '''
                 )
-            else:
-                query = text(
-                    '''
-                SELECT timer_key, card_name, user_name, list_name, board_name,
-                       start_time, accumulated_seconds, is_paused
-                FROM active_timers
-                ORDER BY start_time DESC
-            '''
-                )
-                params["user_name"] = current_user
+            )
 
-            result = conn.execute(query, params)
+            # Reset timer-related session state so stale entries don't hide
+            # active timers started by other users
+            st.session_state.timers = {}
+            st.session_state.timer_start_times = {}
+            st.session_state.timer_paused = {}
+            st.session_state.timer_accumulated_time = {}
+            st.session_state.timer_base_times = {}
+            st.session_state.setdefault('timer_session_counts', {})
 
             active_timers = []
             for row in result:
@@ -825,20 +823,6 @@ def load_active_timers(engine, current_user):
                 start_time = row[5]
                 accumulated_seconds = row[6] or 0
                 is_paused = row[7] or False
-
-                # Simple session state - just track if timer is running
-                if 'timers' not in st.session_state:
-                    st.session_state.timers = {}
-                if 'timer_start_times' not in st.session_state:
-                    st.session_state.timer_start_times = {}
-                if 'timer_paused' not in st.session_state:
-                    st.session_state.timer_paused = {}
-                if 'timer_accumulated_time' not in st.session_state:
-                    st.session_state.timer_accumulated_time = {}
-                if 'timer_base_times' not in st.session_state:
-                    st.session_state.timer_base_times = {}
-                if 'timer_session_counts' not in st.session_state:
-                    st.session_state.timer_session_counts = {}
 
                 # Ensure timezone-aware datetime for consistency
                 if start_time.tzinfo is None:
@@ -1108,10 +1092,11 @@ def display_active_timers_sidebar(engine):
     """Display running timers in the sidebar on every page."""
     current_user = ss_get("user")
     is_admin = current_user and current_user.lower() == "admin"
+    # Always reload active timers so users without their own can still view
+    # those started by others
+    load_active_timers(engine, current_user)
     active_timer_count = sum(
-        1
-        for key, running in st.session_state.timers.items()
-        if running and (is_admin or key.split('_')[-1] == current_user)
+        1 for key, running in st.session_state.timers.items() if running
     )
     with st.sidebar:
         st.write(f"**Active Timers ({active_timer_count})**")
@@ -1123,7 +1108,7 @@ def display_active_timers_sidebar(engine):
             for task_key, is_running in st.session_state.timers.items():
                 if is_running and task_key in st.session_state.timer_start_times:
                     parts = task_key.split('_')
-                    if len(parts) >= 3 and (is_admin or parts[-1] == current_user):
+                    if len(parts) >= 3:
                         book_title = '_'.join(parts[:-2])
                         stage_name = parts[-2]
                         running.append((book_title, stage_name, task_key))
@@ -1148,6 +1133,7 @@ def display_active_timers_sidebar(engine):
                 user_display = user_name if user_name and user_name != "Not set" else "Unassigned"
 
                 session_id = st.session_state.get('timer_session_counts', {}).get(task_key, 0)
+                view_only = not (is_admin or user_name == current_user)
 
                 col1, col2, col3 = st.columns([3, 1, 1])
                 with col1:
@@ -1173,7 +1159,11 @@ var elem = document.getElementById('{sidebar_timer_id}');
 function updateThemeStyles() {{
   var parentStyles = window.parent.getComputedStyle(window.parent.document.body);
   elem.style.fontFamily = parentStyles.getPropertyValue('font-family');
-  elem.style.color = parentStyles.getPropertyValue('color');
+  if ({str(view_only).lower()}) {{
+    elem.style.color = 'gray';
+  }} else {{
+    elem.style.color = parentStyles.getPropertyValue('color');
+  }}
 }}
 updateThemeStyles();
 setInterval(updateThemeStyles, 1000);
@@ -1205,24 +1195,30 @@ if (!paused) {{
 """,
                                 height=0,
                             )
-                with col2:
-                    pause_label = "Resume" if paused else "Pause"
-                    if st.button(pause_label, key=f"summary_pause_{task_key}_{session_id}"):
-                        if paused:
-                            resume_time = datetime.utcnow().replace(tzinfo=timezone.utc).astimezone(BST)
-                            st.session_state.timer_start_times[task_key] = resume_time
-                            st.session_state.timer_paused[task_key] = False
-                            update_active_timer_state(engine, task_key, accumulated, False, resume_time)
-                        else:
-                            elapsed_since_start = calculate_timer_elapsed_time(start_time)
-                            new_accum = accumulated + elapsed_since_start
-                            st.session_state.timer_accumulated_time[task_key] = new_accum
-                            st.session_state.timer_paused[task_key] = True
-                            update_active_timer_state(engine, task_key, new_accum, True)
-                        st.rerun()
-                with col3:
-                    if st.button("Stop", key=f"summary_stop_{task_key}_{session_id}"):
-                        stop_active_timer(engine, task_key)
+                if view_only:
+                    with col2:
+                        st.empty()
+                    with col3:
+                        st.empty()
+                else:
+                    with col2:
+                        pause_label = "Resume" if paused else "Pause"
+                        if st.button(pause_label, key=f"summary_pause_{task_key}_{session_id}"):
+                            if paused:
+                                resume_time = datetime.utcnow().replace(tzinfo=timezone.utc).astimezone(BST)
+                                st.session_state.timer_start_times[task_key] = resume_time
+                                st.session_state.timer_paused[task_key] = False
+                                update_active_timer_state(engine, task_key, accumulated, False, resume_time)
+                            else:
+                                elapsed_since_start = calculate_timer_elapsed_time(start_time)
+                                new_accum = accumulated + elapsed_since_start
+                                st.session_state.timer_accumulated_time[task_key] = new_accum
+                                st.session_state.timer_paused[task_key] = True
+                                update_active_timer_state(engine, task_key, new_accum, True)
+                            st.rerun()
+                    with col3:
+                        if st.button("Stop", key=f"summary_stop_{task_key}_{session_id}"):
+                            stop_active_timer(engine, task_key)
 
         st.markdown("---")
         if ss_get("authenticated") and st.button("Log Out", key="logout"):
