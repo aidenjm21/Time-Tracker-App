@@ -930,13 +930,13 @@ def get_total_time_spent(engine, card_name, user_name, list_name):
                 FROM trello_time_tracking
                 WHERE card_name = :card_name
                   AND list_name = :list_name
-                  AND COALESCE(user_name, '') = COALESCE(:user_name, '')
+                  AND COALESCE(user_name, 'Not set') = :user_name
             '''
                 ),
                 {
                     'card_name': card_name,
                     'list_name': list_name,
-                    'user_name': user_name if user_name != "Not set" else None,
+                    'user_name': user_name if user_name not in [None, "Not set"] else "Not set",
                 },
             )
             total = result.scalar() or 0
@@ -2655,7 +2655,10 @@ def main():
 
                                             # Check if task is completed and add tick emoji
                                             task_completed = get_task_completion(
-                                                engine, book_title, user_name, stage_name
+                                                engine,
+                                                book_title,
+                                                user_name if user_name else "Not set",
+                                                stage_name,
                                             )
                                             completion_emoji = "✅ " if task_completed else ""
 
@@ -2748,8 +2751,16 @@ def main():
                                                     except ValueError:
                                                         current_index = 0  # Default to "Not set"
 
-                                                    # Use session counter and loop index to ensure the key is unique each run
-                                                    selectbox_key = f"reassign_{book_title}_{stage_name}_{user_name}_{session_id}_{idx}"
+                                                    # Use a stable hash of task identifiers to build a unique key
+                                                    reassign_id = stable_hash(
+                                                        book_title,
+                                                        stage_name,
+                                                        user_name,
+                                                        session_id,
+                                                        idx,
+                                                        actual_time,
+                                                    )
+                                                    selectbox_key = f"reassign_{reassign_id}"
                                                     new_user = st.selectbox(
                                                         f"User for {stage_name}:",
                                                         user_options,
@@ -2791,7 +2802,10 @@ def main():
                                                                 f"complete_{book_title}_{stage_name}_{user_name}"
                                                             )
                                                             current_completion_status = get_task_completion(
-                                                                engine, book_title, user_name, stage_name
+                                                                engine,
+                                                                book_title,
+                                                                user_name if user_name else "Not set",
+                                                                stage_name,
                                                             )
 
                                                             # Update session state with database value
@@ -2808,7 +2822,7 @@ def main():
                                                                 update_task_completion(
                                                                     engine,
                                                                     book_title,
-                                                                    user_name,
+                                                                    user_name if user_name else "Not set",
                                                                     stage_name,
                                                                     new_completion_status,
                                                                 )
@@ -2838,8 +2852,10 @@ def main():
                                                     if new_user != current_user:
                                                         try:
                                                             with engine.connect() as conn:
-                                                                new_user_value = new_user if new_user != "Not set" else None
-                                                                old_user_value = user_name if user_name != "Not set" else None
+                                                                new_user_value = new_user if new_user != "Not set" else "Not set"
+                                                                old_user_value = (
+                                                                    user_name if user_name not in [None, "Not set"] else "Not set"
+                                                                )
 
                                                                 if current_user == "Not set" and new_user != "Not set":
                                                                     result = conn.execute(
@@ -2906,7 +2922,7 @@ def main():
                                                                             SET user_name = :new_user
                                                                             WHERE card_name = :card_name
                                                                             AND list_name = :list_name
-                                                                            AND COALESCE(user_name, '') = COALESCE(:old_user, '')
+                                                                            AND COALESCE(user_name, 'Not set') = :old_user
                                                                             '''
                                                                         ),
                                                                         {
@@ -2929,7 +2945,7 @@ def main():
                                                                     if key.startswith(('complete_', 'timer_')):
                                                                         del st.session_state[key]
 
-                                                                success_key = f"reassign_success_{book_title}_{stage_name}_{user_name}_{session_id}_{idx}"
+                                                                success_key = f"reassign_success_{reassign_id}"
                                                                 st.session_state[success_key] = success_message
 
                                                         except Exception as e:
@@ -3168,7 +3184,7 @@ def main():
                                                         engine,
                                                         task_key,
                                                         book_title,
-                                                        user_name if user_name != "Not set" else None,
+                                                        user_name if user_name not in [None, "Not set"] else "Not set",
                                                         stage_name,
                                                         board_name,
                                                         start_time_bst,
@@ -3255,7 +3271,10 @@ def main():
                                                                         # Get current completion status to preserve it
                                                                         completion_key = f"complete_{book_title}_{stage_name}_{user_name}"
                                                                         current_completion = get_task_completion(
-                                                                            engine, book_title, user_name, stage_name
+                                                                            engine,
+                                                                            book_title,
+                                                                            user_name if user_name else "Not set",
+                                                                            stage_name,
                                                                         )
                                                                         # Also check session state in case it was just changed
                                                                         if completion_key in st.session_state:
@@ -3332,7 +3351,7 @@ def main():
                                                 del st.session_state[completion_success_key]
 
                                             # User reassignment success message
-                                            reassign_success_key = f"reassign_success_{book_title}_{stage_name}_{user_name}_{session_id}_{idx}"
+                                            reassign_success_key = f"reassign_success_{reassign_id}"
                                             if reassign_success_key in st.session_state:
                                                 st.success(st.session_state[reassign_success_key])
                                                 del st.session_state[reassign_success_key]
