@@ -1225,7 +1225,7 @@ if (!paused) {{
                         stop_active_timer(engine, task_key)
 
         st.markdown("---")
-        if ss_get("authenticated") and st.button("Log Out"):
+        if ss_get("authenticated") and st.button("Log Out", key="logout"):
             st.session_state.clear()
             try:
                 st.query_params.clear()
@@ -1235,9 +1235,6 @@ if (!paused) {{
                 st.experimental_delete_cookie("user")
             except Exception:
                 pass
-            st.rerun()
-        if ss_get("authenticated") and st.button("Log Out"):
-            st.session_state.clear()
             st.rerun()
 
 
@@ -2706,7 +2703,7 @@ def main():
 
                                             # Get estimated time from the database for this specific user/stage combination
                                             user_stage_data = stage_data[stage_data['User'] == user_name]
-                                            estimated_time_for_user = 3600  # Default 1 hour
+                                            estimated_time_for_user = 0
 
                                             if (
                                                 not user_stage_data.empty
@@ -2761,7 +2758,7 @@ def main():
 
                                                 # Get estimated time from the database for this specific user/stage combination
                                                 user_stage_data = stage_data[stage_data['User'] == user_name]
-                                                estimated_time_for_user = 3600  # Default 1 hour
+                                                estimated_time_for_user = 0
 
                                                 if (
                                                     not user_stage_data.empty
@@ -2903,34 +2900,88 @@ def main():
                                                     if new_user != current_user:
                                                         try:
                                                             with engine.connect() as conn:
-                                                                # Update user assignment in database
-                                                                new_user_value = (
-                                                                    new_user if new_user != "Not set" else None
-                                                                )
-                                                                old_user_value = (
-                                                                    user_name if user_name != "Not set" else None
-                                                                )
+                                                                new_user_value = new_user if new_user != "Not set" else None
+                                                                old_user_value = user_name if user_name != "Not set" else None
 
-                                                                conn.execute(
-                                                                    text(
-                                                                        '''
-                                                                        UPDATE trello_time_tracking
-                                                                        SET user_name = :new_user
-                                                                        WHERE card_name = :card_name
-                                                                        AND list_name = :list_name
-                                                                        AND COALESCE(user_name, '') = COALESCE(:old_user, '')
-                                                                    '''
-                                                                    ),
-                                                                    {
-                                                                        'new_user': new_user_value,
-                                                                        'card_name': book_title,
-                                                                        'list_name': stage_name,
-                                                                        'old_user': old_user_value,
-                                                                    },
-                                                                )
+                                                                if current_user == "Not set" and new_user != "Not set":
+                                                                    result = conn.execute(
+                                                                        text(
+                                                                            '''
+                                                                            SELECT card_estimate_seconds, board_name, tag
+                                                                            FROM trello_time_tracking
+                                                                            WHERE card_name = :card_name
+                                                                            AND list_name = :list_name
+                                                                            AND COALESCE(user_name, 'Not set') = 'Not set'
+                                                                            LIMIT 1
+                                                                            '''
+                                                                        ),
+                                                                        {
+                                                                            'card_name': book_title,
+                                                                            'list_name': stage_name,
+                                                                        },
+                                                                    ).fetchone()
+
+                                                                    estimate = result.card_estimate_seconds if result and result.card_estimate_seconds else 0
+                                                                    board_name = result.board_name if result else None
+                                                                    tag = result.tag if result else None
+
+                                                                    conn.execute(
+                                                                        text(
+                                                                            '''
+                                                                            UPDATE trello_time_tracking
+                                                                            SET card_estimate_seconds = 0
+                                                                            WHERE card_name = :card_name
+                                                                            AND list_name = :list_name
+                                                                            AND COALESCE(user_name, 'Not set') = 'Not set'
+                                                                            '''
+                                                                        ),
+                                                                        {
+                                                                            'card_name': book_title,
+                                                                            'list_name': stage_name,
+                                                                        },
+                                                                    )
+
+                                                                    conn.execute(
+                                                                        text(
+                                                                            '''
+                                                                            INSERT INTO trello_time_tracking
+                                                                            (card_name, user_name, list_name, time_spent_seconds, card_estimate_seconds, board_name, created_at, session_start_time, tag)
+                                                                            VALUES (:card_name, :user_name, :list_name, 0, :estimate, :board_name, :created_at, NULL, :tag)
+                                                                            '''
+                                                                        ),
+                                                                        {
+                                                                            'card_name': book_title,
+                                                                            'user_name': new_user,
+                                                                            'list_name': stage_name,
+                                                                            'estimate': estimate,
+                                                                            'board_name': board_name,
+                                                                            'created_at': datetime.now(BST),
+                                                                            'tag': tag,
+                                                                        },
+                                                                    )
+                                                                    success_message = f"User {new_user} assigned to {stage_name}"
+                                                                else:
+                                                                    conn.execute(
+                                                                        text(
+                                                                            '''
+                                                                            UPDATE trello_time_tracking
+                                                                            SET user_name = :new_user
+                                                                            WHERE card_name = :card_name
+                                                                            AND list_name = :list_name
+                                                                            AND COALESCE(user_name, '') = COALESCE(:old_user, '')
+                                                                            '''
+                                                                        ),
+                                                                        {
+                                                                            'new_user': new_user_value,
+                                                                            'card_name': book_title,
+                                                                            'list_name': stage_name,
+                                                                            'old_user': old_user_value,
+                                                                        },
+                                                                    )
+                                                                    success_message = f"User reassigned from {current_user} to {new_user}"
+
                                                                 conn.commit()
 
-                                                                # Clear relevant session state to force refresh
                                                                 keys_to_clear = [
                                                                     k
                                                                     for k in st.session_state.keys()
@@ -2940,13 +2991,9 @@ def main():
                                                                     if key.startswith(('complete_', 'timer_')):
                                                                         del st.session_state[key]
 
-                                                                # Store success message instead of immediate refresh
                                                                 success_key = f"reassign_success_{book_title}_{stage_name}_{user_name}_{session_id}_{idx}"
-                                                                st.session_state[success_key] = (
-                                                                    f"User reassigned from {current_user} to {new_user}"
-                                                                )
+                                                                st.session_state[success_key] = success_message
 
-                                                                # User reassignment completed
                                                         except Exception as e:
                                                             st.error(f"Error reassigning user: {str(e)}")
 
