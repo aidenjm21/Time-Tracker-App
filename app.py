@@ -199,23 +199,22 @@ def require_login():
         unsafe_allow_html=True,
     )
 
-    if "_show_login" not in st.session_state:
-        st.session_state._show_login = True
+    @st.dialog("Sign In")
+    def login_dialog():
+        username = st.text_input("User")
+        password = st.text_input("Password", type="password")
+        if st.button("Log In"):
+            key = username.strip().split()[0].lower()
+            full_name = FIRST_NAME_TO_FULL.get(key)
+            if full_name and st.secrets.get("passwords", {}).get(full_name) == password:
+                st.session_state["authenticated"] = True
+                st.session_state["user"] = full_name
+                st.rerun()
+            else:
+                st.error("Invalid username or password")
 
-    if st.session_state._show_login:
-        with st.dialog("Sign In"):
-            username = st.text_input("User")
-            password = st.text_input("Password", type="password")
-            if st.button("Log In"):
-                key = username.strip().split()[0].lower()
-                full_name = FIRST_NAME_TO_FULL.get(key)
-                if full_name and st.secrets.get("passwords", {}).get(full_name) == password:
-                    st.session_state["authenticated"] = True
-                    st.session_state["user"] = full_name
-                    st.session_state._show_login = False
-                    st.rerun()
-                else:
-                    st.error("Invalid username or password")
+    login_dialog()
+
     st.stop()
 
 @st.cache_resource
