@@ -1225,7 +1225,7 @@ if (!paused) {{
                         stop_active_timer(engine, task_key)
 
         st.markdown("---")
-        if ss_get("authenticated") and st.button("Log Out"):
+        if ss_get("authenticated") and st.button("Log Out", key="logout"):
             st.session_state.clear()
             try:
                 st.query_params.clear()
@@ -1235,9 +1235,6 @@ if (!paused) {{
                 st.experimental_delete_cookie("user")
             except Exception:
                 pass
-            st.rerun()
-        if ss_get("authenticated") and st.button("Log Out"):
-            st.session_state.clear()
             st.rerun()
 
 
@@ -1425,63 +1422,6 @@ def get_all_books(engine):
     except Exception as e:
         st.error(f"Error fetching books: {str(e)}")
         return []
-
-
-def get_available_stages_for_book(engine, card_name):
-    """Get stages not yet associated with a book"""
-    all_stages = STAGE_ORDER
-
-    try:
-        with engine.connect() as conn:
-            result = conn.execute(
-                text(
-                    """
-                SELECT DISTINCT list_name
-                FROM trello_time_tracking
-                WHERE card_name = :card_name AND archived = FALSE
-            """
-                ),
-                {'card_name': card_name},
-            )
-
-            existing_stages = [row[0] for row in result.fetchall()]
-            available_stages = [stage for stage in all_stages if stage not in existing_stages]
-            return available_stages
-    except Exception as e:
-        st.error(f"Error getting available stages: {str(e)}")
-        return []
-
-
-def add_stage_to_book(engine, card_name, stage_name, board_name=None, tag=None, estimate_seconds=3600):
-    """Add a new stage to a book"""
-    try:
-        with engine.connect() as conn:
-            conn.execute(
-                text(
-                    """
-                INSERT INTO trello_time_tracking
-                (card_name, user_name, list_name, time_spent_seconds, card_estimate_seconds, board_name, created_at, tag)
-                VALUES (:card_name, :user_name, :list_name, :time_spent_seconds, :card_estimate_seconds, :board_name, :created_at, :tag)
-            """
-                ),
-                {
-                    'card_name': card_name,
-                    'user_name': 'Not set',  # Unassigned initially
-                    'list_name': stage_name,
-                    'time_spent_seconds': 0,
-                    'card_estimate_seconds': estimate_seconds,
-                    'board_name': board_name,
-                    'created_at': datetime.now(BST),
-                    'tag': tag,
-                },
-            )
-            conn.commit()
-            return True
-    except Exception as e:
-        st.error(f"Error adding stage: {str(e)}")
-        return False
-
-
 def import_books_from_csv(engine, df):
     """Import books and stage estimates from a CSV DataFrame"""
     required_cols = {"Card Name", "Board", "Tags"}
@@ -2706,7 +2646,7 @@ def main():
 
                                             # Get estimated time from the database for this specific user/stage combination
                                             user_stage_data = stage_data[stage_data['User'] == user_name]
-                                            estimated_time_for_user = 3600  # Default 1 hour
+                                            estimated_time_for_user = 0
 
                                             if (
                                                 not user_stage_data.empty
@@ -2761,7 +2701,7 @@ def main():
 
                                                 # Get estimated time from the database for this specific user/stage combination
                                                 user_stage_data = stage_data[stage_data['User'] == user_name]
-                                                estimated_time_for_user = 3600  # Default 1 hour
+                                                estimated_time_for_user = 0
 
                                                 if (
                                                     not user_stage_data.empty
@@ -2903,34 +2843,88 @@ def main():
                                                     if new_user != current_user:
                                                         try:
                                                             with engine.connect() as conn:
-                                                                # Update user assignment in database
-                                                                new_user_value = (
-                                                                    new_user if new_user != "Not set" else None
-                                                                )
-                                                                old_user_value = (
-                                                                    user_name if user_name != "Not set" else None
-                                                                )
+                                                                new_user_value = new_user if new_user != "Not set" else None
+                                                                old_user_value = user_name if user_name != "Not set" else None
 
-                                                                conn.execute(
-                                                                    text(
-                                                                        '''
-                                                                        UPDATE trello_time_tracking
-                                                                        SET user_name = :new_user
-                                                                        WHERE card_name = :card_name
-                                                                        AND list_name = :list_name
-                                                                        AND COALESCE(user_name, '') = COALESCE(:old_user, '')
-                                                                    '''
-                                                                    ),
-                                                                    {
-                                                                        'new_user': new_user_value,
-                                                                        'card_name': book_title,
-                                                                        'list_name': stage_name,
-                                                                        'old_user': old_user_value,
-                                                                    },
-                                                                )
+                                                                if current_user == "Not set" and new_user != "Not set":
+                                                                    result = conn.execute(
+                                                                        text(
+                                                                            '''
+                                                                            SELECT card_estimate_seconds, board_name, tag
+                                                                            FROM trello_time_tracking
+                                                                            WHERE card_name = :card_name
+                                                                            AND list_name = :list_name
+                                                                            AND COALESCE(user_name, 'Not set') = 'Not set'
+                                                                            LIMIT 1
+                                                                            '''
+                                                                        ),
+                                                                        {
+                                                                            'card_name': book_title,
+                                                                            'list_name': stage_name,
+                                                                        },
+                                                                    ).fetchone()
+
+                                                                    estimate = result.card_estimate_seconds if result and result.card_estimate_seconds else 0
+                                                                    board_name = result.board_name if result else None
+                                                                    tag = result.tag if result else None
+
+                                                                    conn.execute(
+                                                                        text(
+                                                                            '''
+                                                                            UPDATE trello_time_tracking
+                                                                            SET card_estimate_seconds = 0
+                                                                            WHERE card_name = :card_name
+                                                                            AND list_name = :list_name
+                                                                            AND COALESCE(user_name, 'Not set') = 'Not set'
+                                                                            '''
+                                                                        ),
+                                                                        {
+                                                                            'card_name': book_title,
+                                                                            'list_name': stage_name,
+                                                                        },
+                                                                    )
+
+                                                                    conn.execute(
+                                                                        text(
+                                                                            '''
+                                                                            INSERT INTO trello_time_tracking
+                                                                            (card_name, user_name, list_name, time_spent_seconds, card_estimate_seconds, board_name, created_at, session_start_time, tag)
+                                                                            VALUES (:card_name, :user_name, :list_name, 0, :estimate, :board_name, :created_at, NULL, :tag)
+                                                                            '''
+                                                                        ),
+                                                                        {
+                                                                            'card_name': book_title,
+                                                                            'user_name': new_user,
+                                                                            'list_name': stage_name,
+                                                                            'estimate': estimate,
+                                                                            'board_name': board_name,
+                                                                            'created_at': datetime.now(BST),
+                                                                            'tag': tag,
+                                                                        },
+                                                                    )
+                                                                    success_message = f"User {new_user} assigned to {stage_name}"
+                                                                else:
+                                                                    conn.execute(
+                                                                        text(
+                                                                            '''
+                                                                            UPDATE trello_time_tracking
+                                                                            SET user_name = :new_user
+                                                                            WHERE card_name = :card_name
+                                                                            AND list_name = :list_name
+                                                                            AND COALESCE(user_name, '') = COALESCE(:old_user, '')
+                                                                            '''
+                                                                        ),
+                                                                        {
+                                                                            'new_user': new_user_value,
+                                                                            'card_name': book_title,
+                                                                            'list_name': stage_name,
+                                                                            'old_user': old_user_value,
+                                                                        },
+                                                                    )
+                                                                    success_message = f"User reassigned from {current_user} to {new_user}"
+
                                                                 conn.commit()
 
-                                                                # Clear relevant session state to force refresh
                                                                 keys_to_clear = [
                                                                     k
                                                                     for k in st.session_state.keys()
@@ -2940,13 +2934,9 @@ def main():
                                                                     if key.startswith(('complete_', 'timer_')):
                                                                         del st.session_state[key]
 
-                                                                # Store success message instead of immediate refresh
                                                                 success_key = f"reassign_success_{book_title}_{stage_name}_{user_name}_{session_id}_{idx}"
-                                                                st.session_state[success_key] = (
-                                                                    f"User reassigned from {current_user} to {new_user}"
-                                                                )
+                                                                st.session_state[success_key] = success_message
 
-                                                                # User reassignment completed
                                                         except Exception as e:
                                                             st.error(f"Error reassigning user: {str(e)}")
 
@@ -3358,53 +3348,6 @@ def main():
                                 ]
                                 if running_timers:
                                     st.write(f"{len(running_timers)} timer(s) running")
-
-                                # Add stage dropdown
-                                available_stages = get_available_stages_for_book(engine, book_title)
-                                if available_stages:
-                                    st.markdown("---")
-                                    col1, col2 = st.columns([3, 1])
-
-                                    with col1:
-                                        selected_stage = st.selectbox(
-                                            "Add stage:",
-                                            options=["Select a stage to add..."] + available_stages,
-                                            key=f"add_stage_{book_title}",
-                                        )
-
-                                    with col2:
-                                        time_estimate = st.number_input(
-                                            "Hours:",
-                                            min_value=0.0,
-                                            step=0.1,
-                                            format="%.1f",
-                                            value=1.0,
-                                            key=f"add_stage_time_{book_title}",
-                                            on_change=None,  # Prevent automatic refresh
-                                        )
-
-                                    if selected_stage != "Select a stage to add...":
-                                        # Get the current time estimate from session state
-                                        time_estimate_key = f"add_stage_time_{book_title}"
-                                        current_time_estimate = st.session_state.get(time_estimate_key, 1.0)
-
-                                        # Get book info for board name and tag
-                                        book_info = next((book for book in all_books if book[0] == book_title), None)
-                                        board_name = book_info[1] if book_info else None
-                                        tag = book_info[2] if book_info else None
-
-                                        # Convert hours to seconds for estimate
-                                        estimate_seconds = int(current_time_estimate * 3600)
-
-                                        if add_stage_to_book(
-                                            engine, book_title, selected_stage, board_name, tag, estimate_seconds
-                                        ):
-                                            st.success(
-                                                f"Added {selected_stage} to {book_title} with {current_time_estimate} hour estimate"
-                                            )
-                                            # Stage added successfully
-                                        else:
-                                            st.error("Failed to add stage")
 
                                 # Remove stage section at the bottom left of each book
                                 if stages_grouped.groups:  # Only show if book has stages
