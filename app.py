@@ -161,6 +161,7 @@ FIRST_NAME_TO_FULL = {name.split()[0].lower(): name for name in ALL_USERS_LIST}
 FIRST_NAME_TO_FULL.update({
     "beth": "Bethany Latham",
     "ker ker": "Ker Ker Lee",
+    "admin": "admin",
 })
 
 def normalize_user_name(name):
@@ -772,8 +773,8 @@ def load_active_timers(engine, current_user):
     """Load active timers for the current user from database."""
     try:
         with engine.connect() as conn:
-            result = conn.execute(
-                text(
+            if current_user and current_user.lower() == "admin":
+                query = text(
                     '''
                 SELECT timer_key, card_name, user_name, list_name, board_name,
                        start_time, accumulated_seconds, is_paused
@@ -781,9 +782,19 @@ def load_active_timers(engine, current_user):
                 WHERE user_name = :user_name
                 ORDER BY start_time DESC
             '''
-                ),
-                {"user_name": current_user},
-            )
+                )
+                result = conn.execute(query)
+            else:
+                query = text(
+                    '''
+                SELECT timer_key, card_name, user_name, list_name, board_name,
+                       start_time, accumulated_seconds, is_paused
+                FROM active_timers
+                WHERE user_name = :user_name
+                ORDER BY start_time DESC
+            '''
+                )
+                result = conn.execute(query, {"user_name": current_user})
 
             active_timers = []
             for row in result:
@@ -1077,10 +1088,12 @@ def stop_active_timer(engine, timer_key):
 def display_active_timers_sidebar(engine):
     """Display running timers in the sidebar on every page."""
     current_user = ss_get("user")
+    is_admin = current_user and current_user.lower() == "admin"
     active_timer_count = sum(
         1
         for key, running in st.session_state.timers.items()
-        if running and key.split('_')[-1] == current_user
+        if running and (is_admin or key.split('_')[-1] == current_user)
+
     )
     with st.sidebar:
         st.write(f"**Active Timers ({active_timer_count})**")
@@ -1092,7 +1105,8 @@ def display_active_timers_sidebar(engine):
             for task_key, is_running in st.session_state.timers.items():
                 if is_running and task_key in st.session_state.timer_start_times:
                     parts = task_key.split('_')
-                    if len(parts) >= 3 and parts[-1] == current_user:
+                    if len(parts) >= 3 and (is_admin or parts[-1] == current_user):
+
                         book_title = '_'.join(parts[:-2])
                         stage_name = parts[-2]
                         running.append((book_title, stage_name, task_key))
@@ -2913,7 +2927,10 @@ def main():
 
                                         with col3:
                                             current_user = ss_get("user")
-                                            if user_name != current_user:
+                                            if user_name != current_user and (
+                                                not current_user or current_user.lower() != "admin"
+                                            ):
+
                                                 st.caption("Login as assigned user to control timer")
                                                 continue
                                             # Start/Stop timer button with timer display
