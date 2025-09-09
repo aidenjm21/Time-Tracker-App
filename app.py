@@ -763,7 +763,9 @@ def finalize_stale_active_timers(engine):
         st.error(f"Failed to finalise active timers: {str(e)}")
 
 def load_active_timers(engine, current_user):
-    """Load active timers for the current user from database."""
+    """Load active timers for the current user.
+
+    Admin users can view all active timers without filtering by user name."""
     try:
         with engine.connect() as conn:
             params = {}
@@ -774,11 +776,9 @@ def load_active_timers(engine, current_user):
                 SELECT timer_key, card_name, user_name, list_name, board_name,
                        start_time, accumulated_seconds, is_paused
                 FROM active_timers
-                WHERE user_name = :user_name
                 ORDER BY start_time DESC
             '''
                 )
-
             else:
                 query = text(
                     '''
@@ -1203,6 +1203,9 @@ if (!paused) {{
                         stop_active_timer(engine, task_key)
 
         st.markdown("---")
+        if ss_get("authenticated") and st.button("Log Out"):
+            st.session_state.clear()
+            st.rerun()
 
 
 def update_task_completion(engine, card_name, user_name, list_name, completed):
