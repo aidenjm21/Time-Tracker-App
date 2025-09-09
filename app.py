@@ -208,7 +208,7 @@ def require_login():
                 st.error("Invalid username or password")
 
     login_dialog()
-    
+
     st.stop()
 
 @st.cache_resource
@@ -766,6 +766,8 @@ def load_active_timers(engine, current_user):
     """Load active timers for the current user from database."""
     try:
         with engine.connect() as conn:
+            params = {}
+
             if current_user and current_user.lower() == "admin":
                 query = text(
                     '''
@@ -776,7 +778,7 @@ def load_active_timers(engine, current_user):
                 ORDER BY start_time DESC
             '''
                 )
-                result = conn.execute(query)
+
             else:
                 query = text(
                     '''
@@ -787,7 +789,9 @@ def load_active_timers(engine, current_user):
                 ORDER BY start_time DESC
             '''
                 )
-                result = conn.execute(query, {"user_name": current_user})
+                params["user_name"] = current_user
+
+            result = conn.execute(query, params)
 
             active_timers = []
             for row in result:
@@ -1086,7 +1090,6 @@ def display_active_timers_sidebar(engine):
         1
         for key, running in st.session_state.timers.items()
         if running and (is_admin or key.split('_')[-1] == current_user)
-
     )
     with st.sidebar:
         st.write(f"**Active Timers ({active_timer_count})**")
