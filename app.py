@@ -3541,7 +3541,7 @@ def main():
                 )
             except Exception:
                 pass
-            st.session_state._original_st_error(
+            st._original_st_error(
                 "Database error, please see the error log for more details"
             )
         except Exception as e:
@@ -3560,7 +3560,7 @@ def main():
                 )
             except Exception:
                 pass
-            st.session_state._original_st_error(
+            st._original_st_error(
                 "An unexpected error occurred, please see the error log for more details"
             )
 
