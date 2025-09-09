@@ -793,6 +793,14 @@ def load_active_timers(engine, current_user):
     to determine whether timers are interactive or read‑only."""
     try:
         with engine.connect() as conn:
+            # Reset existing timer state so we're always showing the latest
+            st.session_state.timers = {}
+            st.session_state.timer_start_times = {}
+            st.session_state.timer_paused = {}
+            st.session_state.timer_accumulated_time = {}
+            st.session_state.timer_base_times = {}
+            st.session_state.timer_session_counts = {}
+
             result = conn.execute(
                 text(
                     '''
@@ -814,20 +822,6 @@ def load_active_timers(engine, current_user):
                 start_time = row[5]
                 accumulated_seconds = row[6] or 0
                 is_paused = row[7] or False
-
-                # Simple session state - just track if timer is running
-                if 'timers' not in st.session_state:
-                    st.session_state.timers = {}
-                if 'timer_start_times' not in st.session_state:
-                    st.session_state.timer_start_times = {}
-                if 'timer_paused' not in st.session_state:
-                    st.session_state.timer_paused = {}
-                if 'timer_accumulated_time' not in st.session_state:
-                    st.session_state.timer_accumulated_time = {}
-                if 'timer_base_times' not in st.session_state:
-                    st.session_state.timer_base_times = {}
-                if 'timer_session_counts' not in st.session_state:
-                    st.session_state.timer_session_counts = {}
 
                 # Ensure timezone-aware datetime for consistency
                 if start_time.tzinfo is None:
@@ -1097,10 +1091,9 @@ def display_active_timers_sidebar(engine):
     """Display running timers in the sidebar on every page."""
     current_user = ss_get("user")
     is_admin = current_user and current_user.lower() == "admin"
-    # Ensure timers are loaded so users without their own timers can still
+    # Always refresh active timers so users without their own timers can still
     # view other active sessions
-    if not st.session_state.get("timers"):
-        load_active_timers(engine, current_user)
+    load_active_timers(engine, current_user)
     active_timer_count = sum(
         1 for key, running in st.session_state.timers.items() if running
     )
