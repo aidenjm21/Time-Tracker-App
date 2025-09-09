@@ -208,6 +208,7 @@ def require_login():
                 st.error("Invalid username or password")
 
     login_dialog()
+
     st.stop()
 
 @st.cache_resource
@@ -766,15 +767,18 @@ def load_active_timers(engine, current_user):
     try:
         with engine.connect() as conn:
             params = {}
+
             if current_user and current_user.lower() == "admin":
                 query = text(
                     '''
                 SELECT timer_key, card_name, user_name, list_name, board_name,
                        start_time, accumulated_seconds, is_paused
                 FROM active_timers
+                WHERE user_name = :user_name
                 ORDER BY start_time DESC
             '''
                 )
+
             else:
                 query = text(
                     '''
