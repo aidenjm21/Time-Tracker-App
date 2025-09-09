@@ -1225,7 +1225,7 @@ if (!paused) {{
                         stop_active_timer(engine, task_key)
 
         st.markdown("---")
-        if ss_get("authenticated") and st.button("Log Out"):
+        if ss_get("authenticated") and st.button("Log Out", key="logout"):
             st.session_state.clear()
             try:
                 st.query_params.clear()
@@ -1235,9 +1235,6 @@ if (!paused) {{
                 st.experimental_delete_cookie("user")
             except Exception:
                 pass
-            st.rerun()
-        if ss_get("authenticated") and st.button("Log Out"):
-            st.session_state.clear()
             st.rerun()
 
 
