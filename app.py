@@ -81,14 +81,13 @@ def ss_get(key, default=None):
 def ss_set(key, value):
     st.session_state[key] = value
 
-# Capture the true Streamlit error function before any patching
-_ORIG_ST_ERROR = st.error
+# Capture the true Streamlit error function once on the module to avoid recursion
+if not hasattr(st, "_original_st_error"):
+    st._original_st_error = st.error
 
 # One-time initial state
 if "error_log" not in st.session_state:
     ss_set("error_log", [])
-if "_orig_st_error" not in st.session_state:
-    ss_set("_orig_st_error", _ORIG_ST_ERROR)
 if "_error_patched" not in st.session_state:
     ss_set("_error_patched", False)
 if "_logging_error" not in st.session_state:
@@ -97,9 +96,8 @@ if "_logging_error" not in st.session_state:
 def log_error(message, *args, **kwargs):
     """Log error messages with timestamp and display them without recursion."""
     if ss_get("_logging_error", False):
-        # Already in the middle of logging, call the true original directly
-        orig = ss_get("_orig_st_error", _ORIG_ST_ERROR)
-        return orig(message, *args, **kwargs)
+        # Already in the middle of logging, call the original directly
+        return st._original_st_error(message, *args, **kwargs)
 
     ss_set("_logging_error", True)
     try:
@@ -112,12 +110,7 @@ def log_error(message, *args, **kwargs):
         except NameError:
             st.session_state.error_log.append({"time": timestamp, "message": str(message)})
 
-        # Resolve the original safely
-        orig = ss_get("_orig_st_error", _ORIG_ST_ERROR)
-        if orig is log_error:
-            orig = _ORIG_ST_ERROR
-
-        return orig(message, *args, **kwargs)
+        return st._original_st_error(message, *args, **kwargs)
     finally:
         ss_set("_logging_error", False)
 
@@ -215,7 +208,7 @@ def require_login():
                 st.error("Invalid username or password")
 
     login_dialog()
-
+    
     st.stop()
 
 @st.cache_resource
@@ -1106,7 +1099,6 @@ def display_active_timers_sidebar(engine):
                 if is_running and task_key in st.session_state.timer_start_times:
                     parts = task_key.split('_')
                     if len(parts) >= 3 and (is_admin or parts[-1] == current_user):
-
                         book_title = '_'.join(parts[:-2])
                         stage_name = parts[-2]
                         running.append((book_title, stage_name, task_key))
@@ -2930,7 +2922,6 @@ def main():
                                             if user_name != current_user and (
                                                 not current_user or current_user.lower() != "admin"
                                             ):
-
                                                 st.caption("Login as assigned user to control timer")
                                                 continue
                                             # Start/Stop timer button with timer display
