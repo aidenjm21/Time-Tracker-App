@@ -122,7 +122,7 @@ if not ss_get("_error_patched", False):
 
 # Known full user names for matching CSV imports
 EDITORIAL_USERS_LIST = [
-    "Bethany Latham",
+    "Beth Latham",
     "Charis Mather",
     "Noah Leatherland",
 ]
@@ -141,10 +141,11 @@ STAGE_ORDER = [
     "Editorial Writing",
     "1st Edit",
     "2nd Edit",
-    "Design R&D",
+    "Editorial Amends"
+    "Cover Design",
     "In Design",
-    "1st Proof",
-    "2nd Proof",
+    "Design Ammends"
+    "Proof",
     "Editorial Sign Off",
     "Design Sign Off",
 ]
@@ -152,7 +153,7 @@ STAGE_ORDER = [
 # Map first names (and common short forms) to full user names
 FIRST_NAME_TO_FULL = {name.split()[0].lower(): name for name in ALL_USERS_LIST}
 FIRST_NAME_TO_FULL.update({
-    "beth": "Bethany Latham",
+    "beth": "Beth Latham",
     "ker ker": "Ker Ker Lee",
     "admin": "admin",
 })
@@ -2162,7 +2163,7 @@ def main():
         # Define user groups for different types of work (alphabetically ordered)
         editorial_users = [
             "Not set",
-            "Bethany Latham",
+            "Beth Latham",
             "Charis Mather",
             "Noah Leatherland",
         ]
@@ -2182,10 +2183,11 @@ def main():
             ("Editorial Writing", "Editorial Writing", editorial_users),
             ("1st Edit", "1st Edit", editorial_users),
             ("2nd Edit", "2nd Edit", editorial_users),
-            ("Design R&D", "Design R&D", design_users),
+            ("Editorial Amends", "Editorial Amends", editorial_users),
+            ("Cover Design", "Cover Design", design_users),
             ("In Design", "In Design", design_users),
-            ("1st Proof", "1st Proof", editorial_users),
-            ("2nd Proof", "2nd Proof", editorial_users),
+            ("Design Amends", "Design Amends", design_users),
+            ("Proof", "Proof", editorial_users),
             ("Editorial Sign Off", "Editorial Sign Off", editorial_users),
             ("Design Sign Off", "Design Sign Off", design_users),
         ]
@@ -2200,11 +2202,16 @@ def main():
             "Editorial Writing",
             "1st Edit",
             "2nd Edit",
-            "1st Proof",
-            "2nd Proof",
+            "Editorial Amends"
+            "Proof",
             "Editorial Sign Off",
         ]
-        design_fields = ["Design R&D", "In Design", "Design Sign Off"]
+        design_fields = [
+            "Cover Design",
+            "In Design",
+            "Design Amends"
+            "Design Sign Off"
+        ]
 
         for field_label, list_name, user_options in time_fields:
             st.markdown(f"**{field_label} (hours)**")
@@ -2511,15 +2518,16 @@ def main():
                             if estimated_time == 0:
                                 default_stage_estimates = {
                                     'Editorial R&D': 2 * 3600,  # 2 hours default
-                                    'Editorial Writing': 8 * 3600,  # 8 hours default
-                                    '1st Edit': 4 * 3600,  # 4 hours default
-                                    '2nd Edit': 2 * 3600,  # 2 hours default
-                                    'Design R&D': 3 * 3600,  # 3 hours default
-                                    'In Design': 6 * 3600,  # 6 hours default
-                                    '1st Proof': 2 * 3600,  # 2 hours default
-                                    '2nd Proof': 1.5 * 3600,  # 1.5 hours default
-                                    'Editorial Sign Off': 0.5 * 3600,  # 30 minutes default
-                                    'Design Sign Off': 0.5 * 3600,  # 30 minutes default
+                                    'Editorial Writing': 7 * 3600,  #  hours default
+                                    '1st Edit': 1 * 3600,  # 1 hour default
+                                    '2nd Edit': 1 * 3600,  # 1 hour default
+                                    'Editorial Amends': 2 * 3600, # 2 hours default
+                                    'Cover Design': 4 * 3600,  # 4 hours default
+                                    'In Design':  10 * 3600,  # 10 hours default
+                                    'Design Amends': 2 * 3600, # 2 hours default
+                                    'Proof': 2 * 3600,  # 2 hours default
+                                    'Editorial Sign Off': 1 * 3600,  # 1 hour default
+                                    'Design Sign Off': 1 * 3600,  # 1 hour default
                                 }
                                 unique_stages = book_data['List'].unique()
                                 estimated_time = sum(
@@ -2601,10 +2609,11 @@ def main():
                                     'Editorial Writing',
                                     '1st Edit',
                                     '2nd Edit',
-                                    'Design R&D',
+                                    'Editorial Amends'
+                                    'Cover Design',
                                     'In Design',
-                                    '1st Proof',
-                                    '2nd Proof',
+                                    'Design Amends'
+                                    'Proof',
                                     'Editorial Sign Off',
                                     'Design Sign Off',
                                 ]
@@ -2724,13 +2733,13 @@ def main():
                                                         "Editorial Writing",
                                                         "1st Edit",
                                                         "2nd Edit",
-                                                        "1st Proof",
-                                                        "2nd Proof",
+                                                        "Proof",
+                                                        'Editorial Amends'
                                                         "Editorial Sign Off",
                                                     ]:
                                                         user_options = [
                                                             "Not set",
-                                                            "Bethany Latham",
+                                                            "Beth Latham",
                                                             "Charis Mather",
                                                             "Noah Leatherland",
                                                         ]
@@ -3631,27 +3640,6 @@ def main():
             if flag in st.session_state:
                 del st.session_state[flag]
                 
-        components.html(
-        """
-        <div style="text-align: center; margin-top: 10px;">
-            <span style="font-size: 12px; color: #888; cursor: pointer; text-decoration: underline;"
-                  onclick="document.getElementById('dont-click-modal').style.display='flex';">
-                Please do not click
-            </span>
-        </div>
-    
-        <div id="dont-click-modal" style="display:none; position: fixed; top:0; left:0; width:100%; height:100%;
-            background-color: rgba(0,0,0,0.5); z-index:1000; align-items: center; justify-content: center;">
-          <div style="background-color: white; padding: 20px; border-radius: 8px; text-align: center; max-width: 300px;">
-            <p style="margin-bottom: 20px;">What do you think you're doing? It clearly stated, 'Please do not click.'</p>
-            <button onclick="document.getElementById('dont-click-modal').style.display='none';"
-                    style="margin-right: 10px;">Go back</button>
-            <button onclick="window.open('https://youtu.be/5T5BY1j2MkE', '_blank');">Proceed anyway</button>
-          </div>
-        </div>
-        """,
-        height=300,
-    )
     with reporting_tab:
         st.header("Reporting")
         st.markdown("Filter tasks by user, book, board, tag, and date range from all uploaded data.")
