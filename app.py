@@ -1977,6 +1977,8 @@ def process_user_task_breakdown(df):
 
 
 def main():
+    user_fullname = require_login()
+
     # Initialise database connection
     engine = init_database()
     if not engine:
