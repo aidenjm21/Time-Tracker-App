@@ -786,15 +786,15 @@ def finalize_stale_active_timers(engine):
         st.error(f"Failed to finalise active timers: {str(e)}")
 
 def load_active_timers(engine, current_user):
-    """Load active timers for the current user.
+    """Load all active timers into session state.
 
-    Admin users can view all active timers without filtering by user name."""
+    Timers started by other users are included so everyone can see currently
+    running work in the sidebar. The caller's identity is only used elsewhere
+    to determine whether timers are interactive or read‑only."""
     try:
         with engine.connect() as conn:
-            params = {}
-
-            if current_user and current_user.lower() == "admin":
-                query = text(
+            result = conn.execute(
+                text(
                     '''
                 SELECT timer_key, card_name, user_name, list_name, board_name,
                        start_time, accumulated_seconds, is_paused
@@ -802,18 +802,7 @@ def load_active_timers(engine, current_user):
                 ORDER BY start_time DESC
             '''
                 )
-            else:
-                query = text(
-                    '''
-                SELECT timer_key, card_name, user_name, list_name, board_name,
-                       start_time, accumulated_seconds, is_paused
-                FROM active_timers
-                ORDER BY start_time DESC
-            '''
-                )
-                params["user_name"] = current_user
-
-            result = conn.execute(query, params)
+            )
 
             active_timers = []
             for row in result:
@@ -1108,6 +1097,10 @@ def display_active_timers_sidebar(engine):
     """Display running timers in the sidebar on every page."""
     current_user = ss_get("user")
     is_admin = current_user and current_user.lower() == "admin"
+    # Ensure timers are loaded so users without their own timers can still
+    # view other active sessions
+    if not st.session_state.get("timers"):
+        load_active_timers(engine, current_user)
     active_timer_count = sum(
         1 for key, running in st.session_state.timers.items() if running
     )
