@@ -183,15 +183,30 @@ def require_login():
     if st.session_state.get("authenticated"):
         return st.session_state["user"]
 
-    # Blur the app while login dialog is shown
-    st.markdown(
-        """
-        <style>
-        div[data-testid="stAppViewContainer"] {filter: blur(6px);}
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
+    # Check for existing credentials stored in cookies
+    try:
+        user_cookie = st.experimental_get_cookie("user")
+    except Exception:
+        user_cookie = None
+    if user_cookie:
+        st.session_state["authenticated"] = True
+        st.session_state["user"] = user_cookie
+        return user_cookie
+
+    # Check for existing credentials in query parameters
+    try:
+        user_param = st.query_params.get("user")
+    except AttributeError:  # Streamlit < 1.30
+        params = st.experimental_get_query_params()
+        user_param = params.get("user", [None])
+        user_param = user_param[0] if user_param else None
+    if user_param:
+        key = user_param.strip().split()[0].lower()
+        full_name = FIRST_NAME_TO_FULL.get(key)
+        if full_name:
+            st.session_state["authenticated"] = True
+            st.session_state["user"] = full_name
+            return full_name
 
     @st.dialog("Sign In")
     def login_dialog():
@@ -203,6 +218,14 @@ def require_login():
             if full_name and st.secrets.get("passwords", {}).get(full_name) == password:
                 st.session_state["authenticated"] = True
                 st.session_state["user"] = full_name
+                try:
+                    st.query_params["user"] = full_name
+                except AttributeError:
+                    st.experimental_set_query_params(user=full_name)
+                try:
+                    st.experimental_set_cookie("user", full_name, max_age=60 * 60 * 24 * 30)
+                except Exception:
+                    pass
                 st.rerun()
             else:
                 st.error("Invalid username or password")
@@ -785,7 +808,6 @@ def load_active_timers(engine, current_user):
                 SELECT timer_key, card_name, user_name, list_name, board_name,
                        start_time, accumulated_seconds, is_paused
                 FROM active_timers
-                WHERE user_name = :user_name
                 ORDER BY start_time DESC
             '''
                 )
@@ -1203,6 +1225,17 @@ if (!paused) {{
                         stop_active_timer(engine, task_key)
 
         st.markdown("---")
+        if ss_get("authenticated") and st.button("Log Out"):
+            st.session_state.clear()
+            try:
+                st.query_params.clear()
+            except AttributeError:
+                st.experimental_set_query_params()
+            try:
+                st.experimental_delete_cookie("user")
+            except Exception:
+                pass
+            st.rerun()
         if ss_get("authenticated") and st.button("Log Out"):
             st.session_state.clear()
             st.rerun()
