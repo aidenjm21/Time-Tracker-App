@@ -1422,63 +1422,6 @@ def get_all_books(engine):
     except Exception as e:
         st.error(f"Error fetching books: {str(e)}")
         return []
-
-
-def get_available_stages_for_book(engine, card_name):
-    """Get stages not yet associated with a book"""
-    all_stages = STAGE_ORDER
-
-    try:
-        with engine.connect() as conn:
-            result = conn.execute(
-                text(
-                    """
-                SELECT DISTINCT list_name
-                FROM trello_time_tracking
-                WHERE card_name = :card_name AND archived = FALSE
-            """
-                ),
-                {'card_name': card_name},
-            )
-
-            existing_stages = [row[0] for row in result.fetchall()]
-            available_stages = [stage for stage in all_stages if stage not in existing_stages]
-            return available_stages
-    except Exception as e:
-        st.error(f"Error getting available stages: {str(e)}")
-        return []
-
-
-def add_stage_to_book(engine, card_name, stage_name, board_name=None, tag=None, estimate_seconds=3600):
-    """Add a new stage to a book"""
-    try:
-        with engine.connect() as conn:
-            conn.execute(
-                text(
-                    """
-                INSERT INTO trello_time_tracking
-                (card_name, user_name, list_name, time_spent_seconds, card_estimate_seconds, board_name, created_at, tag)
-                VALUES (:card_name, :user_name, :list_name, :time_spent_seconds, :card_estimate_seconds, :board_name, :created_at, :tag)
-            """
-                ),
-                {
-                    'card_name': card_name,
-                    'user_name': 'Not set',  # Unassigned initially
-                    'list_name': stage_name,
-                    'time_spent_seconds': 0,
-                    'card_estimate_seconds': estimate_seconds,
-                    'board_name': board_name,
-                    'created_at': datetime.now(BST),
-                    'tag': tag,
-                },
-            )
-            conn.commit()
-            return True
-    except Exception as e:
-        st.error(f"Error adding stage: {str(e)}")
-        return False
-
-
 def import_books_from_csv(engine, df):
     """Import books and stage estimates from a CSV DataFrame"""
     required_cols = {"Card Name", "Board", "Tags"}
@@ -3405,53 +3348,6 @@ def main():
                                 ]
                                 if running_timers:
                                     st.write(f"{len(running_timers)} timer(s) running")
-
-                                # Add stage dropdown
-                                available_stages = get_available_stages_for_book(engine, book_title)
-                                if available_stages:
-                                    st.markdown("---")
-                                    col1, col2 = st.columns([3, 1])
-
-                                    with col1:
-                                        selected_stage = st.selectbox(
-                                            "Add stage:",
-                                            options=["Select a stage to add..."] + available_stages,
-                                            key=f"add_stage_{book_title}",
-                                        )
-
-                                    with col2:
-                                        time_estimate = st.number_input(
-                                            "Hours:",
-                                            min_value=0.0,
-                                            step=0.1,
-                                            format="%.1f",
-                                            value=1.0,
-                                            key=f"add_stage_time_{book_title}",
-                                            on_change=None,  # Prevent automatic refresh
-                                        )
-
-                                    if selected_stage != "Select a stage to add...":
-                                        # Get the current time estimate from session state
-                                        time_estimate_key = f"add_stage_time_{book_title}"
-                                        current_time_estimate = st.session_state.get(time_estimate_key, 1.0)
-
-                                        # Get book info for board name and tag
-                                        book_info = next((book for book in all_books if book[0] == book_title), None)
-                                        board_name = book_info[1] if book_info else None
-                                        tag = book_info[2] if book_info else None
-
-                                        # Convert hours to seconds for estimate
-                                        estimate_seconds = int(current_time_estimate * 3600)
-
-                                        if add_stage_to_book(
-                                            engine, book_title, selected_stage, board_name, tag, estimate_seconds
-                                        ):
-                                            st.success(
-                                                f"Added {selected_stage} to {book_title} with {current_time_estimate} hour estimate"
-                                            )
-                                            # Stage added successfully
-                                        else:
-                                            st.error("Failed to add stage")
 
                                 # Remove stage section at the bottom left of each book
                                 if stages_grouped.groups:  # Only show if book has stages
