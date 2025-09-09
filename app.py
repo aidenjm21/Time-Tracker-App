@@ -84,7 +84,9 @@ UTC_PLUS_1 = BST  # Keep backward compatibility
 if "error_log" not in st.session_state:
     st.session_state.error_log = []
 
-_original_st_error = st.error
+# Preserve the original Streamlit error function across reruns
+if "_original_st_error" not in st.session_state:
+    st.session_state._original_st_error = st.error
 
 # Placeholder messages shown to users but not helpful in the error log
 PLACEHOLDER_ERRORS = {
@@ -97,7 +99,7 @@ def log_error(message, *args, **kwargs):
     timestamp = datetime.now(BST).strftime("%Y-%m-%d %H:%M:%S")
     if message not in PLACEHOLDER_ERRORS:
         st.session_state.error_log.append({"time": timestamp, "message": message})
-    _original_st_error(message, *args, **kwargs)
+    return st.session_state._original_st_error(message, *args, **kwargs)
 
 st.error = log_error
 
@@ -116,6 +118,19 @@ DESIGN_USERS_LIST = [
     "Rob Delph",
 ]
 ALL_USERS_LIST = EDITORIAL_USERS_LIST + DESIGN_USERS_LIST
+
+STAGE_ORDER = [
+    "Editorial R&D",
+    "Editorial Writing",
+    "1st Edit",
+    "2nd Edit",
+    "Design R&D",
+    "In Design",
+    "1st Proof",
+    "2nd Proof",
+    "Editorial Sign Off",
+    "Design Sign Off",
+]
 
 # Map first names (and common short forms) to full user names
 FIRST_NAME_TO_FULL = {name.split()[0].lower(): name for name in ALL_USERS_LIST}
@@ -1008,35 +1023,43 @@ def display_active_timers_sidebar(engine):
         if active_timer_count == 0:
             st.write("No active timers")
         else:
+            stage_order_map = {stage: i for i, stage in enumerate(STAGE_ORDER)}
+            running = []
             for task_key, is_running in st.session_state.timers.items():
                 if is_running and task_key in st.session_state.timer_start_times:
                     parts = task_key.split('_')
                     if len(parts) >= 3:
                         book_title = '_'.join(parts[:-2])
                         stage_name = parts[-2]
-                        user_name = parts[-1]
-                        start_time = st.session_state.timer_start_times[task_key]
-                        base_time = st.session_state.timer_base_times.get(task_key, 0)
-                        accumulated = st.session_state.timer_accumulated_time.get(task_key, 0)
-                        paused = st.session_state.timer_paused.get(task_key, False)
-                        current_elapsed = 0 if paused else calculate_timer_elapsed_time(start_time)
-                        session_elapsed = accumulated + current_elapsed
-                        elapsed_seconds = base_time + session_elapsed
-                        elapsed_str = format_seconds_to_time(elapsed_seconds)
+                        running.append((book_title, stage_name, task_key))
 
-                        estimate_seconds = get_task_estimate(engine, book_title, user_name, stage_name)
-                        estimate_str = format_seconds_to_time(estimate_seconds)
+            running.sort(key=lambda x: (x[0].lower(), stage_order_map.get(x[1], 999)))
 
-                        user_display = user_name if user_name and user_name != "Not set" else "Unassigned"
+            for book_title, stage_name, task_key in running:
+                parts = task_key.split('_')
+                user_name = parts[-1]
+                start_time = st.session_state.timer_start_times[task_key]
+                base_time = st.session_state.timer_base_times.get(task_key, 0)
+                accumulated = st.session_state.timer_accumulated_time.get(task_key, 0)
+                paused = st.session_state.timer_paused.get(task_key, False)
+                current_elapsed = 0 if paused else calculate_timer_elapsed_time(start_time)
+                session_elapsed = accumulated + current_elapsed
+                elapsed_seconds = base_time + session_elapsed
+                elapsed_str = format_seconds_to_time(elapsed_seconds)
 
-                        session_id = st.session_state.get('timer_session_counts', {}).get(task_key, 0)
-                                                                                          
-                        col1, col2, col3 = st.columns([3, 1, 1])
-                        with col1:
-                            status_text = "PAUSED" if paused else "RECORDING"
-                            sidebar_timer_id = f"sidebar_timer_{task_key}_{session_id}"
-                            components.html(
-                                f"""
+                estimate_seconds = get_task_estimate(engine, book_title, user_name, stage_name)
+                estimate_str = format_seconds_to_time(estimate_seconds)
+
+                user_display = user_name if user_name and user_name != "Not set" else "Unassigned"
+
+                session_id = st.session_state.get('timer_session_counts', {}).get(task_key, 0)
+
+                col1, col2, col3 = st.columns([3, 1, 1])
+                with col1:
+                    status_text = "PAUSED" if paused else "RECORDING"
+                    sidebar_timer_id = f"sidebar_timer_{task_key}_{session_id}"
+                    components.html(
+                        f"""
 <style>
 body {{
   font-family: 'Noto Sans', sans-serif;
@@ -1087,24 +1110,24 @@ if (!paused) {{
 """,
                                 height=0,
                             )
-                        with col2:
-                            pause_label = "Resume" if paused else "Pause"
-                            if st.button(pause_label, key=f"summary_pause_{task_key}_{session_id}"):
-                                if paused:
-                                    resume_time = datetime.utcnow().replace(tzinfo=timezone.utc).astimezone(BST)
-                                    st.session_state.timer_start_times[task_key] = resume_time
-                                    st.session_state.timer_paused[task_key] = False
-                                    update_active_timer_state(engine, task_key, accumulated, False, resume_time)
-                                else:
-                                    elapsed_since_start = calculate_timer_elapsed_time(start_time)
-                                    new_accum = accumulated + elapsed_since_start
-                                    st.session_state.timer_accumulated_time[task_key] = new_accum
-                                    st.session_state.timer_paused[task_key] = True
-                                    update_active_timer_state(engine, task_key, new_accum, True)
-                                st.rerun()
-                        with col3:
-                            if st.button("Stop", key=f"summary_stop_{task_key}_{session_id}"):
-                                stop_active_timer(engine, task_key)
+                with col2:
+                    pause_label = "Resume" if paused else "Pause"
+                    if st.button(pause_label, key=f"summary_pause_{task_key}_{session_id}"):
+                        if paused:
+                            resume_time = datetime.utcnow().replace(tzinfo=timezone.utc).astimezone(BST)
+                            st.session_state.timer_start_times[task_key] = resume_time
+                            st.session_state.timer_paused[task_key] = False
+                            update_active_timer_state(engine, task_key, accumulated, False, resume_time)
+                        else:
+                            elapsed_since_start = calculate_timer_elapsed_time(start_time)
+                            new_accum = accumulated + elapsed_since_start
+                            st.session_state.timer_accumulated_time[task_key] = new_accum
+                            st.session_state.timer_paused[task_key] = True
+                            update_active_timer_state(engine, task_key, new_accum, True)
+                        st.rerun()
+                with col3:
+                    if st.button("Stop", key=f"summary_stop_{task_key}_{session_id}"):
+                        stop_active_timer(engine, task_key)
 
         st.markdown("---")
 
@@ -1297,18 +1320,7 @@ def get_all_books(engine):
 
 def get_available_stages_for_book(engine, card_name):
     """Get stages not yet associated with a book"""
-    all_stages = [
-        "Editorial R&D",
-        "Editorial Writing",
-        "1st Edit",
-        "2nd Edit",
-        "Design R&D",
-        "In Design",
-        "1st Proof",
-        "2nd Proof",
-        "Editorial Sign Off",
-        "Design Sign Off",
-    ]
+    all_stages = STAGE_ORDER
 
     try:
         with engine.connect() as conn:
@@ -1501,10 +1513,13 @@ def get_filtered_tasks_from_database(
                 date_conditions.append('first_session <= :end_date')
                 params['end_date'] = end_date
 
-            if date_conditions:
-                query += ' WHERE ' + ' AND '.join(date_conditions)
+        if date_conditions:
+            query += ' WHERE ' + ' AND '.join(date_conditions)
 
-        query += ' ORDER BY first_session DESC, card_name, list_name'
+        stage_order_sql = "CASE list_name " + " ".join(
+            f"WHEN '{stage}' THEN {i}" for i, stage in enumerate(STAGE_ORDER, start=1)
+        ) + " ELSE 999 END"
+        query += f' ORDER BY card_name, {stage_order_sql}'
 
         with _engine.connect() as conn:
             result = conn.execute(text(query), params)
@@ -3472,7 +3487,7 @@ def main():
                 )
             except Exception:
                 pass
-            _original_st_error(
+            st.session_state._original_st_error(
                 "Database error, please see the error log for more details"
             )
         except Exception as e:
@@ -3491,7 +3506,7 @@ def main():
                 )
             except Exception:
                 pass
-            _original_st_error(
+            st.session_state._original_st_error(
                 "An unexpected error occurred, please see the error log for more details"
             )
 
