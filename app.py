@@ -183,6 +183,21 @@ def require_login():
     if st.session_state.get("authenticated"):
         return st.session_state["user"]
 
+    # Check for existing credentials in query parameters
+    try:
+        user_param = st.query_params.get("user")
+    except AttributeError:  # Streamlit < 1.30
+        params = st.experimental_get_query_params()
+        user_param = params.get("user", [None])
+        user_param = user_param[0] if user_param else None
+    if user_param:
+        key = user_param.strip().split()[0].lower()
+        full_name = FIRST_NAME_TO_FULL.get(key)
+        if full_name:
+            st.session_state["authenticated"] = True
+            st.session_state["user"] = full_name
+            return full_name
+
     # Blur the app while login dialog is shown
     st.markdown(
         """
@@ -203,6 +218,10 @@ def require_login():
             if full_name and st.secrets.get("passwords", {}).get(full_name) == password:
                 st.session_state["authenticated"] = True
                 st.session_state["user"] = full_name
+                try:
+                    st.query_params["user"] = full_name
+                except AttributeError:
+                    st.experimental_set_query_params(user=full_name)
                 st.rerun()
             else:
                 st.error("Invalid username or password")
@@ -763,7 +782,9 @@ def finalize_stale_active_timers(engine):
         st.error(f"Failed to finalise active timers: {str(e)}")
 
 def load_active_timers(engine, current_user):
-    """Load active timers for the current user from database."""
+    """Load active timers for the current user.
+
+    Admin users can view all active timers without filtering by user name."""
     try:
         with engine.connect() as conn:
             params = {}
@@ -774,11 +795,9 @@ def load_active_timers(engine, current_user):
                 SELECT timer_key, card_name, user_name, list_name, board_name,
                        start_time, accumulated_seconds, is_paused
                 FROM active_timers
-                WHERE user_name = :user_name
                 ORDER BY start_time DESC
             '''
                 )
-
             else:
                 query = text(
                     '''
@@ -1203,6 +1222,13 @@ if (!paused) {{
                         stop_active_timer(engine, task_key)
 
         st.markdown("---")
+        if ss_get("authenticated") and st.button("Log Out"):
+            st.session_state.clear()
+            try:
+                st.query_params.clear()
+            except AttributeError:
+                st.experimental_set_query_params()
+            st.rerun()
 
 
 def update_task_completion(engine, card_name, user_name, list_name, completed):
