@@ -1505,6 +1505,79 @@ def import_books_from_csv(engine, df):
     return True, f"Imported {total_entries} stage entries from CSV"
 
 
+def import_worked_books_from_csv(engine, df):
+    """Import time spent on books that already have work logged."""
+    required_cols = {"Card name", "Board", "Book Estimate", "User", "Time"}
+    if not required_cols.issubset(df.columns):
+        missing = required_cols - set(df.columns)
+        return False, f"Missing columns: {', '.join(missing)}"
+
+    total_entries = 0
+
+    # Helper to parse HH:MM:SS strings into seconds
+    def parse_td(value):
+        if pd.isna(value) or str(value).strip() == "":
+            return 0
+        try:
+            return int(pd.to_timedelta(str(value)).total_seconds())
+        except Exception:
+            return 0
+
+    df["Card name"] = df["Card name"].apply(lambda x: str(x).strip() if pd.notna(x) and str(x).strip() else "Not set")
+    df["Board"] = df["Board"].apply(lambda x: str(x).strip() if pd.notna(x) and str(x).strip() else None)
+    df["User"] = df["User"].apply(normalize_user_name)
+    df["Time_seconds"] = df["Time"].apply(parse_td)
+    df["Estimate_seconds"] = df["Book Estimate"].apply(parse_td)
+
+    grouped = (
+        df.groupby(["Card name", "Board", "User", "Estimate_seconds"], dropna=False)["Time_seconds"].sum().reset_index()
+    )
+
+    current_time = datetime.now(BST)
+    with engine.connect() as conn:
+        for _, row in grouped.iterrows():
+            card_name = row["Card name"]
+            board_name = row["Board"]
+            estimate_seconds = int(row["Estimate_seconds"]) if pd.notna(row["Estimate_seconds"]) else 0
+            time_seconds = int(row["Time_seconds"])
+            user_name = row["User"] if row["User"] else "Not set"
+
+            if time_seconds == 0 and estimate_seconds == 0:
+                continue
+
+            create_book_record(engine, card_name, board_name, None)
+
+            conn.execute(
+                text(
+                    '''
+                INSERT INTO trello_time_tracking
+                (card_name, user_name, list_name, time_spent_seconds,
+                 card_estimate_seconds, board_name, created_at,
+                 session_start_time, tag)
+                VALUES (:card_name, :user_name, :list_name, :time_spent_seconds,
+                        :card_estimate_seconds, :board_name, :created_at,
+                        :session_start_time, :tag)
+                '''
+                ),
+                {
+                    'card_name': card_name,
+                    'user_name': user_name,
+                    'list_name': 'Not set',
+                    'time_spent_seconds': time_seconds,
+                    'card_estimate_seconds': estimate_seconds,
+                    'board_name': board_name,
+                    'created_at': current_time,
+                    'session_start_time': None,
+                    'tag': None,
+                },
+            )
+            total_entries += 1
+
+        conn.commit()
+
+    return True, f"Imported {total_entries} time entries from CSV"
+
+
 def get_filtered_tasks_from_database(
     _engine, user_name=None, book_name=None, board_name=None, tag_name=None, start_date=None, end_date=None
 ):
@@ -2064,6 +2137,28 @@ def main():
                 file_name="time_tracker_example.csv",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             )
+        st.markdown("---")
+
+        st.header("Upload Existing Work CSV")
+        st.markdown(
+            "Upload a CSV file with columns 'Card name', 'Board', 'Book Estimate', 'User' and 'Time'.\n"
+            "Multiple sessions for the same book will be combined and the task will be set to 'Not set'."
+        )
+        worked_csv = st.file_uploader("Choose existing work CSV", type="csv", key="worked_csv_upload")
+        if worked_csv is not None:
+            max_size = 5 * 1024 * 1024  # 5MB
+            if worked_csv.size > max_size:
+                st.error("File size exceeds 5MB limit")
+            else:
+                try:
+                    worked_df = pd.read_csv(worked_csv)
+                    success, msg = import_worked_books_from_csv(engine, worked_df)
+                    if success:
+                        st.success(msg)
+                    else:
+                        st.error(msg)
+                except Exception as e:
+                    st.error(f"Error reading CSV: {str(e)}")
         st.markdown("---")
 
         # Manual Data Entry Form
