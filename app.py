@@ -3876,13 +3876,60 @@ def main():
                 stage_csv = io.StringIO()
                 filtered_tasks.to_csv(stage_csv, index=False)
 
-                # Aggregate totals per book
+                # Aggregate totals per book with summary columns
                 book_totals = filtered_tasks.copy()
-                book_totals["Time Spent"] = pd.to_timedelta(book_totals["Time Spent"]).dt.total_seconds()
-                book_totals = book_totals.groupby("Book Title", as_index=False)["Time Spent"].sum()
-                book_totals["Time Spent"] = book_totals["Time Spent"].apply(format_seconds_to_time)
+                book_totals["Time Spent"] = pd.to_timedelta(
+                    book_totals["Time Spent"]
+                ).dt.total_seconds()
+                book_totals["Time Allocation"] = (
+                    pd.to_timedelta(book_totals["Time Allocation"], errors="coerce")
+                    .dt.total_seconds()
+                    .fillna(0)
+                )
+
+                def join_unique(values):
+                    uniques = [v for v in pd.unique(values) if pd.notna(v)]
+                    return ", ".join(sorted(uniques))
+
+                def join_users(values):
+                    return ", ".join(
+                        sorted({u for u in values if u and u.lower() != "not set"})
+                    )
+
+                books_summary = (
+                    book_totals.groupby("Book Title", as_index=False)
+                    .agg(
+                        {
+                            "User": join_users,
+                            "Board": join_unique,
+                            "Tag": join_unique,
+                            "Time Allocation": "sum",
+                            "Time Spent": "sum",
+                        }
+                    )
+                )
+
+                def completion(row):
+                    est = row["Time Allocation"]
+                    spent = row["Time Spent"]
+                    if est > 0:
+                        ratio = spent / est
+                        if ratio <= 1:
+                            return f"{int(ratio * 100)}%"
+                        else:
+                            return f"{int((ratio - 1) * 100)}% over"
+                    return "No estimate"
+
+                books_summary["Completion %"] = books_summary.apply(completion, axis=1)
+                books_summary["Time Allocation"] = books_summary["Time Allocation"].apply(
+                    lambda x: format_seconds_to_time(x) if x > 0 else "Not Set"
+                )
+                books_summary["Time Spent"] = books_summary["Time Spent"].apply(
+                    format_seconds_to_time
+                )
+                books_summary = books_summary.rename(columns={"User": "Users", "Tag": "Tags"})
                 books_csv = io.StringIO()
-                book_totals.to_csv(books_csv, index=False)
+                books_summary.to_csv(books_csv, index=False)
 
                 btn_col1, btn_col2 = st.columns(2)
                 with btn_col1:
