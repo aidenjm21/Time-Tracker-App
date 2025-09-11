@@ -2618,26 +2618,187 @@ def main():
                                 task_group.sort_values(["Card name", "stage_order"])
                                 .drop(columns=["stage_order"])
                             )
-                            cols = st.columns(3)
                             for idx, row in task_group.iterrows():
+                                book_title = row["Card name"]
+                                stage_name = row["List"]
                                 estimate = row["Card estimate(s)"]
                                 if pd.isna(estimate):
                                     estimate = 0
                                 spent = row["Time spent (s)"]
-                                progress = format_seconds_to_time(spent)
-                                if estimate > 0:
-                                    progress = (
-                                        f"{format_seconds_to_time(spent)}/"
-                                        f"{format_seconds_to_time(estimate)}"
-                                    )
-                                card_html = f"""<div style='border:1px solid #ddd;border-radius:5px;padding:10px;margin-bottom:10px;background-color:#f9f9f9;'>
-<strong>{row['Card name']}</strong><br>
-<em>{row['List']}</em><br>
-<span style='font-size:12px;'>{progress}</span>
-</div>"""
-                                with cols[idx % 3]:
-                                    st.markdown(card_html, unsafe_allow_html=True)
-                            st.markdown("---")
+                                task_key = f"{book_title}_{stage_name}_{current_user}"
+                                session_id = st.session_state.get("timer_session_counts", {}).get(task_key, 0)
+
+                                col1, col2 = st.columns([4, 3])
+
+                                with col1:
+                                    st.markdown(f"**{book_title}**\n\n_{stage_name}_")
+                                    if estimate > 0:
+                                        progress_percentage = spent / estimate
+                                        st.progress(min(progress_percentage, 1.0))
+                                        st.caption(
+                                            f"{format_seconds_to_time(spent)}/"
+                                            f"{format_seconds_to_time(estimate)}"
+                                        )
+                                    else:
+                                        st.caption(format_seconds_to_time(spent))
+
+                                with col2:
+                                    if task_key not in st.session_state.timers:
+                                        st.session_state.timers[task_key] = False
+
+                                    if st.session_state.timers[task_key]:
+                                        if task_key in st.session_state.timer_start_times:
+                                            start_time = st.session_state.timer_start_times[task_key]
+                                            base_time = st.session_state.timer_base_times.get(task_key, 0)
+                                            accumulated = st.session_state.timer_accumulated_time.get(task_key, 0)
+                                            paused = st.session_state.timer_paused.get(task_key, False)
+
+                                            current_elapsed = 0 if paused else calculate_timer_elapsed_time(start_time)
+                                            session_elapsed = accumulated + current_elapsed
+                                            display_elapsed = base_time + session_elapsed
+
+                                            status_label = "Paused" if paused else "Recording"
+                                            timer_id = f"timer_{task_key}_{session_id}"
+                                            components.html(
+                                                render_basic_js_timer(
+                                                    timer_id,
+                                                    status_label,
+                                                    display_elapsed,
+                                                    paused,
+                                                ),
+                                                height=40,
+                                            )
+
+                                            timer_row2_col1, timer_row2_col2 = st.columns([1.5, 1])
+
+                                            with timer_row2_col1:
+                                                pause_label = "Resume" if paused else "Pause"
+                                                if st.button(pause_label, key=f"pause_{task_key}_{session_id}"):
+                                                    if paused:
+                                                        resume_time = datetime.utcnow().replace(tzinfo=timezone.utc).astimezone(BST)
+                                                        st.session_state.timer_start_times[task_key] = resume_time
+                                                        st.session_state.timer_paused[task_key] = False
+                                                        update_active_timer_state(
+                                                            engine,
+                                                            task_key,
+                                                            accumulated,
+                                                            False,
+                                                            resume_time,
+                                                        )
+                                                    else:
+                                                        elapsed_since_start = calculate_timer_elapsed_time(start_time)
+                                                        new_accum = accumulated + elapsed_since_start
+                                                        st.session_state.timer_accumulated_time[task_key] = new_accum
+                                                        st.session_state.timer_paused[task_key] = True
+                                                        update_active_timer_state(
+                                                            engine,
+                                                            task_key,
+                                                            new_accum,
+                                                            True,
+                                                        )
+                                                    st.rerun()
+
+                                            with timer_row2_col2:
+                                                if st.button("Stop", key=f"stop_{task_key}_{session_id}"):
+                                                    final_time = session_elapsed
+                                                    stop_active_timer(engine, task_key)
+                                                    st.session_state.timers[task_key] = False
+                                                    timer_start_time = st.session_state.timer_start_times.get(task_key)
+
+                                                    if final_time > 0 and timer_start_time:
+                                                        task_entries = assigned_df[
+                                                            (assigned_df["Card name"] == book_title)
+                                                            & (assigned_df["List"] == stage_name)
+                                                        ]
+                                                        task_info = task_entries.iloc[0]
+                                                        board_name = task_info["Board"]
+                                                        existing_tag = task_info.get("Tag", None)
+                                                        try:
+                                                            with engine.connect() as conn:
+                                                                conn.execute(
+                                                                    text(
+                                                                        '''
+                                    INSERT INTO trello_time_tracking
+                                    (card_name, user_name, list_name, time_spent_seconds,
+                                     date_started, session_start_time, board_name, tag)
+                                    VALUES (:card_name, :user_name, :list_name, :time_spent_seconds,
+                                            :date_started, :session_start_time, :board_name, :tag)
+                                    ON CONFLICT (card_name, user_name, list_name, date_started, time_spent_seconds)
+                                    DO UPDATE SET
+                                        session_start_time = EXCLUDED.session_start_time,
+                                        board_name = EXCLUDED.board_name,
+                                        tag = EXCLUDED.tag,
+                                        created_at = CURRENT_TIMESTAMP
+                                '''
+                                                                    ),
+                                                                    {
+                                                                        "card_name": book_title,
+                                                                        "user_name": current_user,
+                                                                        "list_name": stage_name,
+                                                                        "time_spent_seconds": final_time,
+                                                                        "date_started": timer_start_time.date(),
+                                                                        "session_start_time": timer_start_time,
+                                                                        "board_name": board_name,
+                                                                        "tag": existing_tag,
+                                                                    },
+                                                                )
+                                                                conn.execute(
+                                                                    text(
+                                                                        "DELETE FROM active_timers WHERE timer_key = :timer_key"
+                                                                    ),
+                                                                    {"timer_key": task_key},
+                                                                )
+                                                                conn.commit()
+                                                        except Exception as e:
+                                                            st.error(f"Error saving timer data: {str(e)}")
+
+                                                    for state_dict in [
+                                                        st.session_state.timer_start_times,
+                                                        st.session_state.timer_accumulated_time,
+                                                        st.session_state.timer_paused,
+                                                        st.session_state.timer_base_times,
+                                                    ]:
+                                                        state_dict.pop(task_key, None)
+
+                                                    st.session_state.setdefault("timer_session_counts", {})
+                                                    st.session_state.timer_session_counts[task_key] = (
+                                                        st.session_state.timer_session_counts.get(task_key, 0) + 1
+                                                    )
+
+                                                    st.rerun()
+
+                                    else:
+                                        if st.button("Start", key=f"start_{task_key}_{session_id}"):
+                                            start_time_utc = datetime.utcnow().replace(tzinfo=timezone.utc)
+                                            start_time_bst = start_time_utc.astimezone(BST)
+                                            st.session_state.timers[task_key] = True
+                                            st.session_state.timer_start_times[task_key] = start_time_bst
+                                            st.session_state.timer_paused[task_key] = False
+                                            st.session_state.timer_accumulated_time[task_key] = 0
+                                            st.session_state.timer_base_times[task_key] = int(spent)
+
+                                            task_entries = assigned_df[
+                                                (assigned_df["Card name"] == book_title)
+                                                & (assigned_df["List"] == stage_name)
+                                            ]
+                                            task_info = task_entries.iloc[0]
+                                            board_name = task_info["Board"]
+
+                                            save_active_timer(
+                                                engine,
+                                                task_key,
+                                                book_title,
+                                                current_user,
+                                                stage_name,
+                                                board_name,
+                                                start_time_bst,
+                                                accumulated_seconds=0,
+                                                is_paused=False,
+                                            )
+
+                                            st.rerun()
+
+                                st.markdown("---")
 
                     # Pagination setup
                     books_per_page = 10
