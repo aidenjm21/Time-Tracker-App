@@ -141,10 +141,10 @@ STAGE_ORDER = [
     "Editorial Writing",
     "1st Edit",
     "2nd Edit",
-    "Editorial Amends"
+    "Editorial Amends",
     "Cover Design",
     "In Design",
-    "Design Ammends"
+    "Design Ammends",
     "Proof",
     "Editorial Sign Off",
     "Design Sign Off",
@@ -2609,10 +2609,10 @@ def main():
                                     'Editorial Writing',
                                     '1st Edit',
                                     '2nd Edit',
-                                    'Editorial Amends'
+                                    'Editorial Amends',
                                     'Cover Design',
                                     'In Design',
-                                    'Design Amends'
+                                    'Design Amends',
                                     'Proof',
                                     'Editorial Sign Off',
                                     'Design Sign Off',
@@ -2734,7 +2734,7 @@ def main():
                                                         "1st Edit",
                                                         "2nd Edit",
                                                         "Proof",
-                                                        'Editorial Amends'
+                                                        'Editorial Amends',
                                                         "Editorial Sign Off",
                                                     ]:
                                                         user_options = [
