@@ -1373,6 +1373,63 @@ def delete_task_stage(engine, card_name, user_name, list_name):
         return False
 
 
+def add_task_stage(engine, card_name, user_name, list_name, estimate_seconds):
+    """Add a new task stage to the database"""
+    try:
+        with engine.connect() as conn:
+            # Try to get board name and tag from books table first
+            info = conn.execute(
+                text(
+                    """
+                SELECT board_name, tag FROM books WHERE card_name = :card_name
+            """
+                ),
+                {"card_name": card_name},
+            ).fetchone()
+            if not info:
+                info = conn.execute(
+                    text(
+                        """
+                    SELECT board_name, tag FROM trello_time_tracking
+                    WHERE card_name = :card_name LIMIT 1
+                """
+                    ),
+                    {"card_name": card_name},
+                ).fetchone()
+
+            board_name = info.board_name if info else None
+            tag = info.tag if info else None
+
+            conn.execute(
+                text(
+                    """
+                INSERT INTO trello_time_tracking
+                (card_name, user_name, list_name, time_spent_seconds, card_estimate_seconds,
+                 board_name, created_at, session_start_time, tag)
+                VALUES (:card_name, :user_name, :list_name, 0, :estimate, :board_name,
+                        :created_at, NULL, :tag)
+            """
+                ),
+                {
+                    "card_name": card_name,
+                    "user_name": user_name,
+                    "list_name": list_name,
+                    "estimate": estimate_seconds,
+                    "board_name": board_name,
+                    "created_at": datetime.now(BST),
+                    "tag": tag,
+                },
+            )
+            conn.commit()
+            return True
+    except IntegrityError:
+        st.error("Stage already exists for this user")
+        return False
+    except Exception as e:
+        st.error(f"Error adding task stage: {str(e)}")
+        return False
+
+
 def create_book_record(engine, card_name, board_name=None, tag=None):
     """Create a book record in the books table"""
     try:
@@ -3466,6 +3523,55 @@ def main():
                                 ]
                                 if running_timers:
                                     st.write(f"{len(running_timers)} timer(s) running")
+
+                                # Add stage section
+                                st.markdown("---")
+                                stage_col, estimate_col = st.columns([2, 1])
+
+                                with stage_col:
+                                    stage_option = st.selectbox(
+                                        "The Stage:",
+                                        ["Select stage..."] + STAGE_ORDER,
+                                        key=f"add_stage_stage_{book_title}",
+                                    )
+
+                                with estimate_col:
+                                    estimate_input = st.text_input(
+                                        "Time Estimate",
+                                        key=f"add_stage_estimate_{book_title}",
+                                        placeholder="HH:MM or hours",
+                                    )
+
+                                user_col, add_btn_col = st.columns([2, 1])
+
+                                with user_col:
+                                    user_option = st.selectbox(
+                                        "User:",
+                                        ["Not set"] + [u for u in ALL_USERS_LIST if u.lower() != "admin"],
+                                        key=f"add_stage_user_{book_title}",
+                                    )
+
+                                with add_btn_col:
+                                    if st.button("Add Stage", key=f"add_stage_btn_{book_title}", type="primary"):
+                                        if stage_option != "Select stage...":
+                                            hours = parse_hours_minutes(estimate_input)
+                                            if hours > 0:
+                                                estimate_seconds = int(hours * 3600)
+                                                user_val = user_option if user_option != "Not set" else "Not set"
+                                                if add_task_stage(
+                                                    engine,
+                                                    book_title,
+                                                    user_val,
+                                                    stage_option,
+                                                    estimate_seconds,
+                                                ):
+                                                    st.success(
+                                                        f"Added {stage_option} for {user_val}"
+                                                    )
+                                            else:
+                                                st.error("Enter a valid time estimate")
+                                        else:
+                                            st.error("Please select a stage")
 
                                 # Remove stage section at the bottom left of each book
                                 if stages_grouped.groups:  # Only show if book has stages
