@@ -2799,6 +2799,7 @@ def main():
 
                                         st.markdown("---")
 
+
                     # Pagination setup
                     books_per_page = 10
                     if 'book_page' not in st.session_state:
