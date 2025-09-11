@@ -134,7 +134,13 @@ DESIGN_USERS_LIST = [
     "Ker Ker Lee",
     "Rob Delph",
 ]
+ADDITIONAL_USERS_LIST = [
+    "Ian McMullen",
+    "Dan Scase",
+    "Harriet Williamson-Brundle",
+]
 ALL_USERS_LIST = EDITORIAL_USERS_LIST + DESIGN_USERS_LIST
+KNOWN_USERS_LIST = ALL_USERS_LIST + ADDITIONAL_USERS_LIST
 
 STAGE_ORDER = [
     "Editorial R&D",
@@ -151,7 +157,7 @@ STAGE_ORDER = [
 ]
 
 # Map first names (and common short forms) to full user names
-FIRST_NAME_TO_FULL = {name.split()[0].lower(): name for name in ALL_USERS_LIST}
+FIRST_NAME_TO_FULL = {name.split()[0].lower(): name for name in KNOWN_USERS_LIST}
 FIRST_NAME_TO_FULL.update({
     "beth": "Beth Latham",
     "ker ker": "Ker Ker Lee",
@@ -2799,6 +2805,7 @@ def main():
 
                                         st.markdown("---")
 
+                    st.subheader("All Books")
 
                     # Pagination setup
                     books_per_page = 10
