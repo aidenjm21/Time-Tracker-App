@@ -2663,7 +2663,7 @@ def main():
                                                     display_elapsed = base_time + session_elapsed
 
                                                     status_label = "Paused" if paused else "Recording"
-                                                    timer_id = f"timer_{task_key}_{session_id}"
+                                                    timer_id = f"assigned_timer_{task_key}_{session_id}"
                                                     components.html(
                                                         render_basic_js_timer(
                                                             timer_id,
@@ -2678,7 +2678,7 @@ def main():
 
                                                     with timer_row2_col1:
                                                         pause_label = "Resume" if paused else "Pause"
-                                                        if st.button(pause_label, key=f"pause_{task_key}_{session_id}"):
+                                                        if st.button(pause_label, key=f"assigned_pause_{task_key}_{session_id}"):
                                                             if paused:
                                                                 resume_time = datetime.utcnow().replace(tzinfo=timezone.utc).astimezone(BST)
                                                                 st.session_state.timer_start_times[task_key] = resume_time
@@ -2704,7 +2704,7 @@ def main():
                                                             st.rerun()
 
                                                     with timer_row2_col2:
-                                                        if st.button("Stop", key=f"stop_{task_key}_{session_id}"):
+                                                        if st.button("Stop", key=f"assigned_stop_{task_key}_{session_id}"):
                                                             final_time = session_elapsed
                                                             stop_active_timer(engine, task_key)
                                                             st.session_state.timers[task_key] = False
@@ -2773,7 +2773,7 @@ def main():
                                                             st.rerun()
 
                                             else:
-                                                if st.button("Start", key=f"start_{task_key}_{session_id}"):
+                                                if st.button("Start", key=f"assigned_start_{task_key}_{session_id}"):
                                                     start_time_utc = datetime.utcnow().replace(tzinfo=timezone.utc)
                                                     start_time_bst = start_time_utc.astimezone(BST)
                                                     st.session_state.timers[task_key] = True
@@ -3350,7 +3350,7 @@ def main():
 
                                                     # Display recording status with a client-side timer
                                                     status_label = "Paused" if paused else "Recording"
-                                                    timer_id = f"timer_{task_key}_{session_id}"
+                                                    timer_id = f"all_timer_{task_key}_{session_id}"
                                                     components.html(
                                                         render_basic_js_timer(
                                                             timer_id,
@@ -3370,7 +3370,7 @@ def main():
 
                                                         if st.button(
                                                             pause_label,
-                                                            key=f"pause_{task_key}_{session_id}",
+                                                            key=f"all_pause_{task_key}_{session_id}",
                                                         ):
                                                             if paused:
                                                                 resume_time = datetime.utcnow().replace(tzinfo=timezone.utc).astimezone(BST)
@@ -3397,7 +3397,7 @@ def main():
                                                             st.rerun()
 
                                                     with timer_row2_col2:
-                                                        if st.button("Stop", key=f"stop_{task_key}_{session_id}"):
+                                                        if st.button("Stop", key=f"all_stop_{task_key}_{session_id}"):
                                                             final_time = session_elapsed
                                                             stop_active_timer(engine, task_key)
 
@@ -3520,7 +3520,7 @@ def main():
 
                                             else:
                                                 # Timer is not active - show Start button
-                                                if st.button("Start", key=f"start_{task_key}_{session_id}"):
+                                                if st.button("Start", key=f"all_start_{task_key}_{session_id}"):
                                                     # Preserve expanded state before rerun
                                                     expanded_key = f"expanded_{book_title}"
                                                     st.session_state[expanded_key] = True
@@ -3564,7 +3564,7 @@ def main():
                                             st.write("**Manual Entry:**")
 
                                             # Create a form to handle Enter key properly
-                                            with st.form(key=f"time_form_{task_key}_{session_id}"):
+                                            with st.form(key=f"all_time_form_{task_key}_{session_id}"):
                                                 manual_time = st.text_input(
                                                     "Add time (hh:mm:ss):", placeholder="01:30:00"
                                                 )
