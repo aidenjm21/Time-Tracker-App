@@ -3872,15 +3872,33 @@ def main():
                 else:
                     st.dataframe(filtered_tasks, use_container_width=True, hide_index=True)
 
-                # Download button for filtered results
-                csv_buffer = io.StringIO()
-                filtered_tasks.to_csv(csv_buffer, index=False)
-                st.download_button(
-                    label="Download Filtered Results",
-                    data=csv_buffer.getvalue(),
-                    file_name="filtered_tasks.csv",
-                    mime="text/csv",
-                )
+                # Download buttons for stage-level and book-level summaries
+                stage_csv = io.StringIO()
+                filtered_tasks.to_csv(stage_csv, index=False)
+
+                # Aggregate totals per book
+                book_totals = filtered_tasks.copy()
+                book_totals["Time Spent"] = pd.to_timedelta(book_totals["Time Spent"]).dt.total_seconds()
+                book_totals = book_totals.groupby("Book Title", as_index=False)["Time Spent"].sum()
+                book_totals["Time Spent"] = book_totals["Time Spent"].apply(format_seconds_to_time)
+                books_csv = io.StringIO()
+                book_totals.to_csv(books_csv, index=False)
+
+                btn_col1, btn_col2 = st.columns(2)
+                with btn_col1:
+                    st.download_button(
+                        label="Export Stages",
+                        data=stage_csv.getvalue(),
+                        file_name="filtered_tasks.csv",
+                        mime="text/csv",
+                    )
+                with btn_col2:
+                    st.download_button(
+                        label="Export Books",
+                        data=books_csv.getvalue(),
+                        file_name="book_totals.csv",
+                        mime="text/csv",
+                    )
 
                 # Summary statistics for filtered data
                 st.subheader("Summary")
