@@ -2601,6 +2601,43 @@ def main():
                     else:
                         # Show all books by default
                         books_to_display = sorted(book[0] for book in all_books)
+                    current_user = ss_get("user")
+                    is_admin = current_user and current_user.lower() == "admin"
+                    if current_user and not is_admin:
+                        assigned_df = df_from_db[df_from_db["User"] == current_user]
+                        if not assigned_df.empty:
+                            st.subheader("Assigned Tasks")
+                            task_group = (
+                                assigned_df.groupby(["Card name", "List"])
+                                .agg({"Time spent (s)": "sum", "Card estimate(s)": "max"})
+                                .reset_index()
+                            )
+                            stage_order_map = {stage: i for i, stage in enumerate(STAGE_ORDER)}
+                            task_group["stage_order"] = task_group["List"].map(stage_order_map)
+                            task_group = (
+                                task_group.sort_values(["Card name", "stage_order"])
+                                .drop(columns=["stage_order"])
+                            )
+                            cols = st.columns(3)
+                            for idx, row in task_group.iterrows():
+                                estimate = row["Card estimate(s)"]
+                                if pd.isna(estimate):
+                                    estimate = 0
+                                spent = row["Time spent (s)"]
+                                progress = format_seconds_to_time(spent)
+                                if estimate > 0:
+                                    progress = (
+                                        f"{format_seconds_to_time(spent)}/"
+                                        f"{format_seconds_to_time(estimate)}"
+                                    )
+                                card_html = f"""<div style='border:1px solid #ddd;border-radius:5px;padding:10px;margin-bottom:10px;background-color:#f9f9f9;'>
+<strong>{row['Card name']}</strong><br>
+<em>{row['List']}</em><br>
+<span style='font-size:12px;'>{progress}</span>
+</div>"""
+                                with cols[idx % 3]:
+                                    st.markdown(card_html, unsafe_allow_html=True)
+                            st.markdown("---")
 
                     # Pagination setup
                     books_per_page = 10
