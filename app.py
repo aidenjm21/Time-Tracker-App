@@ -26,7 +26,7 @@ st.set_page_config(page_title=DEFAULT_PAGE_TITLE, page_icon="favicon.png")
 components.html(
     """
     <style>
-      html, body { margin: 0; padding: 0; height: 10px; overflow: hidden; }
+      html, body { margin: 0; padding: 0; height: 0; overflow: hidden; }
     </style>
     <script>
     (function() {
@@ -61,15 +61,18 @@ components.html(
 
         const me = window.frameElement;
         if (me) {
-            me.style.height = '10px';
-            me.style.maxHeight = '10px';
+            me.style.height = '0';
+            me.style.maxHeight = '0';
             me.style.minHeight = '0';
             me.style.overflow = 'hidden';
+            me.style.border = '0';
+            me.style.padding = '0';
+            me.style.margin = '0';
         }
     })();
     </script>
     """,
-    height=10,
+    height=0,
 )
 
 # Timezones
