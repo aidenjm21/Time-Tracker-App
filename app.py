@@ -879,6 +879,72 @@ def load_active_timers(engine, current_user):
             return []
 
 
+def parse_timer_key(timer_key):
+    """Extract book and stage names from a timer key for display purposes."""
+    if not timer_key:
+        return timer_key, None, None
+
+    parts = str(timer_key).rsplit('_', 2)
+    if len(parts) == 3:
+        return parts[0], parts[1], parts[2]
+    if len(parts) == 2:
+        return parts[0], parts[1], None
+    return timer_key, None, None
+
+
+def describe_timer_for_message(timer_key, card_name=None, list_name=None):
+    """Create a human friendly description of a timer for warning messages."""
+    if card_name and list_name:
+        return f"{card_name} - {list_name}"
+    if card_name:
+        return card_name
+
+    book_title, stage_name, _ = parse_timer_key(timer_key)
+    if book_title and stage_name:
+        return f"{book_title} - {stage_name}"
+    if book_title:
+        return book_title
+    return card_name or list_name or "another task"
+
+
+def build_active_timer_conflict_message(user_name, timer_description):
+    """Return a consistent warning message when a timer conflict is detected."""
+    if not timer_description:
+        timer_description = "another task"
+
+    current_user = ss_get("user")
+    if current_user and user_name and current_user == user_name:
+        name_display = "You"
+    elif user_name and user_name not in ("Not set", ""):
+        name_display = user_name
+    else:
+        name_display = "This user"
+
+    return (
+        f"{name_display} already has an active timer running for {timer_description}. "
+        "Please stop the existing timer before starting a new one."
+    )
+
+
+def find_running_timer_for_user(user_name, exclude_key=None):
+    """Return the key of another running timer for the given user if one exists."""
+    if not user_name or user_name in ("Not set", ""):
+        return None
+
+    timers = st.session_state.get("timers", {})
+    paused_state = st.session_state.get("timer_paused", {})
+
+    for key, is_running in timers.items():
+        if not is_running or key == exclude_key:
+            continue
+
+        _, _, key_user = parse_timer_key(key)
+        if key_user == user_name and not paused_state.get(key, False):
+            return key
+
+    return None
+
+
 def save_active_timer(
     engine,
     timer_key,
@@ -890,13 +956,43 @@ def save_active_timer(
     accumulated_seconds=0,
     is_paused=False,
 ):
-    """Save or update an active timer in the database."""
+    """Save or update an active timer in the database.
+
+    Returns a tuple ``(success, message)`` where ``message`` is provided when a
+    timer conflict prevents starting a new session.
+    """
+
     try:
-        with engine.connect() as conn:
-            if start_time.tzinfo is None:
-                start_time_with_tz = start_time.replace(tzinfo=BST)
-            else:
-                start_time_with_tz = start_time
+        if user_name not in (None, "", "Not set"):
+            existing_timer = find_running_timer_for_user(user_name, exclude_key=timer_key)
+            if existing_timer:
+                description = describe_timer_for_message(existing_timer)
+                return False, build_active_timer_conflict_message(user_name, description)
+
+        if start_time.tzinfo is None:
+            start_time_with_tz = start_time.replace(tzinfo=BST)
+        else:
+            start_time_with_tz = start_time
+
+        with engine.begin() as conn:
+            if user_name not in (None, "", "Not set"):
+                conflict_query = (
+                    "SELECT timer_key, card_name, list_name "
+                    "FROM active_timers "
+                    "WHERE user_name = :user_name AND is_paused = FALSE"
+                )
+                conflict_params = {'user_name': user_name}
+                if timer_key:
+                    conflict_query += " AND timer_key != :timer_key"
+                    conflict_params['timer_key'] = timer_key
+                conflict_row = conn.execute(text(conflict_query), conflict_params).fetchone()
+                if conflict_row:
+                    description = describe_timer_for_message(
+                        getattr(conflict_row, 'timer_key', None),
+                        getattr(conflict_row, 'card_name', None),
+                        getattr(conflict_row, 'list_name', None),
+                    )
+                    return False, build_active_timer_conflict_message(user_name, description)
 
             conn.execute(
                 text(
@@ -923,9 +1019,10 @@ def save_active_timer(
                     'is_paused': is_paused,
                 },
             )
-            conn.commit()
+        return True, None
     except Exception as e:
         st.error(f"Error saving active timer: {str(e)}")
+        return False, None
 
 def get_total_time_spent(engine, card_name, user_name, list_name):
     """Return total seconds already tracked for a task."""
@@ -956,9 +1053,50 @@ def get_total_time_spent(engine, card_name, user_name, list_name):
 def update_active_timer_state(
     engine, timer_key, accumulated_seconds, is_paused, start_time=None
 ):
-    """Update active timer pause/resume state."""
+    """Update active timer pause/resume state.
+
+    Returns a tuple ``(success, message)`` where a message is provided if a
+    conflicting active timer prevents resuming work.
+    """
+
     try:
-        with engine.connect() as conn:
+        with engine.begin() as conn:
+            if not is_paused:
+                user_row = conn.execute(
+                    text(
+                        "SELECT user_name FROM active_timers WHERE timer_key = :timer_key"
+                    ),
+                    {'timer_key': timer_key},
+                ).fetchone()
+                user_name = user_row[0] if user_row else None
+
+                if user_name and user_name not in ("", "Not set"):
+                    existing_timer = find_running_timer_for_user(user_name, exclude_key=timer_key)
+                    if existing_timer:
+                        description = describe_timer_for_message(existing_timer)
+                        return False, build_active_timer_conflict_message(user_name, description)
+
+                    conflict_row = conn.execute(
+                        text(
+                            '''
+                        SELECT timer_key, card_name, list_name
+                        FROM active_timers
+                        WHERE user_name = :user_name
+                          AND is_paused = FALSE
+                          AND timer_key != :timer_key
+                        LIMIT 1
+                    '''
+                        ),
+                        {'user_name': user_name, 'timer_key': timer_key},
+                    ).fetchone()
+                    if conflict_row:
+                        description = describe_timer_for_message(
+                            getattr(conflict_row, 'timer_key', None),
+                            getattr(conflict_row, 'card_name', None),
+                            getattr(conflict_row, 'list_name', None),
+                        )
+                        return False, build_active_timer_conflict_message(user_name, description)
+
             params = {
                 'accumulated_seconds': accumulated_seconds,
                 'is_paused': is_paused,
@@ -994,9 +1132,10 @@ def update_active_timer_state(
                     ),
                     params,
                 )
-            conn.commit()
+        return True, None
     except Exception as e:
         st.error(f"Error updating active timer: {str(e)}")
+        return False, None
 
 
 def remove_active_timer(engine, timer_key):
@@ -1213,16 +1352,27 @@ if (!paused) {{
                         if st.button(pause_label, key=f"summary_pause_{task_key}_{session_id}"):
                             if paused:
                                 resume_time = datetime.utcnow().replace(tzinfo=timezone.utc).astimezone(BST)
-                                st.session_state.timer_start_times[task_key] = resume_time
-                                st.session_state.timer_paused[task_key] = False
-                                update_active_timer_state(engine, task_key, accumulated, False, resume_time)
+                                success, message = update_active_timer_state(
+                                    engine, task_key, accumulated, False, resume_time
+                                )
+                                if success:
+                                    st.session_state.timer_start_times[task_key] = resume_time
+                                    st.session_state.timer_paused[task_key] = False
+                                    st.rerun()
+                                elif message:
+                                    st.warning(message)
                             else:
                                 elapsed_since_start = calculate_timer_elapsed_time(start_time)
                                 new_accum = accumulated + elapsed_since_start
-                                st.session_state.timer_accumulated_time[task_key] = new_accum
-                                st.session_state.timer_paused[task_key] = True
-                                update_active_timer_state(engine, task_key, new_accum, True)
-                            st.rerun()
+                                success, message = update_active_timer_state(
+                                    engine, task_key, new_accum, True
+                                )
+                                if success:
+                                    st.session_state.timer_accumulated_time[task_key] = new_accum
+                                    st.session_state.timer_paused[task_key] = True
+                                    st.rerun()
+                                elif message:
+                                    st.warning(message)
                     with col3:
                         if st.button("Stop", key=f"summary_stop_{task_key}_{session_id}"):
                             stop_active_timer(engine, task_key)
@@ -2682,27 +2832,34 @@ def main():
                                                         if st.button(pause_label, key=f"assigned_pause_{task_key}_{session_id}"):
                                                             if paused:
                                                                 resume_time = datetime.utcnow().replace(tzinfo=timezone.utc).astimezone(BST)
-                                                                st.session_state.timer_start_times[task_key] = resume_time
-                                                                st.session_state.timer_paused[task_key] = False
-                                                                update_active_timer_state(
+                                                                success, message = update_active_timer_state(
                                                                     engine,
                                                                     task_key,
                                                                     accumulated,
                                                                     False,
                                                                     resume_time,
                                                                 )
+                                                                if success:
+                                                                    st.session_state.timer_start_times[task_key] = resume_time
+                                                                    st.session_state.timer_paused[task_key] = False
+                                                                    st.rerun()
+                                                                elif message:
+                                                                    st.warning(message)
                                                             else:
                                                                 elapsed_since_start = calculate_timer_elapsed_time(start_time)
                                                                 new_accum = accumulated + elapsed_since_start
-                                                                st.session_state.timer_accumulated_time[task_key] = new_accum
-                                                                st.session_state.timer_paused[task_key] = True
-                                                                update_active_timer_state(
+                                                                success, message = update_active_timer_state(
                                                                     engine,
                                                                     task_key,
                                                                     new_accum,
                                                                     True,
                                                                 )
-                                                            st.rerun()
+                                                                if success:
+                                                                    st.session_state.timer_accumulated_time[task_key] = new_accum
+                                                                    st.session_state.timer_paused[task_key] = True
+                                                                    st.rerun()
+                                                                elif message:
+                                                                    st.warning(message)
 
                                                     with timer_row2_col2:
                                                         if st.button("Stop", key=f"assigned_stop_{task_key}_{session_id}"):
@@ -2777,12 +2934,6 @@ def main():
                                                 if st.button("Start", key=f"assigned_start_{task_key}_{session_id}"):
                                                     start_time_utc = datetime.utcnow().replace(tzinfo=timezone.utc)
                                                     start_time_bst = start_time_utc.astimezone(BST)
-                                                    st.session_state.timers[task_key] = True
-                                                    st.session_state.timer_start_times[task_key] = start_time_bst
-                                                    st.session_state.timer_paused[task_key] = False
-                                                    st.session_state.timer_accumulated_time[task_key] = 0
-                                                    st.session_state.timer_base_times[task_key] = int(spent)
-
                                                     task_entries = assigned_df[
                                                         (assigned_df["Card name"] == book_title)
                                                         & (assigned_df["List"] == stage_name)
@@ -2790,7 +2941,7 @@ def main():
                                                     task_info = task_entries.iloc[0]
                                                     board_name = task_info["Board"]
 
-                                                    save_active_timer(
+                                                    success, message = save_active_timer(
                                                         engine,
                                                         task_key,
                                                         book_title,
@@ -2802,7 +2953,15 @@ def main():
                                                         is_paused=False,
                                                     )
 
-                                                    st.rerun()
+                                                    if success:
+                                                        st.session_state.timers[task_key] = True
+                                                        st.session_state.timer_start_times[task_key] = start_time_bst
+                                                        st.session_state.timer_paused[task_key] = False
+                                                        st.session_state.timer_accumulated_time[task_key] = 0
+                                                        st.session_state.timer_base_times[task_key] = int(spent)
+                                                        st.rerun()
+                                                    elif message:
+                                                        st.warning(message)
 
                                         st.markdown("---")
 
@@ -3375,27 +3534,34 @@ def main():
                                                         ):
                                                             if paused:
                                                                 resume_time = datetime.utcnow().replace(tzinfo=timezone.utc).astimezone(BST)
-                                                                st.session_state.timer_start_times[task_key] = resume_time
-                                                                st.session_state.timer_paused[task_key] = False
-                                                                update_active_timer_state(
+                                                                success, message = update_active_timer_state(
                                                                     engine,
                                                                     task_key,
                                                                     accumulated,
                                                                     False,
                                                                     resume_time,
                                                                 )
+                                                                if success:
+                                                                    st.session_state.timer_start_times[task_key] = resume_time
+                                                                    st.session_state.timer_paused[task_key] = False
+                                                                    st.rerun()
+                                                                elif message:
+                                                                    st.warning(message)
                                                             else:
                                                                 elapsed_since_start = calculate_timer_elapsed_time(start_time)
                                                                 new_accum = accumulated + elapsed_since_start
-                                                                st.session_state.timer_accumulated_time[task_key] = new_accum
-                                                                st.session_state.timer_paused[task_key] = True
-                                                                update_active_timer_state(
+                                                                success, message = update_active_timer_state(
                                                                     engine,
                                                                     task_key,
                                                                     new_accum,
                                                                     True,
                                                                 )
-                                                            st.rerun()
+                                                                if success:
+                                                                    st.session_state.timer_accumulated_time[task_key] = new_accum
+                                                                    st.session_state.timer_paused[task_key] = True
+                                                                    st.rerun()
+                                                                elif message:
+                                                                    st.warning(message)
 
                                                     with timer_row2_col2:
                                                         if st.button("Stop", key=f"all_stop_{task_key}_{session_id}"):
@@ -3534,12 +3700,7 @@ def main():
                                                     start_time_utc = datetime.utcnow().replace(tzinfo=timezone.utc)
                                                     # Convert to BST for display/storage but keep UTC calculation base
                                                     start_time_bst = start_time_utc.astimezone(BST)
-                                                    st.session_state.timers[task_key] = True
-                                                    st.session_state.timer_start_times[task_key] = start_time_bst
-                                                    st.session_state.timer_paused[task_key] = False
                                                     existing_seconds = int(actual_time)
-                                                    st.session_state.timer_accumulated_time[task_key] = 0
-                                                    st.session_state.timer_base_times[task_key] = existing_seconds
 
                                                     # Save to database for persistence
                                                     user_original_data = stage_data[
@@ -3547,11 +3708,15 @@ def main():
                                                     ].iloc[0]
                                                     board_name = user_original_data['Board']
 
-                                                    save_active_timer(
+                                                    assigned_user = (
+                                                        user_name if user_name not in [None, "Not set"] else "Not set"
+                                                    )
+
+                                                    success, message = save_active_timer(
                                                         engine,
                                                         task_key,
                                                         book_title,
-                                                        user_name if user_name not in [None, "Not set"] else "Not set",
+                                                        assigned_user,
                                                         stage_name,
                                                         board_name,
                                                         start_time_bst,
@@ -3559,7 +3724,15 @@ def main():
                                                         is_paused=False,
                                                     )
 
-                                                    st.rerun()
+                                                    if success:
+                                                        st.session_state.timers[task_key] = True
+                                                        st.session_state.timer_start_times[task_key] = start_time_bst
+                                                        st.session_state.timer_paused[task_key] = False
+                                                        st.session_state.timer_accumulated_time[task_key] = 0
+                                                        st.session_state.timer_base_times[task_key] = existing_seconds
+                                                        st.rerun()
+                                                    elif message:
+                                                        st.warning(message)
 
                                             # Manual time entry section
                                             st.write("**Manual Entry:**")
