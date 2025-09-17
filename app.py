@@ -135,6 +135,7 @@ DESIGN_USERS_LIST = [
     "Rob Delph",
 ]
 ADDITIONAL_USERS_LIST = [
+    "Rebecca Phillips-Bartlett"
     "Ian McMullen",
     "Dan Scase",
     "Harriet Williamson-Brundle",
