@@ -6,6 +6,7 @@ from zoneinfo import ZoneInfo
 from collections import Counter
 import hashlib
 import io
+import json
 import os
 import re
 import time
@@ -18,12 +19,14 @@ def stable_hash(*values) -> str:
     s = "||".join("" if v is None else str(v) for v in values)
     return hashlib.md5(s.encode()).hexdigest()[:8]
 
-st.set_page_config(page_title="Book Production Time Tracking", page_icon="favicon.png")
+DEFAULT_PAGE_TITLE = "Book Production Time Tracking"
+
+st.set_page_config(page_title=DEFAULT_PAGE_TITLE, page_icon="favicon.png")
 
 components.html(
     """
     <style>
-      html, body { margin: 0; padding: 0; height: 10px; overflow: hidden; }
+      html, body { margin: 0; padding: 0; height: 0; overflow: hidden; }
     </style>
     <script>
     (function() {
@@ -58,15 +61,18 @@ components.html(
 
         const me = window.frameElement;
         if (me) {
-            me.style.height = '10px';
-            me.style.maxHeight = '10px';
+            me.style.height = '0';
+            me.style.maxHeight = '0';
             me.style.minHeight = '0';
             me.style.overflow = 'hidden';
+            me.style.border = '0';
+            me.style.padding = '0';
+            me.style.margin = '0';
         }
     })();
     </script>
     """,
-    height=10,
+    height=0,
 )
 
 # Timezones
@@ -1391,6 +1397,115 @@ if (!paused) {{
             st.rerun()
 
 
+def update_browser_tab_title(default_title=DEFAULT_PAGE_TITLE):
+    """Update the browser tab title based on the current user's timer state."""
+    timers = st.session_state.get("timers", {})
+    current_user = ss_get("user")
+
+    def render_default_title():
+        components.html(
+            f"""
+<script>
+(function() {{
+    const doc = window.parent.document;
+    if (window.tabTitleInterval) {{
+        clearInterval(window.tabTitleInterval);
+        window.tabTitleInterval = null;
+    }}
+    doc.title = {json.dumps(default_title)};
+}})();
+</script>
+""",
+            height=0,
+        )
+
+    if not timers or not current_user:
+        render_default_title()
+        return
+
+    timer_paused_state = st.session_state.get("timer_paused", {})
+    timer_start_times = st.session_state.get("timer_start_times", {})
+    timer_accumulated = st.session_state.get("timer_accumulated_time", {})
+    timer_base_times = st.session_state.get("timer_base_times", {})
+
+    candidates = []
+    for timer_key, is_active in timers.items():
+        if not is_active:
+            continue
+
+        parts = str(timer_key).split("_")
+        if not parts:
+            continue
+
+        user_name = parts[-1]
+        if user_name != current_user:
+            continue
+
+        paused = timer_paused_state.get(timer_key, False)
+        start_time = timer_start_times.get(timer_key)
+        base_time = timer_base_times.get(timer_key, 0)
+        accumulated = timer_accumulated.get(timer_key, 0)
+        current_elapsed = 0 if paused else calculate_timer_elapsed_time(start_time)
+        total_seconds = int(base_time + accumulated + current_elapsed)
+        start_ts = start_time.timestamp() if start_time else 0
+
+        candidates.append(
+            {
+                "paused": paused,
+                "seconds": max(0, total_seconds),
+                "start_ts": start_ts,
+            }
+        )
+
+    if not candidates:
+        render_default_title()
+        return
+
+    running_timers = [c for c in candidates if not c["paused"]]
+    paused_timers = [c for c in candidates if c["paused"]]
+
+    if running_timers:
+        chosen = max(running_timers, key=lambda c: c["start_ts"])
+    else:
+        chosen = max(paused_timers, key=lambda c: c["start_ts"])
+
+    emoji_js = json.dumps("⏸️" if chosen["paused"] else "🔴")
+
+    components.html(
+        f"""
+<script>
+(function() {{
+    const doc = window.parent.document;
+    if (window.tabTitleInterval) {{
+        clearInterval(window.tabTitleInterval);
+        window.tabTitleInterval = null;
+    }}
+    const emoji = {emoji_js};
+    let seconds = {chosen["seconds"]};
+    const paused = {str(chosen["paused"]).lower()};
+    function fmt(sec) {{
+        const h = Math.floor(sec / 3600).toString().padStart(2, '0');
+        const m = Math.floor((sec % 3600) / 60).toString().padStart(2, '0');
+        const s = Math.floor(sec % 60).toString().padStart(2, '0');
+        return h + ':' + m + ':' + s;
+    }}
+    function update() {{
+        doc.title = emoji + ' ' + fmt(seconds);
+    }}
+    update();
+    if (!paused) {{
+        window.tabTitleInterval = setInterval(function() {{
+            seconds += 1;
+            update();
+        }}, 1000);
+    }}
+}})();
+</script>
+""",
+        height=0,
+    )
+
+
 def update_task_completion(engine, card_name, user_name, list_name, completed):
     """Update task completion status for all matching records"""
     try:
@@ -2274,7 +2389,7 @@ def main():
         st.error("Could not connect to database. Please check your configuration.")
         return
 
-    st.title("Book Production Time Tracking")
+    st.title(DEFAULT_PAGE_TITLE)
     st.markdown("Track time spent on different stages of book production with detailed stage-specific analysis.")
 
     # Database already initialized earlier
@@ -2305,6 +2420,7 @@ def main():
 
     # Show active timers in sidebar regardless of selected tab
     display_active_timers_sidebar(engine)
+    update_browser_tab_title()
 
     # Create tabs for different views as a horizontal selection
     tab_names = ["Book Progress", "Add Book", "Archive", "Reporting", "Error Log"]
