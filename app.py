@@ -1396,11 +1396,32 @@ if (!paused) {{
                 pass
             st.rerun()
 
-
 def update_browser_tab_title(default_title=DEFAULT_PAGE_TITLE):
     """Update the browser tab title based on the current user's timer state."""
     timers = st.session_state.get("timers", {})
     current_user = ss_get("user")
+
+    def _collapse_self_iframe_js():
+        # Styles the Streamlit wrapper iframe that hosts this HTML
+        return """
+        (function ensureZeroHeight(){
+            try {
+                const f = window.frameElement;
+                if (f) {
+                    f.style.height = '0px';
+                    f.style.minHeight = '0px';
+                    f.style.width = '0px';
+                    f.style.border = '0';
+                    f.style.margin = '0';
+                    f.style.padding = '0';
+                    f.style.display = 'block';
+                    f.setAttribute('scrolling','no');
+                }
+            } catch(e) {}
+            // Re-apply in case Streamlit reflows
+            setTimeout(ensureZeroHeight, 500);
+        })();
+        """
 
     def render_default_title():
         components.html(
@@ -1413,6 +1434,7 @@ def update_browser_tab_title(default_title=DEFAULT_PAGE_TITLE):
         window.tabTitleInterval = null;
     }}
     doc.title = {json.dumps(default_title)};
+    {_collapse_self_iframe_js()}
 }})();
 </script>
 """,
@@ -1499,12 +1521,13 @@ def update_browser_tab_title(default_title=DEFAULT_PAGE_TITLE):
             update();
         }}, 1000);
     }}
+
+    {_collapse_self_iframe_js()}
 }})();
 </script>
 """,
         height=0,
     )
-
 
 def update_task_completion(engine, card_name, user_name, list_name, completed):
     """Update task completion status for all matching records"""
