@@ -3940,118 +3940,73 @@ def main():
                                                     else:
                                                         st.error("Failed to remove stage")
 
-                                # Archive and Delete buttons at the bottom of each book
+                                # Archive button at the bottom of each book
                                 st.markdown("---")
-                                col1, col2 = st.columns(2)
+                                if st.button(
+                                    f"Archive '{book_title}'",
+                                    key=f"archive_{book_title}",
+                                    help="Move this book to archive",
+                                ):
+                                    try:
+                                        with engine.connect() as conn:
+                                            # Check if book has time tracking records
+                                            result = conn.execute(
+                                                text(
+                                                    '''
+                                                    SELECT COUNT(*) FROM trello_time_tracking
+                                                    WHERE card_name = :card_name
+                                                '''
+                                                ),
+                                                {'card_name': book_title},
+                                            )
+                                            record_count = result.scalar()
 
-                                with col1:
-                                    if st.button(
-                                        f"Archive '{book_title}'",
-                                        key=f"archive_{book_title}",
-                                        help="Move this book to archive",
-                                    ):
-                                        try:
-                                            with engine.connect() as conn:
-                                                # Check if book has time tracking records
-                                                result = conn.execute(
+                                            if record_count > 0:
+                                                # Archive existing time tracking records
+                                                conn.execute(
                                                     text(
                                                         '''
-                                                        SELECT COUNT(*) FROM trello_time_tracking
+                                                        UPDATE trello_time_tracking
+                                                        SET archived = TRUE
                                                         WHERE card_name = :card_name
                                                     '''
                                                     ),
                                                     {'card_name': book_title},
                                                 )
-                                                record_count = result.scalar()
-
-                                                if record_count > 0:
-                                                    # Archive existing time tracking records
-                                                    conn.execute(
-                                                        text(
-                                                            '''
-                                                            UPDATE trello_time_tracking
-                                                            SET archived = TRUE
-                                                            WHERE card_name = :card_name
-                                                        '''
-                                                        ),
-                                                        {'card_name': book_title},
-                                                    )
-                                                else:
-                                                    # Create a placeholder archived record for books without tasks
-                                                    conn.execute(
-                                                        text(
-                                                            '''
-                                                            INSERT INTO trello_time_tracking
-                                                            (card_name, user_name, list_name, time_spent_seconds,
-                                                             card_estimate_seconds, board_name, archived, created_at)
-                                                            VALUES (:card_name, 'Not set', 'No tasks assigned', 0,
-                                                                   0, 'Manual Entry', TRUE, NOW())
-                                                        '''
-                                                        ),
-                                                        {'card_name': book_title},
-                                                    )
-
-                                                # Archive the book in books table
+                                            else:
+                                                # Create a placeholder archived record for books without tasks
                                                 conn.execute(
                                                     text(
                                                         '''
-                                                        UPDATE books
-                                                        SET archived = TRUE
-                                                        WHERE card_name = :book_name
+                                                        INSERT INTO trello_time_tracking
+                                                        (card_name, user_name, list_name, time_spent_seconds,
+                                                         card_estimate_seconds, board_name, archived, created_at)
+                                                        VALUES (:card_name, 'Not set', 'No tasks assigned', 0,
+                                                               0, 'Manual Entry', TRUE, NOW())
                                                     '''
                                                     ),
-                                                    {'book_name': book_title},
+                                                    {'card_name': book_title},
                                                 )
 
-                                                conn.commit()
-
-                                            # Keep user on the current tab
-                                            st.success(f"'{book_title}' has been archived successfully!")
-                                            # Archive operation completed
-                                        except Exception as e:
-                                            st.error(f"Error archiving book: {str(e)}")
-
-                                with col2:
-                                    if st.button(
-                                        f"Delete '{book_title}'",
-                                        key=f"delete_progress_{book_title}",
-                                        help="Permanently delete this book and all its data",
-                                        type="secondary",
-                                    ):
-                                        # Add confirmation using session state
-                                        confirm_key = f"confirm_delete_progress_{book_title}"
-                                        if confirm_key not in st.session_state:
-                                            st.session_state[confirm_key] = False
-
-                                        if not st.session_state[confirm_key]:
-                                            st.session_state[confirm_key] = True
-                                            st.warning(
-                                                f"Click 'Delete {book_title}' again to permanently delete all data for this book."
+                                            # Archive the book in books table
+                                            conn.execute(
+                                                text(
+                                                    '''
+                                                    UPDATE books
+                                                    SET archived = TRUE
+                                                    WHERE card_name = :book_name
+                                                '''
+                                                ),
+                                                {'book_name': book_title},
                                             )
-                                        else:
-                                            try:
-                                                with engine.connect() as conn:
-                                                    conn.execute(
-                                                        text(
-                                                            '''
-                                                            DELETE FROM trello_time_tracking
-                                                            WHERE card_name = :card_name
-                                                        '''
-                                                        ),
-                                                        {'card_name': book_title},
-                                                    )
-                                                    conn.commit()
 
-                                                # Reset confirmation state
-                                                del st.session_state[confirm_key]
-                                                # Keep user on the Book Progress tab
-                                                st.success(f"'{book_title}' has been permanently deleted!")
-                                                # Delete operation completed
-                                            except Exception as e:
-                                                st.error(f"Error deleting book: {str(e)}")
-                                                # Reset confirmation state on error
-                                                if confirm_key in st.session_state:
-                                                    del st.session_state[confirm_key]
+                                            conn.commit()
+
+                                        # Keep user on the current tab
+                                        st.success(f"'{book_title}' has been archived successfully!")
+                                        # Archive operation completed
+                                    except Exception as e:
+                                        st.error(f"Error archiving book: {str(e)}")
 
                             stage_counter += 1
 
@@ -4496,78 +4451,31 @@ def main():
                                 st.write("**Task Breakdown:**")
                                 st.dataframe(task_breakdown, use_container_width=True, hide_index=True)
 
-                                # Unarchive and Delete buttons
                                 st.markdown("---")
-                                col1, col2 = st.columns(2)
-
-                                with col1:
-                                    if st.button(
-                                        f"Unarchive '{book_title}'",
-                                        key=f"unarchive_{book_title}",
-                                        help="Move this book back to active books",
-                                    ):
-                                        try:
-                                            with engine.connect() as conn:
-                                                conn.execute(
-                                                    text(
-                                                        '''
+                                if st.button(
+                                    f"Unarchive '{book_title}'",
+                                    key=f"unarchive_{book_title}",
+                                    help="Move this book back to active books",
+                                ):
+                                    try:
+                                        with engine.connect() as conn:
+                                            conn.execute(
+                                                text(
+                                                    '''
                                                     UPDATE trello_time_tracking
                                                     SET archived = FALSE
                                                     WHERE card_name = :card_name
                                                 '''
-                                                    ),
-                                                    {'card_name': book_title},
-                                                )
-                                                conn.commit()
-
-                                            # Keep user on the Archive tab
-                                            st.success(f"'{book_title}' has been unarchived successfully!")
-                                            st.rerun()
-                                        except Exception as e:
-                                            st.error(f"Error unarchiving book: {str(e)}")
-
-                                with col2:
-                                    if st.button(
-                                        f"Delete '{book_title}'",
-                                        key=f"delete_{book_title}",
-                                        help="Permanently delete this book and all its data",
-                                        type="secondary",
-                                    ):
-                                        # Add confirmation using session state
-                                        confirm_key = f"confirm_delete_{book_title}"
-                                        if confirm_key not in st.session_state:
-                                            st.session_state[confirm_key] = False
-
-                                        if not st.session_state[confirm_key]:
-                                            st.session_state[confirm_key] = True
-                                            st.warning(
-                                                f"Click 'Delete {book_title}' again to permanently delete all data for this book."
+                                                ),
+                                                {'card_name': book_title},
                                             )
-                                            st.rerun()
-                                        else:
-                                            try:
-                                                with engine.connect() as conn:
-                                                    conn.execute(
-                                                        text(
-                                                            '''
-                                                        DELETE FROM trello_time_tracking
-                                                        WHERE card_name = :card_name
-                                                    '''
-                                                        ),
-                                                        {'card_name': book_title},
-                                                    )
-                                                    conn.commit()
+                                            conn.commit()
 
-                                                # Reset confirmation state
-                                                del st.session_state[confirm_key]
-                                                # Keep user on the Archive tab
-                                                st.success(f"'{book_title}' has been permanently deleted!")
-                                                st.rerun()
-                                            except Exception as e:
-                                                st.error(f"Error deleting book: {str(e)}")
-                                                # Reset confirmation state on error
-                                                if confirm_key in st.session_state:
-                                                    del st.session_state[confirm_key]
+                                        # Keep user on the Archive tab
+                                        st.success(f"'{book_title}' has been unarchived successfully!")
+                                        st.rerun()
+                                    except Exception as e:
+                                        st.error(f"Error unarchiving book: {str(e)}")
                     else:
                         if archive_search_query:
                             st.warning(f"No archived books found matching '{archive_search_query}'")
