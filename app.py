@@ -3319,61 +3319,59 @@ def main():
                                                                 )
 
                                                                 if current_user == "Not set" and new_user != "Not set":
-                                                                    result = conn.execute(
-                                                                        text(
-                                                                            '''
-                                                                            SELECT card_estimate_seconds, board_name, tag
-                                                                            FROM trello_time_tracking
-                                                                            WHERE card_name = :card_name
-                                                                            AND list_name = :list_name
-                                                                            AND COALESCE(user_name, 'Not set') = 'Not set'
-                                                                            LIMIT 1
-                                                                            '''
-                                                                        ),
-                                                                        {
-                                                                            'card_name': book_title,
-                                                                            'list_name': stage_name,
-                                                                        },
-                                                                    ).fetchone()
-
-                                                                    estimate = result.card_estimate_seconds if result and result.card_estimate_seconds else 0
-                                                                    board_name = result.board_name if result else None
-                                                                    tag = result.tag if result else None
-
-                                                                    conn.execute(
+                                                                    update_result = conn.execute(
                                                                         text(
                                                                             '''
                                                                             UPDATE trello_time_tracking
-                                                                            SET card_estimate_seconds = 0
+                                                                            SET user_name = :new_user
                                                                             WHERE card_name = :card_name
                                                                             AND list_name = :list_name
                                                                             AND COALESCE(user_name, 'Not set') = 'Not set'
                                                                             '''
                                                                         ),
                                                                         {
+                                                                            'new_user': new_user_value,
                                                                             'card_name': book_title,
                                                                             'list_name': stage_name,
                                                                         },
                                                                     )
 
-                                                                    conn.execute(
-                                                                        text(
-                                                                            '''
-                                                                            INSERT INTO trello_time_tracking
-                                                                            (card_name, user_name, list_name, time_spent_seconds, card_estimate_seconds, board_name, created_at, session_start_time, tag)
-                                                                            VALUES (:card_name, :user_name, :list_name, 0, :estimate, :board_name, :created_at, NULL, :tag)
-                                                                            '''
-                                                                        ),
-                                                                        {
-                                                                            'card_name': book_title,
-                                                                            'user_name': new_user,
-                                                                            'list_name': stage_name,
-                                                                            'estimate': estimate,
-                                                                            'board_name': board_name,
-                                                                            'created_at': datetime.now(BST),
-                                                                            'tag': tag,
-                                                                        },
-                                                                    )
+                                                                    if update_result.rowcount == 0:
+                                                                        conn.execute(
+                                                                            text(
+                                                                                '''
+                                                                                INSERT INTO trello_time_tracking
+                                                                                (card_name, user_name, list_name, time_spent_seconds, card_estimate_seconds, board_name, created_at, session_start_time, tag)
+                                                                                SELECT :card_name, :user_name, :list_name, time_spent_seconds, card_estimate_seconds, board_name, created_at, session_start_time, tag
+                                                                                FROM trello_time_tracking
+                                                                                WHERE card_name = :card_name
+                                                                                AND list_name = :list_name
+                                                                                AND COALESCE(user_name, 'Not set') = 'Not set'
+                                                                                LIMIT 1
+                                                                                '''
+                                                                            ),
+                                                                            {
+                                                                                'card_name': book_title,
+                                                                                'user_name': new_user_value,
+                                                                                'list_name': stage_name,
+                                                                            },
+                                                                        )
+
+                                                                        conn.execute(
+                                                                            text(
+                                                                                '''
+                                                                                DELETE FROM trello_time_tracking
+                                                                                WHERE card_name = :card_name
+                                                                                AND list_name = :list_name
+                                                                                AND COALESCE(user_name, 'Not set') = 'Not set'
+                                                                                '''
+                                                                            ),
+                                                                            {
+                                                                                'card_name': book_title,
+                                                                                'list_name': stage_name,
+                                                                            },
+                                                                        )
+
                                                                     success_message = f"User {new_user} assigned to {stage_name}"
                                                                 else:
                                                                     conn.execute(
